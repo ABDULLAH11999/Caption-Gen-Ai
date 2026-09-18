@@ -397,6 +397,25 @@
   box-shadow: 0 0 12px #ffffff;
 }
 
+.last-word-swatch-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.last-word-swatch-btn:hover {
+  transform: scale(1.2);
+}
+
+.last-word-swatch-btn.selected {
+  border-color: var(--cyan-primary);
+  transform: scale(1.2);
+  box-shadow: 0 0 14px var(--cyan-primary);
+}
+
 .color-input-native {
   width: 36px;
   height: 36px;

@@ -656,7 +656,10 @@ export class UploadScreen {
 
     // 2. Responsive Font Size relative to actual visible video width (keeps inside screen)
     const vWidth = this.videoElement ? (this.videoElement.clientWidth || 640) : 640;
-    const scaleFactor = Math.min(1.1, Math.max(0.52, vWidth / 560));
+    const isPortrait = this.currentMode === 'portrait' || (this.videoElement && this.videoElement.videoHeight > this.videoElement.videoWidth);
+    const scaleFactor = isPortrait 
+      ? Math.min(0.88, Math.max(0.48, vWidth / 480))
+      : Math.min(1.05, Math.max(0.52, vWidth / 560));
     const responsiveFontSize = Math.round((config.fontSize || 30) * scaleFactor);
     const fontMeta = FONTS.find(f => f.id === config.fontFamily) || FONTS[0];
     overlay.style.fontFamily = fontMeta.family;
@@ -664,19 +667,26 @@ export class UploadScreen {
     overlay.style.fontWeight = '900';
 
     // 3. Black Outline (Default Black Outline)
-    const strokeWidth = config.outlineWidth || 4;
+    const strokeWidth = config.outlineWidth !== undefined ? config.outlineWidth : 1;
     overlay.style.webkitTextStroke = `${strokeWidth}px ${config.outlineColor || '#000000'}`;
     overlay.style.textShadow = `0 4px ${config.shadowBlur || 8}px ${config.shadowColor || 'rgba(0,0,0,0.9)'}`;
 
     // 4. Render progressive words (YouTube style: appear in exact time sequence as spoken)
+    const totalWords = captionState.visibleWords.length;
     overlay.innerHTML = captionState.visibleWords.map((w, idx) => {
       const isCurrentWord = w.isCurrent;
-      const wordColor = isCurrentWord && config.animation === 'anim-karaoke-glow'
-        ? (config.karaokeHighlightColor || '#00F0FF')
-        : w.color;
+      const isLastWord = (idx === totalWords - 1);
+
+      let wordColor = w.color || config.textColor || '#FFE600';
+      if (config.enableLastWordColor !== false && config.lastWordColor && isLastWord) {
+        wordColor = config.lastWordColor;
+      }
+      if (isCurrentWord && config.animation === 'anim-karaoke-glow') {
+        wordColor = config.karaokeHighlightColor || '#00F0FF';
+      }
 
       return `
-        <span class="caption-word-token ${isCurrentWord ? 'current' : ''}" style="color: ${wordColor};">
+        <span class="caption-word-token ${isCurrentWord ? 'current' : ''} ${isLastWord ? 'last-word-token' : ''}" style="color: ${wordColor};">
           ${w.word}
         </span>
       `;

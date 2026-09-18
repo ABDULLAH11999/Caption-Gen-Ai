@@ -28,18 +28,18 @@ export class VideoRenderer {
     const posMeta = CAPTION_POSITIONS.find(p => p.id === positionId) || CAPTION_POSITIONS[1];
 
     let posX = canvasWidth * 0.5;
-    let posY = canvasHeight * 0.78;
+    let posY = canvasHeight * 0.93;
     let textAlign = 'center';
 
     switch (posMeta.id) {
       case 'top':
         posX = canvasWidth * 0.5;
-        posY = canvasHeight * 0.12;
+        posY = canvasHeight * 0.05;
         textAlign = 'center';
         break;
       case 'bottom':
         posX = canvasWidth * 0.5;
-        posY = canvasHeight * 0.78;
+        posY = canvasHeight * 0.93;
         textAlign = 'center';
         break;
       case 'middle':
@@ -48,33 +48,33 @@ export class VideoRenderer {
         textAlign = 'center';
         break;
       case 'middle-left':
-        posX = canvasWidth * 0.08;
+        posX = canvasWidth * 0.05;
         posY = canvasHeight * 0.50;
         textAlign = 'left';
         break;
       case 'middle-right':
-        posX = canvasWidth * 0.92;
+        posX = canvasWidth * 0.95;
         posY = canvasHeight * 0.50;
         textAlign = 'right';
         break;
       case 'top-left':
-        posX = canvasWidth * 0.08;
-        posY = canvasHeight * 0.12;
+        posX = canvasWidth * 0.05;
+        posY = canvasHeight * 0.05;
         textAlign = 'left';
         break;
       case 'top-right':
-        posX = canvasWidth * 0.92;
-        posY = canvasHeight * 0.12;
+        posX = canvasWidth * 0.95;
+        posY = canvasHeight * 0.05;
         textAlign = 'right';
         break;
       case 'bottom-left':
-        posX = canvasWidth * 0.08;
-        posY = canvasHeight * 0.78;
+        posX = canvasWidth * 0.05;
+        posY = canvasHeight * 0.93;
         textAlign = 'left';
         break;
       case 'bottom-right':
-        posX = canvasWidth * 0.92;
-        posY = canvasHeight * 0.78;
+        posX = canvasWidth * 0.95;
+        posY = canvasHeight * 0.93;
         textAlign = 'right';
         break;
     }
@@ -138,13 +138,13 @@ export class VideoRenderer {
 
       let currentX = lineStartX;
 
-      line.words.forEach(w => {
+      line.words.forEach((w, wIdx) => {
         ctx.save();
         ctx.textAlign = 'left';
 
         // Outline / Stroke (default black outline)
-        const outlineWidth = (config.outlineWidth || 4) * (baseScale / 720);
-        ctx.lineWidth = Math.max(2, outlineWidth);
+        const outlineWidth = (config.outlineWidth !== undefined ? config.outlineWidth : 1) * (baseScale / 720);
+        ctx.lineWidth = Math.max(1.5, outlineWidth);
         ctx.strokeStyle = config.outlineColor || '#000000';
         ctx.lineJoin = 'round';
         ctx.miterLimit = 2;
@@ -155,8 +155,15 @@ export class VideoRenderer {
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 2;
 
-        // Determine fill color (Karaoke highlight or time interval color)
-        let fillColor = w.color || config.textColor || '#FFFFFF';
+        // Determine fill color (Base font color, last word color, or karaoke glow)
+        const isLastWordInLine = (wIdx === line.words.length - 1);
+        const isLastWordInSentence = (lineIdx === lines.length - 1 && wIdx === line.words.length - 1);
+        let fillColor = w.color || config.textColor || '#FFE600';
+
+        if (config.enableLastWordColor !== false && config.lastWordColor && (isLastWordInLine || isLastWordInSentence)) {
+          fillColor = config.lastWordColor;
+        }
+
         if (w.isCurrent && config.animation === 'anim-karaoke-glow') {
           fillColor = config.karaokeHighlightColor || '#00F0FF';
           ctx.shadowColor = config.karaokeHighlightColor || '#00F0FF';

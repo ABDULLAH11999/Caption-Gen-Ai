@@ -205,6 +205,26 @@ export class ToolStudioModal {
                 <div class="interval-list-container" id="interval-list-container"></div>
               </div>
 
+              <!-- Last Word Accent Color Section -->
+              <div style="margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <span style="font-size: 0.82rem; font-weight: 700; color: var(--cyan-primary);">Last Word of Line Color:</span>
+                  <label style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; cursor: pointer; color: var(--text-main);">
+                    <input type="checkbox" id="enable-last-word-toggle" style="accent-color: var(--cyan-primary); cursor: pointer;">
+                    <span>Highlight Last Word</span>
+                  </label>
+                </div>
+                <div class="color-swatches-row" id="last-word-palette-row">
+                  <button class="last-word-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;"></button>
+                  <button class="last-word-swatch-btn" data-color="#FF007A" style="background: #FF007A;"></button>
+                  <button class="last-word-swatch-btn" data-color="#FFE600" style="background: #FFE600;"></button>
+                  <button class="last-word-swatch-btn" data-color="#10B981" style="background: #10B981;"></button>
+                  <button class="last-word-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;"></button>
+                  <button class="last-word-swatch-btn" data-color="#FFFFFF" style="background: #FFFFFF;"></button>
+                  <input type="color" id="custom-last-word-input" class="color-input-native" value="#00F0FF" title="Choose Custom Last Word Color">
+                </div>
+              </div>
+
             </div>
 
             <!-- 5. Caption Animation (15+ Styles) -->
@@ -290,8 +310,24 @@ export class ToolStudioModal {
     // 4. Set Outline Width Slider
     const outlineSlider = this.container.querySelector('#outline-width-slider');
     const outlineVal = this.container.querySelector('#outline-width-val');
-    if (outlineSlider) outlineSlider.value = config.outlineWidth || 4;
-    if (outlineVal) outlineVal.textContent = `${config.outlineWidth || 4}px`;
+    const outWidth = config.outlineWidth !== undefined ? config.outlineWidth : 1;
+    if (outlineSlider) outlineSlider.value = outWidth;
+    if (outlineVal) outlineVal.textContent = `${outWidth}px`;
+
+    // 4B. Populate Last Word Accent Color
+    const lwToggle = this.container.querySelector('#enable-last-word-toggle');
+    if (lwToggle) lwToggle.checked = config.enableLastWordColor !== false;
+
+    const lwInput = this.container.querySelector('#custom-last-word-input');
+    if (lwInput) lwInput.value = config.lastWordColor || '#00F0FF';
+
+    this.container.querySelectorAll('.last-word-swatch-btn').forEach(b => {
+      if (b.getAttribute('data-color') === config.lastWordColor) {
+        b.classList.add('selected');
+      } else {
+        b.classList.remove('selected');
+      }
+    });
 
     // 5. Populate Interval Colors
     this.renderIntervalsList();
@@ -411,7 +447,7 @@ export class ToolStudioModal {
         this.setActiveConfig({ position: posId });
       }
 
-      // Color swatches
+      // Color swatches (Base Font)
       const swatch = e.target.closest('.color-swatch-btn');
       if (swatch) {
         soundFx.playKeyBeep(650);
@@ -419,6 +455,16 @@ export class ToolStudioModal {
         this.container.querySelectorAll('.color-swatch-btn').forEach(b => b.classList.remove('selected'));
         swatch.classList.add('selected');
         this.setActiveConfig({ textColor: color });
+      }
+
+      // Last Word Accent Color Swatches
+      const lwSwatch = e.target.closest('.last-word-swatch-btn');
+      if (lwSwatch) {
+        soundFx.playKeyBeep(670);
+        const color = lwSwatch.getAttribute('data-color');
+        this.container.querySelectorAll('.last-word-swatch-btn').forEach(b => b.classList.remove('selected'));
+        lwSwatch.classList.add('selected');
+        this.setActiveConfig({ lastWordColor: color });
       }
 
       // Animation selection
@@ -435,9 +481,19 @@ export class ToolStudioModal {
       }
     });
 
-    // Native Color Picker
+    // Native Color Picker (Base Font)
     this.container.querySelector('#custom-color-input')?.addEventListener('input', (e) => {
       this.setActiveConfig({ textColor: e.target.value });
+    });
+
+    // Custom Last Word Color Picker
+    this.container.querySelector('#custom-last-word-input')?.addEventListener('input', (e) => {
+      this.setActiveConfig({ lastWordColor: e.target.value });
+    });
+
+    // Enable/Disable Last Word Color Toggle
+    this.container.querySelector('#enable-last-word-toggle')?.addEventListener('change', (e) => {
+      this.setActiveConfig({ enableLastWordColor: e.target.checked });
     });
 
     // Caption Size Slider
@@ -522,8 +578,27 @@ export class ToolStudioModal {
     previewText.style.webkitTextStroke = `${outWidth}px ${config.outlineColor || '#000000'}`;
     previewText.style.textShadow = `0 4px ${config.shadowBlur || 8}px ${config.shadowColor || 'rgba(0,0,0,0.8)'}`;
 
+    // Render phrase with highlighted last word
+    this.renderPreviewPhrase(this.previewPhrases[this.phraseIdx]);
+
     // Trigger Live Animation
     this.triggerPreviewAnimation(config.animation);
+  }
+
+  renderPreviewPhrase(phrase) {
+    const previewText = this.container?.querySelector('#preview-caption-text');
+    if (!previewText) return;
+    const config = this.getActiveConfig();
+    const words = phrase.split(' ');
+    const lastWord = words.pop();
+    const leadingText = words.join(' ');
+    const lastWordColor = (config.enableLastWordColor !== false && config.lastWordColor)
+      ? config.lastWordColor
+      : (config.textColor || '#FFE600');
+
+    previewText.innerHTML = `
+      <span style="color: ${config.textColor || '#FFE600'};">${leadingText} </span><span style="color: ${lastWordColor}; font-weight: 900;">${lastWord}</span>
+    `;
   }
 
   triggerPreviewAnimation(animOverride = null) {
@@ -553,7 +628,7 @@ export class ToolStudioModal {
       if (!previewText) return;
 
       this.phraseIdx = (this.phraseIdx + 1) % this.previewPhrases.length;
-      previewText.textContent = this.previewPhrases[this.phraseIdx];
+      this.renderPreviewPhrase(this.previewPhrases[this.phraseIdx]);
       this.triggerPreviewAnimation();
     }, 2400);
   }

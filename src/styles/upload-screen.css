@@ -293,25 +293,31 @@
   pointer-events: none;
   z-index: 20;
   user-select: none;
-  max-width: 86%;
+  max-width: 92%;
   box-sizing: border-box;
-  line-height: 1.25;
+  line-height: 1.28;
   white-space: normal;
-  word-break: break-word;
-  overflow-wrap: break-word;
+  word-break: keep-all;
+  overflow-wrap: normal;
   transition: all 0.15s ease;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  padding: 4px 8px;
+  padding: 4px 10px;
 }
 
 .caption-word-token {
   display: inline-block;
-  margin: 2px 4px;
-  word-break: break-word;
+  margin: 3px 5px;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
   transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
+}
+
+.caption-word-token.last-word-token {
+  font-weight: 900;
 }
 
 .caption-word-token.current {
