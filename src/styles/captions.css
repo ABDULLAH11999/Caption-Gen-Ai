@@ -1,0 +1,208 @@
+/* ==========================================================================
+   15+ CAPTION ANIMATION STYLES & POSITIONING UTILITIES
+   ========================================================================== */
+
+/* 1. Slide Left to Right */
+.anim-slide-left-right {
+  animation: animSlideLeftRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes animSlideLeftRight {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 2. Slide Right to Left */
+.anim-slide-right-left {
+  animation: animSlideRightLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes animSlideRightLeft {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 3. Slide Top to Bottom */
+.anim-slide-top-bottom {
+  animation: animSlideTopBottom 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes animSlideTopBottom {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 4. Slide Bottom to Top */
+.anim-slide-bottom-top {
+  animation: animSlideBottomTop 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes animSlideBottomTop {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 5. Blink / Strobe */
+.anim-blink {
+  animation: animBlinkFlash 0.35s ease 2 alternate;
+}
+@keyframes animBlinkFlash {
+  0% { opacity: 0; filter: brightness(2); }
+  50% { opacity: 1; filter: brightness(1.4); }
+  100% { opacity: 1; filter: brightness(1); }
+}
+
+/* 6. Typewriter Reveal */
+.anim-typewriter {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  animation: typewriterStep 0.4s steps(20, end);
+}
+@keyframes typewriterStep {
+  from { width: 0; opacity: 0.5; }
+  to { width: 100%; opacity: 1; }
+}
+
+/* 7. Pop / Scale Bounce (Viral TikTok / Reels) */
+.anim-pop {
+  animation: animPopBounce 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes animPopBounce {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  70% {
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 8. Karaoke Glow (YouTube / Highlighted Words) */
+.anim-karaoke-glow .caption-word-token.current {
+  animation: karaokePulse 0.4s infinite alternate;
+}
+@keyframes karaokePulse {
+  0% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+  100% {
+    transform: scale(1.22);
+    filter: drop-shadow(0 0 20px currentColor);
+  }
+}
+
+/* 9. Wave / Wobble */
+.anim-wave {
+  animation: animWaveWobble 0.5s ease-in-out both;
+}
+@keyframes animWaveWobble {
+  0% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* 10. Smooth Fade */
+.anim-fade {
+  animation: animSmoothFade 0.4s ease-out both;
+}
+@keyframes animSmoothFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 11. Blur Unveil */
+.anim-blur {
+  animation: animBlurUnveil 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes animBlurUnveil {
+  from {
+    opacity: 0;
+    filter: blur(12px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+  }
+}
+
+/* 12. Neon Pulse */
+.anim-neon-pulse {
+  animation: animNeonPulse 1.2s infinite alternate ease-in-out;
+}
+@keyframes animNeonPulse {
+  0% {
+    filter: drop-shadow(0 0 6px var(--cyan-primary));
+  }
+  100% {
+    filter: drop-shadow(0 0 24px var(--cyan-primary)) drop-shadow(0 0 35px var(--purple-accent));
+  }
+}
+
+/* 13. Glitch Cyber */
+.anim-glitch {
+  animation: animGlitchTwitch 0.5s steps(2, start) infinite;
+}
+@keyframes animGlitchTwitch {
+  0% { transform: translate(0, 0); text-shadow: -2px 0 var(--cyan-primary), 2px 0 var(--pink-accent); }
+  25% { transform: translate(-2px, 1px); }
+  50% { transform: translate(2px, -1px); text-shadow: 2px 0 var(--cyan-primary), -2px 0 var(--pink-accent); }
+  75% { transform: translate(-1px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* 14. 3D Flip In */
+.anim-flip3d {
+  animation: animFlip3D 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: center bottom;
+}
+@keyframes animFlip3D {
+  from {
+    opacity: 0;
+    transform: perspective(600px) rotateX(90deg);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(600px) rotateX(0deg);
+  }
+}
+
+/* 15. Zoom Impact */
+.anim-zoom-impact {
+  animation: animZoomImpact 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+@keyframes animZoomImpact {
+  0% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
