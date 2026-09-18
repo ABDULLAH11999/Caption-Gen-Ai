@@ -1,4 +1,4 @@
-// Production Node.js Server for Zen AI Caption Studio (Render Web Service fallback)
+// Production Node.js Server for Zen AI Caption Studio (Render Web Service)
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -33,30 +33,53 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-  // CORS & Security headers for WASM / SharedArrayBuffer support
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
 
   let safePath = path.normalize(decodeURIComponent(req.url.split('?')[0])).replace(/^(\.\.[\/\\])+/, '');
-  if (safePath === '/' || safePath === '') safePath = '/index.html';
+  if (safePath === '/' || safePath === '' || safePath === '\\') {
+    safePath = '/index.html';
+  }
 
-  let filePath = path.join(DIST_DIR, safePath);
+  const filePath = path.join(DIST_DIR, safePath);
+  const ext = path.extname(safePath).toLowerCase();
 
   fs.stat(filePath, (err, stats) => {
     if (!err && stats.isFile()) {
-      const ext = path.extname(filePath).toLowerCase();
       const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+      
+      // Cache-Control headers
+      if (ext === '.html' || safePath.includes('sw.js')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      } else if (safePath.includes('/assets/')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+
       res.writeHead(200, { 'Content-Type': contentType });
       fs.createReadStream(filePath).pipe(res);
     } else {
-      // Single Page Application (SPA) fallback to index.html
+      // SPA fallback ONLY for HTML navigation requests, NOT for missing JS/CSS/image files
+      const isStaticAsset = Boolean(ext && ext !== '.html');
+      if (isStaticAsset) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end(`404 Not Found: ${safePath}`);
+        return;
+      }
+
+      // Serve index.html for SPA routes
       const indexPath = path.join(DIST_DIR, 'index.html');
       fs.readFile(indexPath, (readErr, content) => {
         if (readErr) {
           res.writeHead(500, { 'Content-Type': 'text/plain' });
           res.end('Please run "npm run build" first to generate the dist directory.');
         } else {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
           res.end(content);
         }
