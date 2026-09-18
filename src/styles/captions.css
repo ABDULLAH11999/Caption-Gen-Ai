@@ -206,3 +206,46 @@
     transform: scale(1);
   }
 }
+
+/* ==========================================================================
+   AUTO AI DYNAMIC VIRAL CAPTIONS (MIDDLE-LEFT SAFE ZONE)
+   ========================================================================== */
+.auto-caption-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  max-width: 86%;
+  pointer-events: none;
+  user-select: none;
+}
+
+.auto-caption-prefix {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1.15;
+  margin-bottom: 2px;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.85));
+}
+
+.auto-caption-hero {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  line-height: 1.02;
+  word-break: break-word;
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.95));
+}
+
+.auto-caption-word {
+  display: inline-block;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.auto-caption-word.current {
+  transform: scale(1.05);
+}
+

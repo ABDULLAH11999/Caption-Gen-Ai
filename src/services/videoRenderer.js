@@ -1,6 +1,7 @@
 // Lossless Native-Resolution Video Caption Burn-In & Export Engine
 import { CAPTION_POSITIONS } from '../config.js';
 import { fixVideoMetadata } from './videoDurationFixer.js';
+import { autoTypographyEngine } from './autoTypographyEngine.js';
 
 export class VideoRenderer {
   constructor() {
@@ -24,7 +25,91 @@ export class VideoRenderer {
       return;
     }
 
-    // 3. Compute caption position coordinates (from 7 position presets)
+    const isAuto = config.styleMode !== 'custom';
+    if (isAuto) {
+      // Analyze sentence for dynamic Auto AI typography
+      const analysis = autoTypographyEngine.analyzeSentence({
+        text: captionState.fullText,
+        words: captionState.words,
+        startTime: captionState.startTime,
+        endTime: captionState.endTime
+      });
+      const { theme } = analysis;
+
+      // Position: Strictly Middle Left Safe Zone
+      const posX = canvasWidth * 0.07;
+      const posY = canvasHeight * 0.50;
+
+      const baseScale = Math.min(canvasWidth, canvasHeight);
+      const baseFontSize = Math.max(22, Math.round((baseScale / 720) * 36));
+
+      const prefixFontSize = Math.round(baseFontSize * (theme.prefixFontSizeMultiplier || 0.65));
+      const heroFontSize = Math.round(baseFontSize * (theme.heroFontSizeMultiplier || 2.2));
+
+      let prefixHeight = 0;
+      if (analysis.prefixText) {
+        prefixHeight = prefixFontSize * 1.25;
+      }
+      const heroHeight = heroFontSize * 1.1;
+      const totalBlockHeight = prefixHeight + heroHeight;
+      const startY = posY - totalBlockHeight * 0.5;
+
+      // Draw Prefix if present (e.g. "this is", "for")
+      if (analysis.prefixText) {
+        ctx.save();
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        const pFontWeight = theme.prefixFontWeight || '600';
+        const pItalic = theme.prefixItalic ? 'italic' : 'normal';
+        const pFamily = theme.prefixFontFamily.includes('Playfair') ? "'Playfair Display', Georgia, serif" : "'Inter', -apple-system, sans-serif";
+        ctx.font = `${pItalic} ${pFontWeight} ${prefixFontSize}px ${pFamily}`;
+
+        ctx.shadowColor = 'rgba(0,0,0,0.85)';
+        ctx.shadowBlur = Math.round(8 * (baseScale / 720));
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 2;
+
+        ctx.fillStyle = theme.prefixColor || '#FFFFFF';
+        ctx.fillText(analysis.prefixText, posX, startY);
+        ctx.restore();
+      }
+
+      // Draw Hero Text (e.g. "Emily", "September")
+      ctx.save();
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      const hFontWeight = theme.heroFontWeight || '900';
+      const hItalic = theme.heroItalic ? 'italic' : 'normal';
+      const hFamily = theme.heroFontFamily.includes('Playfair') ? "'Playfair Display', Georgia, serif" : "'Inter', -apple-system, sans-serif";
+      ctx.font = `${hItalic} ${hFontWeight} ${heroFontSize}px ${hFamily}`;
+
+      if (theme.heroColor === '#FF4DA6') {
+        ctx.shadowColor = 'rgba(255, 77, 166, 0.75)';
+        ctx.shadowBlur = Math.round(25 * (baseScale / 720));
+      } else if (theme.heroColor === '#00F0FF') {
+        ctx.shadowColor = 'rgba(0, 240, 255, 0.75)';
+        ctx.shadowBlur = Math.round(25 * (baseScale / 720));
+      } else {
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        ctx.shadowBlur = Math.round(20 * (baseScale / 720));
+      }
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = Math.round(4 * (baseScale / 720));
+
+      const heroY = startY + prefixHeight;
+
+      ctx.lineWidth = Math.max(1, Math.round(1.5 * (baseScale / 720)));
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.strokeText(analysis.heroText, posX, heroY);
+
+      ctx.fillStyle = theme.heroColor;
+      ctx.fillText(analysis.heroText, posX, heroY);
+      ctx.restore();
+
+      return;
+    }
+
+    // 3. Custom Mode: Compute caption position coordinates (from 9 position presets)
     const positionId = config.position || 'bottom';
     const posMeta = CAPTION_POSITIONS.find(p => p.id === positionId) || CAPTION_POSITIONS[1];
 

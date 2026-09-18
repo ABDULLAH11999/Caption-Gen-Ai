@@ -1,13 +1,14 @@
 // Application Configuration & Limits
 export const APP_CONFIG = {
-  SITE_PASSCODE: import.meta.env.VITE_SITE_PASSCODE || '7940',
-  MAX_FILE_SIZE_MB: Number(import.meta.env.VITE_MAX_FILE_SIZE_MB) || 100,
-  MAX_DURATION_SEC: Number(import.meta.env.VITE_MAX_DURATION_SEC) || 300, // 5 minutes
-  APP_TITLE: import.meta.env.VITE_APP_TITLE || 'ZEN CAPTION AI STUDIO'
+  SITE_PASSCODE: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SITE_PASSCODE) || '7940',
+  MAX_FILE_SIZE_MB: Number(typeof import.meta !== 'undefined' && import.meta.env?.VITE_MAX_FILE_SIZE_MB) || 100,
+  MAX_DURATION_SEC: Number(typeof import.meta !== 'undefined' && import.meta.env?.VITE_MAX_DURATION_SEC) || 300, // 5 minutes
+  APP_TITLE: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_APP_TITLE) || 'ZEN CAPTION AI STUDIO'
 };
 
 // Available Fonts (Local system & web-safe creative fonts)
 export const FONTS = [
+  { id: 'PlayfairDisplay', name: 'Playfair Display (Luxury Editorial)', family: "'Playfair Display', Georgia, serif" },
   { id: 'Inter', name: 'Inter (Modern Sans)', family: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" },
   { id: 'Montserrat', name: 'Montserrat (Bold Clean)', family: "'Montserrat', sans-serif" },
   { id: 'Roboto', name: 'Roboto (Universal)', family: "'Roboto', sans-serif" },
@@ -54,22 +55,23 @@ export const CAPTION_ANIMATIONS = [
 
 // Default configuration for Landscape (16:9)
 export const DEFAULT_LANDSCAPE_CONFIG = {
-  fontFamily: 'Inter',
+  styleMode: 'auto', // 'auto' | 'custom' (default: Auto AI Mode)
+  fontFamily: 'PlayfairDisplay',
   fontSize: 30, // 1 - 100 scale
-  position: 'bottom', // default 9-positions matrix within screen bounds
-  textColor: '#FFE600', // User preset default: Vivid Yellow
-  outlineColor: '#000000', // Default black outline
-  outlineWidth: 1, // User preset default: 1px outline
+  position: 'middle-left', // Auto mode uses middle-left
+  textColor: '#FFFFFF',
+  outlineColor: '#000000',
+  outlineWidth: 1,
   shadowColor: 'rgba(0,0,0,0.85)',
   shadowBlur: 8,
-  animation: 'anim-blur', // User preset default: Blur Unveil
-  uppercase: true,
+  animation: 'anim-fade',
+  uppercase: false,
   karaokeHighlightColor: '#00F0FF',
   enableLastWordColor: true,
-  lastWordColor: '#00F0FF', // Distinct accent color for the last word of line
+  lastWordColor: '#FF4DA6', // Viral Neon Pink
   timeIntervalColors: [
-    { start: 0, end: 15, color: '#FFE600', label: '00:00 - 00:15' },
-    { start: 15, end: 35, color: '#FFFFFF', label: '00:15 - 00:35' },
+    { start: 0, end: 15, color: '#FFFFFF', label: '00:00 - 00:15' },
+    { start: 15, end: 35, color: '#FF4DA6', label: '00:15 - 00:35' },
     { start: 35, end: 300, color: '#00F0FF', label: '00:35 - 05:00' }
   ],
   maxWordsPerLine: 6,
@@ -78,24 +80,25 @@ export const DEFAULT_LANDSCAPE_CONFIG = {
 
 // Default configuration for Portrait (9:16 Shorts/Reels)
 export const DEFAULT_PORTRAIT_CONFIG = {
-  fontFamily: 'Impact',
-  fontSize: 32, // Adjusted for clean vertical screen balance
-  position: 'bottom', // Bottom position
-  textColor: '#FFE600', // User preset default: Vivid Yellow
-  outlineColor: '#000000', // Default black outline
-  outlineWidth: 1, // User preset default: 1px outline
+  styleMode: 'auto', // 'auto' | 'custom' (default: Auto AI Mode)
+  fontFamily: 'PlayfairDisplay',
+  fontSize: 34,
+  position: 'middle-left', // Auto mode uses middle-left
+  textColor: '#FFFFFF',
+  outlineColor: '#000000',
+  outlineWidth: 1,
   shadowColor: 'rgba(0,0,0,0.95)',
   shadowBlur: 10,
-  animation: 'anim-blur', // User preset default: Blur Unveil
-  uppercase: true,
-  karaokeHighlightColor: '#FF0055',
+  animation: 'anim-fade',
+  uppercase: false,
+  karaokeHighlightColor: '#FF4DA6',
   enableLastWordColor: true,
-  lastWordColor: '#00F0FF', // Distinct accent color for the last word of line
+  lastWordColor: '#FF4DA6', // Viral Neon Pink
   timeIntervalColors: [
-    { start: 0, end: 10, color: '#FFE600', label: '00:00 - 00:10' },
-    { start: 10, end: 30, color: '#FF3366', label: '00:10 - 00:30' },
-    { start: 30, end: 300, color: '#00FF99', label: '00:30 - 05:00' }
+    { start: 0, end: 10, color: '#FFFFFF', label: '00:00 - 00:10' },
+    { start: 10, end: 25, color: '#FF4DA6', label: '00:10 - 00:25' },
+    { start: 25, end: 300, color: '#00F0FF', label: '00:25 - 05:00' }
   ],
-  maxWordsPerLine: 4,
+  maxWordsPerLine: 5,
   progressiveDisplay: true
 };

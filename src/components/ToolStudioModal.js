@@ -8,6 +8,7 @@ import {
 } from '../config.js';
 import { soundFx } from '../services/soundFx.js';
 import { storage } from '../services/storageService.js';
+import { autoTypographyEngine } from '../services/autoTypographyEngine.js';
 
 export class ToolStudioModal {
   constructor(options = {}) {
@@ -19,25 +20,33 @@ export class ToolStudioModal {
     this.introAnimElement = null;
     this.isOpen = false;
     this.animLoopTimer = null;
-    this.previewPhrases = ['NEVER STOP CREATING', 'ZEN AI CAPTION', 'STREAMING LIVE', 'VOICE TO SCREEN'];
+    this.previewPhrases = [
+      'this is Emily',
+      'for September',
+      'welcome to California',
+      'creating Viral Reels'
+    ];
     this.phraseIdx = 0;
   }
 
   async initConfigs() {
-    const v2Migrated = await storage.getSetting('config_defaults_v2');
-    if (!v2Migrated) {
-      // Set new system defaults: Yellow #FFE600, 1px black outline, Blur Unveil
+    const v3Migrated = await storage.getSetting('config_defaults_v3');
+    if (!v3Migrated) {
+      // Set new system defaults: Auto AI Mode, Playfair Display, Middle-Left safe zone
       this.landscapeConfig = { ...DEFAULT_LANDSCAPE_CONFIG };
       this.portraitConfig = { ...DEFAULT_PORTRAIT_CONFIG };
       await storage.saveSetting('config_landscape', this.landscapeConfig);
       await storage.saveSetting('config_portrait', this.portraitConfig);
-      await storage.saveSetting('config_defaults_v2', true);
+      await storage.saveSetting('config_defaults_v3', true);
     } else {
       const savedLandscape = await storage.getSetting('config_landscape');
       const savedPortrait = await storage.getSetting('config_portrait');
       if (savedLandscape) this.landscapeConfig = { ...this.landscapeConfig, ...savedLandscape };
       if (savedPortrait) this.portraitConfig = { ...this.portraitConfig, ...savedPortrait };
     }
+
+    if (!this.landscapeConfig.styleMode) this.landscapeConfig.styleMode = 'auto';
+    if (!this.portraitConfig.styleMode) this.portraitConfig.styleMode = 'auto';
   }
 
   getActiveConfig() {
@@ -76,6 +85,9 @@ export class ToolStudioModal {
     this.container.className = 'tool-modal-backdrop';
     this.container.id = 'tool-modal-backdrop';
 
+    const curConfig = this.getActiveConfig();
+    const isAuto = curConfig.styleMode !== 'custom';
+
     this.container.innerHTML = `
       <div class="tool-studio-modal" id="tool-studio-modal">
         <!-- Header -->
@@ -89,7 +101,7 @@ export class ToolStudioModal {
             </div>
             <div>
               <h2>CAPTION STYLE ENGINE</h2>
-              <p>PRECISION TYPOGRAPHY, TIMED COLOR INTERVALS & 15+ ANIMATIONS</p>
+              <p>VIRAL REELS AUTO TYPOGRAPHY & GRANULAR STUDIO CONTROLS</p>
             </div>
           </div>
 
@@ -114,129 +126,212 @@ export class ToolStudioModal {
         <div class="tool-modal-body">
           <!-- Left Column: Controls -->
           <div class="tool-config-column">
-            
-            <!-- 1. Font Family -->
-            <div class="config-section-card">
-              <div class="config-section-title">
-                <span>1. Caption Font</span>
-                <span class="badge badge-cyan" id="selected-font-name">Inter</span>
-              </div>
-              <div class="font-picker-grid" id="font-picker-grid"></div>
-            </div>
 
-            <!-- 2. Caption Size (1 - 100, default 30) -->
-            <div class="config-section-card">
-              <div class="config-section-title">
-                <span>2. Caption Size (Scale 1 - 100)</span>
-                <span class="slider-value-tag" id="caption-size-value">30</span>
-              </div>
-              <div class="slider-control-group">
-                <div class="slider-label-row">
-                  <span>Small (1)</span>
-                  <span>Default (30)</span>
-                  <span>Huge (100)</span>
+            <!-- Style Engine Mode Switcher Card -->
+            <div class="config-mode-card">
+              <div class="config-mode-header">
+                <div>
+                  <span class="config-mode-title">ENGINE MODE</span>
+                  <p class="config-mode-desc">Auto AI analyzes each sentence dynamically; Custom lets you control every pixel.</p>
                 </div>
-                <input type="range" min="1" max="100" value="30" class="custom-range-slider" id="caption-size-slider">
+                <span class="badge ${isAuto ? 'badge-cyan' : 'badge-purple'}" id="badge-active-mode">${isAuto ? 'AUTO AI' : 'CUSTOM'}</span>
+              </div>
+              <div class="style-mode-switcher-pills">
+                <button type="button" class="style-mode-btn ${isAuto ? 'active' : ''}" id="btn-mode-auto" data-mode="auto">
+                  <span class="mode-icon">⚡</span>
+                  <div class="mode-text-wrap">
+                    <strong class="mode-text-title">Auto AI Mode</strong>
+                    <span class="mode-text-sub">Viral Reels & TikTok typography (Middle-Left)</span>
+                  </div>
+                </button>
+                <button type="button" class="style-mode-btn ${!isAuto ? 'active' : ''}" id="btn-mode-custom" data-mode="custom">
+                  <span class="mode-icon">⚙️</span>
+                  <div class="mode-text-wrap">
+                    <strong class="mode-text-title">Custom Studio</strong>
+                    <span class="mode-text-sub">Manual font, colors, position & animations</span>
+                  </div>
+                </button>
               </div>
             </div>
 
-            <!-- 3. Caption Position (9 Options) -->
-            <div class="config-section-card">
-              <div class="config-section-title">
-                <span>3. Caption Position (9 Locations)</span>
-                <span class="badge badge-purple" id="selected-pos-name">Bottom</span>
-              </div>
-              <div class="position-grid-7" id="position-grid-7">
-                <!-- Row 1: Top Left, Top, Top Right -->
-                <button class="pos-btn" data-pos="top-left">Top Left</button>
-                <button class="pos-btn" data-pos="top">Top</button>
-                <button class="pos-btn" data-pos="top-right">Top Right</button>
-
-                <!-- Row 2: Middle Left, Middle, Middle Right -->
-                <button class="pos-btn" data-pos="middle-left">Mid Left</button>
-                <button class="pos-btn" data-pos="middle">Middle</button>
-                <button class="pos-btn" data-pos="middle-right">Mid Right</button>
-
-                <!-- Row 3: Bottom Left, Bottom, Bottom Right -->
-                <button class="pos-btn" data-pos="bottom-left">Bottom Left</button>
-                <button class="pos-btn" data-pos="bottom">Bottom</button>
-                <button class="pos-btn" data-pos="bottom-right">Bottom Right</button>
-              </div>
-            </div>
-
-            <!-- 4. Text & Outline Colors + Time Intervals -->
-            <div class="config-section-card">
-              <div class="config-section-title">
-                <span>4. Colors & Time-Interval Coloring</span>
+            <!-- Auto AI Mode Info Showcase Card (Visible in Auto Mode) -->
+            <div class="auto-mode-info-card" id="auto-mode-info-card" style="display: ${isAuto ? 'flex' : 'none'};">
+              <div class="auto-info-header">
+                <div class="auto-ai-chip">
+                  <span class="pulse-dot">●</span> AUTO SMART TYPOGRAPHY ACTIVE
+                </div>
+                <div class="auto-pos-badge">📍 Locked to Middle-Left Safe Zone</div>
               </div>
               
-              <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Base Font Color Palette:</div>
-              <div class="color-swatches-row" id="color-palette-row">
-                <button class="color-swatch-btn" data-color="#FFFFFF" style="background: #FFFFFF;"></button>
-                <button class="color-swatch-btn" data-color="#FFE600" style="background: #FFE600;"></button>
-                <button class="color-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;"></button>
-                <button class="color-swatch-btn" data-color="#FF007A" style="background: #FF007A;"></button>
-                <button class="color-swatch-btn" data-color="#10B981" style="background: #10B981;"></button>
-                <button class="color-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;"></button>
-                <input type="color" id="custom-color-input" class="color-input-native" value="#FFFFFF" title="Choose Custom Color">
-              </div>
-
-              <!-- Black Outline Setting (Default Black Outline per prompt) -->
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; margin-bottom: 8px;">
-                <span style="font-size: 0.82rem; font-weight: 600;">Default Outline Color:</span>
-                <span class="badge badge-cyan" id="outline-color-badge">Black (#000000)</span>
-              </div>
-              <div class="slider-control-group">
-                <div class="slider-label-row">
-                  <span>Outline Stroke Width</span>
-                  <span id="outline-width-val">4px</span>
+              <div class="auto-feature-grid">
+                <div class="auto-feature-item">
+                  <div class="feature-icon">✨</div>
+                  <div class="feature-content">
+                    <strong>Dynamic Hierarchy</strong>
+                    <p>Subtle connector words ("this is", "for") paired with massive punchy display keywords for maximum viral retention.</p>
+                  </div>
                 </div>
-                <input type="range" min="0" max="14" value="4" class="custom-range-slider" id="outline-width-slider">
-              </div>
-
-              <!-- Time-Interval Coloring Section -->
-              <div style="margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                  <span style="font-size: 0.82rem; font-weight: 700; color: var(--yellow-accent);">Time Interval Colors:</span>
-                  <button id="btn-add-interval" style="font-size: 0.76rem; padding: 4px 10px; background: rgba(255,230,0,0.15); color: var(--yellow-accent); border: 1px solid var(--yellow-accent); border-radius: var(--radius-full);">
-                    + Add Interval
-                  </button>
-                </div>
-                <div class="interval-list-container" id="interval-list-container"></div>
-              </div>
-
-              <!-- Last Word Accent Color Section -->
-              <div style="margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                  <span style="font-size: 0.82rem; font-weight: 700; color: var(--cyan-primary);">Last Word of Line Color:</span>
-                  <label style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; cursor: pointer; color: var(--text-main);">
-                    <input type="checkbox" id="enable-last-word-toggle" style="accent-color: var(--cyan-primary); cursor: pointer;">
-                    <span>Highlight Last Word</span>
-                  </label>
-                </div>
-                <div class="color-swatches-row" id="last-word-palette-row">
-                  <button class="last-word-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;"></button>
-                  <button class="last-word-swatch-btn" data-color="#FF007A" style="background: #FF007A;"></button>
-                  <button class="last-word-swatch-btn" data-color="#FFE600" style="background: #FFE600;"></button>
-                  <button class="last-word-swatch-btn" data-color="#10B981" style="background: #10B981;"></button>
-                  <button class="last-word-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;"></button>
-                  <button class="last-word-swatch-btn" data-color="#FFFFFF" style="background: #FFFFFF;"></button>
-                  <input type="color" id="custom-last-word-input" class="color-input-native" value="#00F0FF" title="Choose Custom Last Word Color">
+                <div class="auto-feature-item">
+                  <div class="feature-icon">🔍</div>
+                  <div class="feature-content">
+                    <strong>Deep Entity Recognition</strong>
+                    <p>Names (e.g. Emily), Months/Dates (e.g. September), Places (e.g. California) and Key Items get auto-accented.</p>
+                  </div>
                 </div>
               </div>
 
+              <div class="auto-examples-preview">
+                <div class="auto-example-label">LIVE REEL EXAMPLES:</div>
+                <div class="auto-example-chips">
+                  <div class="example-chip chip-emily">
+                    <span class="chip-p">this is</span>
+                    <span class="chip-h">Emily</span>
+                    <span class="chip-tag">Luxury Serif</span>
+                  </div>
+                  <div class="example-chip chip-september">
+                    <span class="chip-p">for</span>
+                    <span class="chip-h">September</span>
+                    <span class="chip-tag">Neon Pink</span>
+                  </div>
+                  <div class="example-chip chip-california">
+                    <span class="chip-p">welcome to</span>
+                    <span class="chip-h">California</span>
+                    <span class="chip-tag">Cyan Glow</span>
+                  </div>
+                </div>
+              </div>
+              <div class="auto-switch-hint">
+                💡 Need manual fonts or 9-point positions? Click <strong>Custom Studio</strong> above to unlock manual sliders and pickers.
+              </div>
             </div>
+            
+            <!-- Custom Sections Wrapper (Hidden in Auto Mode) -->
+            <div id="custom-sections-wrapper" class="custom-sections-wrapper" style="display: ${!isAuto ? 'flex' : 'none'}; flex-direction: column; gap: 22px;">
 
-            <!-- 5. Caption Animation (15+ Styles) -->
-            <div class="config-section-card">
-              <div class="config-section-title">
-                <span>5. Caption Animation (15 Styles)</span>
-                <span class="badge badge-purple" id="selected-anim-name">Blur Unveil</span>
+              <!-- 1. Font Family -->
+              <div class="config-section-card">
+                <div class="config-section-title">
+                  <span>1. Caption Font</span>
+                  <span class="badge badge-cyan" id="selected-font-name">Playfair Display</span>
+                </div>
+                <div class="font-picker-grid" id="font-picker-grid"></div>
               </div>
-              <p style="font-size: 0.78rem; color: var(--text-muted); margin: -4px 0 14px 0; line-height: 1.4;">
-                Hover or click any animation style to watch it play live in the preview screen right beside.
-              </p>
-              <div class="animation-cards-grid" id="animation-cards-grid"></div>
+
+              <!-- 2. Caption Size (1 - 100, default 30) -->
+              <div class="config-section-card">
+                <div class="config-section-title">
+                  <span>2. Caption Size (Scale 1 - 100)</span>
+                  <span class="slider-value-tag" id="caption-size-value">30</span>
+                </div>
+                <div class="slider-control-group">
+                  <div class="slider-label-row">
+                    <span>Small (1)</span>
+                    <span>Default (30)</span>
+                    <span>Huge (100)</span>
+                  </div>
+                  <input type="range" min="1" max="100" value="30" class="custom-range-slider" id="caption-size-slider">
+                </div>
+              </div>
+
+              <!-- 3. Caption Position (9 Options) -->
+              <div class="config-section-card">
+                <div class="config-section-title">
+                  <span>3. Caption Position (9 Locations)</span>
+                  <span class="badge badge-purple" id="selected-pos-name">Middle Left</span>
+                </div>
+                <div class="position-grid-7" id="position-grid-7">
+                  <!-- Row 1: Top Left, Top, Top Right -->
+                  <button class="pos-btn" data-pos="top-left">Top Left</button>
+                  <button class="pos-btn" data-pos="top">Top</button>
+                  <button class="pos-btn" data-pos="top-right">Top Right</button>
+
+                  <!-- Row 2: Middle Left, Middle, Middle Right -->
+                  <button class="pos-btn" data-pos="middle-left">Mid Left</button>
+                  <button class="pos-btn" data-pos="middle">Middle</button>
+                  <button class="pos-btn" data-pos="middle-right">Mid Right</button>
+
+                  <!-- Row 3: Bottom Left, Bottom, Bottom Right -->
+                  <button class="pos-btn" data-pos="bottom-left">Bottom Left</button>
+                  <button class="pos-btn" data-pos="bottom">Bottom</button>
+                  <button class="pos-btn" data-pos="bottom-right">Bottom Right</button>
+                </div>
+              </div>
+
+              <!-- 4. Text & Outline Colors + Time Intervals -->
+              <div class="config-section-card">
+                <div class="config-section-title">
+                  <span>4. Colors & Time-Interval Coloring</span>
+                </div>
+                
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Base Font Color Palette:</div>
+                <div class="color-swatches-row" id="color-palette-row">
+                  <button class="color-swatch-btn" data-color="#FFFFFF" style="background: #FFFFFF;"></button>
+                  <button class="color-swatch-btn" data-color="#FFE600" style="background: #FFE600;"></button>
+                  <button class="color-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;"></button>
+                  <button class="color-swatch-btn" data-color="#FF4DA6" style="background: #FF4DA6;"></button>
+                  <button class="color-swatch-btn" data-color="#10B981" style="background: #10B981;"></button>
+                  <button class="color-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;"></button>
+                  <input type="color" id="custom-color-input" class="color-input-native" value="#FFFFFF" title="Choose Custom Color">
+                </div>
+
+                <!-- Black Outline Setting -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; margin-bottom: 8px;">
+                  <span style="font-size: 0.82rem; font-weight: 600;">Default Outline Color:</span>
+                  <span class="badge badge-cyan" id="outline-color-badge">Black (#000000)</span>
+                </div>
+                <div class="slider-control-group">
+                  <div class="slider-label-row">
+                    <span>Outline Stroke Width</span>
+                    <span id="outline-width-val">1px</span>
+                  </div>
+                  <input type="range" min="0" max="14" value="1" class="custom-range-slider" id="outline-width-slider">
+                </div>
+
+                <!-- Time-Interval Coloring Section -->
+                <div style="margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.82rem; font-weight: 700; color: var(--yellow-accent);">Time Interval Colors:</span>
+                    <button id="btn-add-interval" style="font-size: 0.76rem; padding: 4px 10px; background: rgba(255,230,0,0.15); color: var(--yellow-accent); border: 1px solid var(--yellow-accent); border-radius: var(--radius-full);">
+                      + Add Interval
+                    </button>
+                  </div>
+                  <div class="interval-list-container" id="interval-list-container"></div>
+                </div>
+
+                <!-- Last Word Accent Color Section -->
+                <div style="margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 0.82rem; font-weight: 700; color: var(--cyan-primary);">Last Word of Line Color:</span>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; cursor: pointer; color: var(--text-main);">
+                      <input type="checkbox" id="enable-last-word-toggle" style="accent-color: var(--cyan-primary); cursor: pointer;">
+                      <span>Highlight Last Word</span>
+                    </label>
+                  </div>
+                  <div class="color-swatches-row" id="last-word-palette-row">
+                    <button class="last-word-swatch-btn" data-color="#FF4DA6" style="background: #FF4DA6;"></button>
+                    <button class="last-word-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;"></button>
+                    <button class="last-word-swatch-btn" data-color="#FFE600" style="background: #FFE600;"></button>
+                    <button class="last-word-swatch-btn" data-color="#10B981" style="background: #10B981;"></button>
+                    <button class="last-word-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;"></button>
+                    <button class="last-word-swatch-btn" data-color="#FFFFFF" style="background: #FFFFFF;"></button>
+                    <input type="color" id="custom-last-word-input" class="color-input-native" value="#FF4DA6" title="Choose Custom Last Word Color">
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- 5. Caption Animation (15+ Styles) -->
+              <div class="config-section-card">
+                <div class="config-section-title">
+                  <span>5. Caption Animation (15 Styles)</span>
+                  <span class="badge badge-purple" id="selected-anim-name">Smooth Fade</span>
+                </div>
+                <p style="font-size: 0.78rem; color: var(--text-muted); margin: -4px 0 14px 0; line-height: 1.4;">
+                  Hover or click any animation style to watch it play live in the preview screen right beside.
+                </p>
+                <div class="animation-cards-grid" id="animation-cards-grid"></div>
+              </div>
+
             </div>
 
           </div>
@@ -250,7 +345,7 @@ export class ToolStudioModal {
 
             <div class="preview-screen-box preview-${this.currentMode}" id="preview-screen-box">
               <div class="preview-caption-text" id="preview-caption-text">
-                NEVER STOP CREATING
+                this is Emily
               </div>
             </div>
 
@@ -279,6 +374,36 @@ export class ToolStudioModal {
 
   populateControls() {
     const config = this.getActiveConfig();
+    const isAuto = config.styleMode !== 'custom';
+
+    // 0. Update Engine Mode Buttons & Sections visibility
+    const autoBtn = this.container.querySelector('#btn-mode-auto');
+    const customBtn = this.container.querySelector('#btn-mode-custom');
+    const badgeMode = this.container.querySelector('#badge-active-mode');
+    const autoInfoCard = this.container.querySelector('#auto-mode-info-card');
+    const customWrapper = this.container.querySelector('#custom-sections-wrapper');
+
+    if (autoBtn && customBtn) {
+      if (isAuto) {
+        autoBtn.classList.add('active');
+        customBtn.classList.remove('active');
+        if (badgeMode) {
+          badgeMode.textContent = 'AUTO AI';
+          badgeMode.className = 'badge badge-cyan';
+        }
+        if (autoInfoCard) autoInfoCard.style.display = 'flex';
+        if (customWrapper) customWrapper.style.display = 'none';
+      } else {
+        customBtn.classList.add('active');
+        autoBtn.classList.remove('active');
+        if (badgeMode) {
+          badgeMode.textContent = 'CUSTOM';
+          badgeMode.className = 'badge badge-purple';
+        }
+        if (autoInfoCard) autoInfoCard.style.display = 'none';
+        if (customWrapper) customWrapper.style.display = 'flex';
+      }
+    }
 
     // 1. Populate Fonts
     const fontGrid = this.container.querySelector('#font-picker-grid');
@@ -288,6 +413,11 @@ export class ToolStudioModal {
           ${f.name.split(' ')[0]}
         </button>
       `).join('');
+    }
+    const fontBadge = this.container.querySelector('#selected-font-name');
+    if (fontBadge) {
+      const activeF = FONTS.find(f => f.id === config.fontFamily) || FONTS[0];
+      fontBadge.textContent = activeF.name.split(' ')[0];
     }
 
     // 2. Set Size Slider
@@ -305,7 +435,7 @@ export class ToolStudioModal {
       }
     });
     const posName = this.container.querySelector('#selected-pos-name');
-    if (posName) posName.textContent = config.position?.toUpperCase() || 'BOTTOM';
+    if (posName) posName.textContent = config.position?.toUpperCase() || 'MIDDLE LEFT';
 
     // 4. Set Outline Width Slider
     const outlineSlider = this.container.querySelector('#outline-width-slider');
@@ -319,7 +449,7 @@ export class ToolStudioModal {
     if (lwToggle) lwToggle.checked = config.enableLastWordColor !== false;
 
     const lwInput = this.container.querySelector('#custom-last-word-input');
-    if (lwInput) lwInput.value = config.lastWordColor || '#00F0FF';
+    if (lwInput) lwInput.value = config.lastWordColor || '#FF4DA6';
 
     this.container.querySelectorAll('.last-word-swatch-btn').forEach(b => {
       if (b.getAttribute('data-color') === config.lastWordColor) {
@@ -419,6 +549,16 @@ export class ToolStudioModal {
 
         this.populateControls();
         this.onConfigChanged(this.getActiveConfig(), this.currentMode);
+      });
+    });
+
+    // Engine Mode Toggle (Auto AI vs Custom)
+    this.container.querySelectorAll('.style-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        soundFx.playKeyBeep(650);
+        const mode = btn.getAttribute('data-mode');
+        this.setActiveConfig({ styleMode: mode });
+        this.populateControls();
       });
     });
 
@@ -524,7 +664,7 @@ export class ToolStudioModal {
       config.timeIntervalColors.push({
         start: nextStart,
         end: nextEnd,
-        color: '#FFE600',
+        color: '#FF4DA6',
         label: `${nextStart}s - ${nextEnd}s`
       });
 
@@ -560,25 +700,38 @@ export class ToolStudioModal {
     const profileBadge = this.container.querySelector('#preview-profile-badge');
     if (profileBadge) profileBadge.textContent = this.currentMode === 'landscape' ? '16:9 Landscape' : '9:16 Portrait';
 
-    // Apply Position
-    const pos = CAPTION_POSITIONS.find(p => p.id === config.position) || CAPTION_POSITIONS[1];
-    previewText.style.top = pos.y;
-    previewText.style.left = pos.x;
-    previewText.style.transform = pos.transform;
-    previewText.style.textAlign = pos.align;
+    const isAuto = config.styleMode !== 'custom';
 
-    // Apply Font & Size
-    const fontMeta = FONTS.find(f => f.id === config.fontFamily) || FONTS[0];
-    previewText.style.fontFamily = fontMeta.family;
-    previewText.style.fontSize = `${Math.max(14, config.fontSize * 0.9)}px`;
-    previewText.style.color = config.textColor || '#FFE600';
+    if (isAuto) {
+      // Auto Mode: Middle-Left Position
+      previewText.style.top = '50%';
+      previewText.style.left = '7%';
+      previewText.style.transform = 'translate(0, -50%)';
+      previewText.style.textAlign = 'left';
+      previewText.style.webkitTextStroke = 'none';
+      previewText.style.textShadow = 'none';
+      previewText.style.fontFamily = 'inherit';
+    } else {
+      // Custom Mode: Custom Position
+      const pos = CAPTION_POSITIONS.find(p => p.id === config.position) || CAPTION_POSITIONS[1];
+      previewText.style.top = pos.y;
+      previewText.style.left = pos.x;
+      previewText.style.transform = pos.transform;
+      previewText.style.textAlign = pos.align;
 
-    // Outline
-    const outWidth = config.outlineWidth !== undefined ? config.outlineWidth : 1;
-    previewText.style.webkitTextStroke = `${outWidth}px ${config.outlineColor || '#000000'}`;
-    previewText.style.textShadow = `0 4px ${config.shadowBlur || 8}px ${config.shadowColor || 'rgba(0,0,0,0.8)'}`;
+      // Font & Size
+      const fontMeta = FONTS.find(f => f.id === config.fontFamily) || FONTS[0];
+      previewText.style.fontFamily = fontMeta.family;
+      previewText.style.fontSize = `${Math.max(14, config.fontSize * 0.9)}px`;
+      previewText.style.color = config.textColor || '#FFE600';
 
-    // Render phrase with highlighted last word
+      // Outline
+      const outWidth = config.outlineWidth !== undefined ? config.outlineWidth : 1;
+      previewText.style.webkitTextStroke = `${outWidth}px ${config.outlineColor || '#000000'}`;
+      previewText.style.textShadow = `0 4px ${config.shadowBlur || 8}px ${config.shadowColor || 'rgba(0,0,0,0.8)'}`;
+    }
+
+    // Render phrase with highlighted styling
     this.renderPreviewPhrase(this.previewPhrases[this.phraseIdx]);
 
     // Trigger Live Animation
@@ -589,6 +742,48 @@ export class ToolStudioModal {
     const previewText = this.container?.querySelector('#preview-caption-text');
     if (!previewText) return;
     const config = this.getActiveConfig();
+    const isAuto = config.styleMode !== 'custom';
+
+    if (isAuto) {
+      // Auto AI Dynamic Typography
+      const analysis = autoTypographyEngine.analyzeSentence({ text: phrase });
+      const { theme } = analysis;
+
+      previewText.innerHTML = `
+        <div class="preview-auto-flow">
+          ${analysis.prefixText ? `
+            <div class="preview-auto-prefix" style="
+              font-family: ${theme.prefixFontFamily};
+              font-size: 15px;
+              font-style: ${theme.prefixItalic ? 'italic' : 'normal'};
+              font-weight: ${theme.prefixFontWeight};
+              color: ${theme.prefixColor};
+              text-shadow: 0 3px 10px rgba(0,0,0,0.9);
+              letter-spacing: 0.5px;
+              line-height: 1.2;
+              margin-bottom: 2px;
+            ">
+              ${analysis.prefixText}
+            </div>
+          ` : ''}
+          <div class="preview-auto-hero" style="
+            font-family: ${theme.heroFontFamily};
+            font-size: 34px;
+            font-style: ${theme.heroItalic ? 'italic' : 'normal'};
+            font-weight: ${theme.heroFontWeight};
+            color: ${theme.heroColor};
+            text-shadow: ${theme.heroShadow};
+            letter-spacing: ${theme.heroLetterSpacing || 'normal'};
+            line-height: 1.05;
+          ">
+            ${analysis.heroText}
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    // Custom mode manual rendering
     const words = phrase.split(' ');
     const lastWord = words.pop();
     const leadingText = words.join(' ');

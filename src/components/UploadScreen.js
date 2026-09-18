@@ -8,6 +8,7 @@ import { videoRenderer } from '../services/videoRenderer.js';
 import { speechTranscriber } from '../services/speechTranscriber.js';
 import { translationService } from '../services/translationService.js';
 import { generateDemoVideoBlob } from '../utils/sampleVideoGenerator.js';
+import { autoTypographyEngine } from '../services/autoTypographyEngine.js';
 
 export class UploadScreen {
   constructor(options = {}) {
@@ -677,6 +678,91 @@ export class UploadScreen {
     }
 
     overlay.style.display = 'flex';
+    const isAuto = config.styleMode !== 'custom';
+
+    // Sizing factor based on video width
+    const vWidth = this.videoElement ? (this.videoElement.clientWidth || 640) : 640;
+    const isPortrait = this.currentMode === 'portrait' || (this.videoElement && this.videoElement.videoHeight > this.videoElement.videoWidth);
+
+    if (isAuto) {
+      // 1. Auto AI Mode: Strict Middle-Left alignment
+      overlay.style.top = '50%';
+      overlay.style.left = '7%';
+      overlay.style.transform = 'translate(0, -50%)';
+      overlay.style.textAlign = 'left';
+      overlay.style.justifyContent = 'flex-start';
+      overlay.style.alignItems = 'flex-start';
+      overlay.style.flexDirection = 'column';
+      overlay.style.webkitTextStroke = 'none';
+      overlay.style.textShadow = 'none';
+      overlay.style.fontFamily = 'inherit';
+
+      const scaleFactor = isPortrait 
+        ? Math.min(1.0, Math.max(0.55, vWidth / 420))
+        : Math.min(1.15, Math.max(0.6, vWidth / 560));
+      const baseFontSize = Math.round(24 * scaleFactor);
+
+      // Analyze sentence with smart entity detection (Emily, September, California, etc.)
+      const analysis = autoTypographyEngine.analyzeSentence({
+        text: captionState.fullText,
+        words: captionState.words,
+        startTime: captionState.startTime,
+        endTime: captionState.endTime
+      });
+
+      const { theme } = analysis;
+
+      // Prefix words HTML
+      const prefixWords = analysis.prefixWords || [];
+      const prefixHtml = prefixWords.map(w => {
+        const isCurrent = time >= w.start && time <= w.end;
+        return `<span class="auto-caption-word ${isCurrent ? 'current' : ''}">${w.word}</span>`;
+      }).join(' ');
+
+      // Hero words HTML
+      const heroWords = analysis.heroWords || [];
+      const heroHtml = heroWords.map(w => {
+        const isCurrent = time >= w.start && time <= w.end;
+        return `<span class="auto-caption-word ${isCurrent ? 'current' : ''}">${w.word}</span>`;
+      }).join(' ');
+
+      const prefixFontSize = Math.round(baseFontSize * (theme.prefixFontSizeMultiplier || 0.65));
+      const heroFontSize = Math.round(baseFontSize * (theme.heroFontSizeMultiplier || 2.2));
+
+      overlay.innerHTML = `
+        <div class="auto-caption-flow">
+          ${analysis.prefixText ? `
+            <div class="auto-caption-prefix" style="
+              font-family: ${theme.prefixFontFamily};
+              font-size: ${prefixFontSize}px;
+              font-style: ${theme.prefixItalic ? 'italic' : 'normal'};
+              font-weight: ${theme.prefixFontWeight};
+              color: ${theme.prefixColor};
+              letter-spacing: 0.5px;
+            ">
+              ${prefixHtml || analysis.prefixText}
+            </div>
+          ` : ''}
+          <div class="auto-caption-hero" style="
+            font-family: ${theme.heroFontFamily};
+            font-size: ${heroFontSize}px;
+            font-style: ${theme.heroItalic ? 'italic' : 'normal'};
+            font-weight: ${theme.heroFontWeight};
+            color: ${theme.heroColor};
+            text-shadow: ${theme.heroShadow};
+            letter-spacing: ${theme.heroLetterSpacing || 'normal'};
+          ">
+            ${heroHtml || analysis.heroText}
+          </div>
+        </div>
+      `;
+      overlay.className = 'caption-live-overlay anim-fade';
+      return;
+    }
+
+    // 2. Custom Studio Mode: Full manual controls
+    overlay.style.flexDirection = 'row';
+    overlay.style.alignItems = 'center';
 
     // 1. Apply 9 Positions (including Middle Left & Middle Right)
     const pos = CAPTION_POSITIONS.find(p => p.id === config.position) || CAPTION_POSITIONS[1];
@@ -686,9 +772,7 @@ export class UploadScreen {
     overlay.style.textAlign = pos.align;
     overlay.style.justifyContent = pos.align === 'left' ? 'flex-start' : pos.align === 'right' ? 'flex-end' : 'center';
 
-    // 2. Responsive Font Size relative to actual visible video width (keeps inside screen)
-    const vWidth = this.videoElement ? (this.videoElement.clientWidth || 640) : 640;
-    const isPortrait = this.currentMode === 'portrait' || (this.videoElement && this.videoElement.videoHeight > this.videoElement.videoWidth);
+    // 2. Responsive Font Size relative to actual visible video width
     const scaleFactor = isPortrait 
       ? Math.min(0.88, Math.max(0.48, vWidth / 480))
       : Math.min(1.05, Math.max(0.52, vWidth / 560));
@@ -698,12 +782,12 @@ export class UploadScreen {
     overlay.style.fontSize = `${Math.max(13, Math.min(42, responsiveFontSize))}px`;
     overlay.style.fontWeight = '900';
 
-    // 3. Black Outline (Default Black Outline)
+    // 3. Black Outline
     const strokeWidth = config.outlineWidth !== undefined ? config.outlineWidth : 1;
     overlay.style.webkitTextStroke = `${strokeWidth}px ${config.outlineColor || '#000000'}`;
     overlay.style.textShadow = `0 4px ${config.shadowBlur || 8}px ${config.shadowColor || 'rgba(0,0,0,0.9)'}`;
 
-    // 4. Render progressive words (YouTube style: appear in exact time sequence as spoken)
+    // 4. Render progressive words
     const totalWords = captionState.visibleWords.length;
     overlay.innerHTML = captionState.visibleWords.map((w, idx) => {
       const isCurrentWord = w.isCurrent;
