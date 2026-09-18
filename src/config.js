@@ -22,15 +22,15 @@ export const FONTS = [
 
 // 9 Caption Positions on the video (Complete 3x3 Matrix)
 export const CAPTION_POSITIONS = [
-  { id: 'top', label: 'Top', x: '50%', y: '5%', align: 'center', transform: 'translate(-50%, 0)' },
-  { id: 'bottom', label: 'Bottom', x: '50%', y: '93%', align: 'center', transform: 'translate(-50%, -100%)' },
+  { id: 'top', label: 'Top', x: '50%', y: '14%', align: 'center', transform: 'translate(-50%, -50%)' },
+  { id: 'bottom', label: 'Bottom', x: '50%', y: '82%', align: 'center', transform: 'translate(-50%, -50%)' },
   { id: 'middle', label: 'Middle', x: '50%', y: '50%', align: 'center', transform: 'translate(-50%, -50%)' },
-  { id: 'middle-left', label: 'Middle Left', x: '5%', y: '50%', align: 'left', transform: 'translate(0, -50%)' },
-  { id: 'middle-right', label: 'Middle Right', x: '95%', y: '50%', align: 'right', transform: 'translate(-100%, -50%)' },
-  { id: 'top-left', label: 'Top Left', x: '5%', y: '5%', align: 'left', transform: 'translate(0, 0)' },
-  { id: 'top-right', label: 'Top Right', x: '95%', y: '5%', align: 'right', transform: 'translate(-100%, 0)' },
-  { id: 'bottom-left', label: 'Bottom Left', x: '5%', y: '93%', align: 'left', transform: 'translate(0, -100%)' },
-  { id: 'bottom-right', label: 'Bottom Right', x: '95%', y: '93%', align: 'right', transform: 'translate(-100%, -100%)' }
+  { id: 'middle-left', label: 'Middle Left', x: '6%', y: '50%', align: 'left', transform: 'translate(0, -50%)' },
+  { id: 'middle-right', label: 'Middle Right', x: '94%', y: '50%', align: 'right', transform: 'translate(-100%, -50%)' },
+  { id: 'top-left', label: 'Top Left', x: '6%', y: '14%', align: 'left', transform: 'translate(0, -50%)' },
+  { id: 'top-right', label: 'Top Right', x: '94%', y: '14%', align: 'right', transform: 'translate(-100%, -50%)' },
+  { id: 'bottom-left', label: 'Bottom Left', x: '6%', y: '82%', align: 'left', transform: 'translate(0, -50%)' },
+  { id: 'bottom-right', label: 'Bottom Right', x: '94%', y: '82%', align: 'right', transform: 'translate(-100%, -50%)' }
 ];
 
 // 15+ Caption Animation Styles

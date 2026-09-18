@@ -28,18 +28,18 @@ export class VideoRenderer {
     const posMeta = CAPTION_POSITIONS.find(p => p.id === positionId) || CAPTION_POSITIONS[1];
 
     let posX = canvasWidth * 0.5;
-    let posY = canvasHeight * 0.93;
+    let posY = canvasHeight * 0.82;
     let textAlign = 'center';
 
     switch (posMeta.id) {
       case 'top':
         posX = canvasWidth * 0.5;
-        posY = canvasHeight * 0.05;
+        posY = canvasHeight * 0.14;
         textAlign = 'center';
         break;
       case 'bottom':
         posX = canvasWidth * 0.5;
-        posY = canvasHeight * 0.93;
+        posY = canvasHeight * 0.82;
         textAlign = 'center';
         break;
       case 'middle':
@@ -48,33 +48,33 @@ export class VideoRenderer {
         textAlign = 'center';
         break;
       case 'middle-left':
-        posX = canvasWidth * 0.05;
+        posX = canvasWidth * 0.06;
         posY = canvasHeight * 0.50;
         textAlign = 'left';
         break;
       case 'middle-right':
-        posX = canvasWidth * 0.95;
+        posX = canvasWidth * 0.94;
         posY = canvasHeight * 0.50;
         textAlign = 'right';
         break;
       case 'top-left':
-        posX = canvasWidth * 0.05;
-        posY = canvasHeight * 0.05;
+        posX = canvasWidth * 0.06;
+        posY = canvasHeight * 0.14;
         textAlign = 'left';
         break;
       case 'top-right':
-        posX = canvasWidth * 0.95;
-        posY = canvasHeight * 0.05;
+        posX = canvasWidth * 0.94;
+        posY = canvasHeight * 0.14;
         textAlign = 'right';
         break;
       case 'bottom-left':
-        posX = canvasWidth * 0.05;
-        posY = canvasHeight * 0.93;
+        posX = canvasWidth * 0.06;
+        posY = canvasHeight * 0.82;
         textAlign = 'left';
         break;
       case 'bottom-right':
-        posX = canvasWidth * 0.95;
-        posY = canvasHeight * 0.93;
+        posX = canvasWidth * 0.94;
+        posY = canvasHeight * 0.82;
         textAlign = 'right';
         break;
     }
@@ -116,15 +116,7 @@ export class VideoRenderer {
 
     const lineHeight = fontSizePx * 1.25;
     const totalBlockHeight = lines.length * lineHeight;
-    let startBlockY = posY;
-
-    if (posMeta.id.includes('bottom')) {
-      startBlockY = posY - totalBlockHeight + lineHeight * 0.5;
-    } else if (posMeta.id.includes('middle') || posMeta.id === 'middle-left' || posMeta.id === 'middle-right') {
-      startBlockY = posY - totalBlockHeight * 0.5 + lineHeight * 0.5;
-    } else {
-      startBlockY = posY + lineHeight * 0.5;
-    }
+    const startBlockY = posY - totalBlockHeight * 0.5 + lineHeight * 0.5;
 
     // 6. Draw each line cleanly aligned and centered
     lines.forEach((line, lineIdx) => {
