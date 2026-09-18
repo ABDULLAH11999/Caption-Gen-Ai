@@ -6,6 +6,7 @@ import { languageIdentifier } from '../services/languageIdentifier.js';
 import { captionEngine } from '../services/captionEngine.js';
 import { videoRenderer } from '../services/videoRenderer.js';
 import { speechTranscriber } from '../services/speechTranscriber.js';
+import { translationService } from '../services/translationService.js';
 import { generateDemoVideoBlob } from '../utils/sampleVideoGenerator.js';
 
 export class UploadScreen {
@@ -241,6 +242,7 @@ export class UploadScreen {
           <textarea class="script-textarea" id="script-editor-textarea" placeholder="Enter your video's exact spoken words here..."></textarea>
           <div class="script-editor-actions">
             <button class="btn-export-sub" id="btn-close-script-editor">Cancel</button>
+            <button class="btn-export-sub" id="btn-translate-script-editor" style="border: 1px solid var(--cyan-primary); color: var(--cyan-primary);">🌐 Translate to English</button>
             <button class="btn-browse" id="btn-save-script">⚡ Auto-Align to Speech & Apply</button>
           </div>
         </div>
@@ -299,6 +301,27 @@ export class UploadScreen {
 
     this.container.querySelector('#btn-save-script')?.addEventListener('click', () => {
       this.applyEditedScript();
+    });
+
+    // Translate Script Editor text
+    this.container.querySelector('#btn-translate-script-editor')?.addEventListener('click', async () => {
+      const textarea = this.container.querySelector('#script-editor-textarea');
+      if (!textarea || !textarea.value.trim()) return;
+      const btn = this.container.querySelector('#btn-translate-script-editor');
+      const origText = btn.textContent;
+      btn.textContent = 'Translating...';
+      btn.disabled = true;
+      try {
+        const translated = await translationService.translateText(textarea.value);
+        textarea.value = translated;
+        this.showToast('Script translated to English!', 'success');
+      } catch (e) {
+        console.error('Translation error:', e);
+        this.showToast('Could not translate script.', 'error');
+      } finally {
+        btn.textContent = origText;
+        btn.disabled = false;
+      }
     });
 
     // Add Line Button
@@ -542,7 +565,7 @@ export class UploadScreen {
     modal.style.display = 'flex';
   }
 
-  applyEditedScript() {
+  async applyEditedScript() {
     const textarea = this.container.querySelector('#script-editor-textarea');
     const modal = this.container.querySelector('#script-editor-modal');
     if (!textarea) return;
@@ -560,7 +583,7 @@ export class UploadScreen {
     const duration = this.videoDuration || 30;
     const lineDuration = duration / Math.max(1, lines.length);
 
-    const newSentences = lines.map((line, idx) => {
+    const initialSentences = lines.map((line, idx) => {
       const start = parseFloat((idx * lineDuration).toFixed(2));
       const end = parseFloat(((idx + 1) * lineDuration).toFixed(2));
       const lang = languageIdentifier.detectTextLanguage(line);
@@ -575,25 +598,34 @@ export class UploadScreen {
       };
     });
 
-    captionEngine.setSentences(newSentences);
-    const langProfile = languageIdentifier.identifyLanguages(this.videoDuration, newSentences);
+    // Auto-translate any non-English speech / lines into synchronized English captions
+    const englishSentences = await translationService.translateSentencesToEnglish(initialSentences);
+
+    captionEngine.setSentences(englishSentences);
+    const langProfile = await languageIdentifier.identifyLanguages(this.videoDuration, englishSentences);
     this.renderLanguageProfile(langProfile);
-    this.renderTranscriptSidebar(newSentences);
+    this.renderTranscriptSidebar(englishSentences);
 
     if (modal) modal.style.display = 'none';
-    this.showToast('Captions updated with your exact script words!', 'success');
+    this.showToast('Captions updated with synchronized English words!', 'success');
     this.updateCaptionOverlay();
   }
 
-  addNewSentenceLine() {
+  async addNewSentenceLine() {
     const curTime = this.videoElement ? parseFloat(this.videoElement.currentTime.toFixed(2)) : 0;
-    const text = prompt('Enter spoken words for new caption line:', 'New caption line');
+    let text = prompt('Enter spoken words for new caption line:', 'New caption line');
     if (!text || !text.trim()) return;
+
+    text = text.trim();
+    if (!translationService.isEnglishText(text)) {
+      this.showToast('Translating new line to English...', 'info');
+      text = await translationService.translateText(text);
+    }
 
     const endTime = Math.min(this.videoDuration || 30, parseFloat((curTime + 3).toFixed(2)));
     captionEngine.addSentence(curTime, endTime, text.trim());
     this.renderTranscriptSidebar(captionEngine.sentences);
-    this.showToast('Added caption line at ' + curTime + 's', 'success');
+    this.showToast('Added English caption line at ' + curTime + 's', 'success');
     this.updateCaptionOverlay();
   }
 
@@ -703,7 +735,12 @@ export class UploadScreen {
 
     if (!chipsContainer || !barContainer) return;
 
-    badge.textContent = `${profile.languages.length} LANGUAGES DETECTED`;
+    const hasForeign = profile.languages && profile.languages.some(l => l.code !== 'en');
+    if (badge) {
+      badge.textContent = hasForeign 
+        ? `${profile.languages.length} LANGUAGES DETECTED (AUTO-TRANSLATED TO ENGLISH)`
+        : 'SPEECH IDENTIFIED (ENGLISH)';
+    }
 
     // Colors for multilingual bar
     const colors = ['#00F0FF', '#A855F7', '#FFE600', '#FF007A', '#10B981'];
@@ -714,13 +751,17 @@ export class UploadScreen {
     `).join('');
 
     // Render chips
-    chipsContainer.innerHTML = profile.languages.map((l, i) => `
-      <div class="lang-chip" style="border-left: 3px solid ${colors[i % colors.length]};">
-        <span>${l.flag || '🌐'}</span>
-        <strong>${l.name}</strong>
-        <span style="color: var(--cyan-primary);">${l.percentage}%</span>
-      </div>
-    `).join('');
+    chipsContainer.innerHTML = profile.languages.map((l, i) => {
+      const isForeign = l.code !== 'en';
+      return `
+        <div class="lang-chip" style="border-left: 3px solid ${colors[i % colors.length]};">
+          <span>${l.flag || '🌐'}</span>
+          <strong>${l.name}</strong>
+          ${isForeign ? `<span style="color: #A855F7; font-size: 0.72rem; font-weight: 700;">➔ English</span>` : ''}
+          <span style="color: var(--cyan-primary);">${l.percentage}%</span>
+        </div>
+      `;
+    }).join('');
   }
 
   renderTranscriptSidebar(sentences) {
@@ -737,10 +778,15 @@ export class UploadScreen {
         return `${String(m).padStart(2, '0')}:${String(secRem).padStart(2, '0')}`;
       };
 
+      const isTranslated = s.originalLanguage && s.originalLanguage !== 'en';
+      const langBadge = isTranslated 
+        ? `<span class="badge badge-purple" title="Original: ${s.originalLanguage.toUpperCase()}">${s.originalLanguage.toUpperCase()} ➔ EN</span>`
+        : `<span class="badge badge-cyan">EN</span>`;
+
       return `
         <div class="sentence-block" data-sidx="${sIdx}" data-start="${s.startTime}">
           <div class="sentence-meta-row">
-            <span class="badge badge-cyan">${(s.language || 'EN').toUpperCase()}</span>
+            ${langBadge}
             <span>${fmt(s.startTime)} ➔ ${fmt(s.endTime)}</span>
             <div class="sentence-edit-controls">
               <button class="btn-icon-tiny btn-edit-sentence" data-sidx="${sIdx}" title="Edit this line">✏️</button>
@@ -760,14 +806,19 @@ export class UploadScreen {
 
     // Edit sentence button
     list.querySelectorAll('.btn-edit-sentence').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const sIdx = Number(btn.getAttribute('data-sidx'));
         const s = captionEngine.sentences[sIdx];
         if (!s) return;
         const updated = prompt('Edit caption line text:', s.text);
         if (updated !== null && updated.trim()) {
-          captionEngine.updateSentenceText(s.id, updated.trim());
+          let updatedText = updated.trim();
+          if (!translationService.isEnglishText(updatedText)) {
+            this.showToast('Translating line to English...', 'info');
+            updatedText = await translationService.translateText(updatedText);
+          }
+          captionEngine.updateSentenceText(s.id, updatedText);
           this.renderTranscriptSidebar(captionEngine.sentences);
           this.updateCaptionOverlay();
           this.showToast('Line updated!', 'success');

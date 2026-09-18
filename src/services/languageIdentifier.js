@@ -3,8 +3,9 @@
 
 export const SUPPORTED_LANGUAGES = [
   { code: 'en', name: 'English', flag: '🇺🇸', native: 'English' },
-  { code: 'es', name: 'Spanish', flag: '🇪🇸', native: 'Español' },
+  { code: 'ur', name: 'Urdu', flag: '🇵🇰', native: 'اردو' },
   { code: 'hi', name: 'Hindi', flag: '🇮🇳', native: 'हिन्दी' },
+  { code: 'es', name: 'Spanish', flag: '🇪🇸', native: 'Español' },
   { code: 'fr', name: 'French', flag: '🇫🇷', native: 'Français' },
   { code: 'de', name: 'German', flag: '🇩🇪', native: 'Deutsch' },
   { code: 'ja', name: 'Japanese', flag: '🇯🇵', native: '日本語' },
@@ -42,12 +43,16 @@ export class LanguageIdentifier {
   detectTextLanguage(text) {
     if (!text || !text.trim()) return 'en';
 
+    // Urdu specific Nastaliq / Arabic characters: ٹ پ چ ڈ ڑ ژ ک گ ں ھ ہ ے
+    if (/[\u0679\u067E\u0686\u0688\u0691\u0698\u06A9\u06AF\u06BA\u06BE\u06C1\u06D2]/.test(text)) return 'ur';
+    // General Arabic / Urdu script
+    if (/[\u0600-\u06FF]/.test(text)) {
+      return 'ur'; // Default right-to-left Arabic script in South Asian context is Urdu
+    }
     // Devanagari script (Hindi)
     if (/[\u0900-\u097F]/.test(text)) return 'hi';
     // Japanese (Hiragana, Katakana, Kanji)
     if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(text)) return 'ja';
-    // Arabic script
-    if (/[\u0600-\u06FF]/.test(text)) return 'ar';
     // Cyrillic (Russian)
     if (/[\u0400-\u04FF]/.test(text)) return 'ru';
     // Hangul (Korean)
@@ -55,6 +60,11 @@ export class LanguageIdentifier {
 
     const lower = text.toLowerCase();
     
+    // Romanized Urdu / Hindi indicators
+    if (/\b(kya|kyun|kaise|karo|raha|rahi|rahe|hota|hoti|hote|mera|meri|mere|aap|tum|hum|bohot|boht|shukriya|zaroor|accha|acha|bhai|dost|zindagi|pyaar|baat|nahi|haan|hain|bhi|aur)\b/.test(lower)) {
+      return 'ur';
+    }
+
     // Spanish indicators
     if (/\b(hola|gracias|amigo|por favor|buenos|dias|estamos|video|crear|subtitulos|mundo|muy|bien|como)\b/.test(lower) || /[áéíóúñ¿¡]/.test(lower)) {
       return 'es';

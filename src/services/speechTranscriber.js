@@ -1,5 +1,5 @@
-// Real-Time Audio Decoder, Voice Activity Detector & Speech Transcriber
 import { pipeline, env } from '@xenova/transformers';
+import { translationService } from './translationService.js';
 
 // Configure transformers to use local/cached models
 env.allowLocalModels = false;
@@ -124,19 +124,31 @@ class SpeechTranscriberService {
         });
       }
 
-      onProgress({ status: 'transcribing', message: 'Transcribing spoken words & timing...', percent: 88 });
+      onProgress({ status: 'transcribing', message: 'Transcribing & translating speech to English...', percent: 78 });
 
-      // Run transcription with timestamps
+      // Run transcription with Whisper translate task (translates Hindi, Urdu, Spanish, etc. into English)
       const result = await this.pipeline(rawPcm, {
         return_timestamps: 'word',
         chunk_length_s: 30,
-        stride_length_s: 5
+        stride_length_s: 5,
+        task: 'translate'
       });
 
-      onProgress({ status: 'complete', message: 'Transcription complete!', percent: 100 });
-
       if (result && result.text && result.text.trim()) {
-        return this.formatWhisperResultToSentences(result, duration, speechSegments);
+        onProgress({ status: 'translating', message: 'Synchronizing English captions...', percent: 90 });
+        const rawSentences = this.formatWhisperResultToSentences(result, duration, speechSegments);
+
+        // Guarantee 100% fluent English captions with word-level sync
+        const englishSentences = await translationService.translateSentencesToEnglish(rawSentences, (tp) => {
+          onProgress({
+            status: 'translating',
+            message: `Refining English captions (${tp.current}/${tp.total})...`,
+            percent: Math.min(98, 90 + Math.round((tp.current / tp.total) * 8))
+          });
+        });
+
+        onProgress({ status: 'complete', message: 'English captions generated & synchronized!', percent: 100 });
+        return englishSentences;
       }
     } catch (err) {
       console.warn('Whisper model in-browser inference fallback:', err);

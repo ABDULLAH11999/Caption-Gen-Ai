@@ -48,51 +48,54 @@ export class CaptionEngine {
           { word: "YouTube", start: 10.6, end: 11.4 }
         ]
       },
-      // Segment 2: Spanish (14s - 26s)
+      // Segment 2: Spanish (Translated to English, 13s - 25s)
       {
-        lang: 'es',
-        text: "Ahora cambiamos de idioma con detección multilingüe instantánea",
+        lang: 'en',
+        originalLanguage: 'es',
+        text: "Now we switch language with instant multi-language detection",
         start: 13.0,
         words: [
-          { word: "Ahora", start: 13.0, end: 13.6 },
-          { word: "cambiamos", start: 13.6, end: 14.3 },
-          { word: "de", start: 14.3, end: 14.6 },
-          { word: "idioma", start: 14.6, end: 15.2 },
-          { word: "con", start: 15.2, end: 15.5 },
-          { word: "detección", start: 15.5, end: 16.2 },
-          { word: "multilingüe", start: 16.2, end: 17.1 },
-          { word: "instantánea", start: 17.1, end: 18.0 }
+          { word: "Now", start: 13.0, end: 13.5 },
+          { word: "we", start: 13.5, end: 13.9 },
+          { word: "switch", start: 13.9, end: 14.5 },
+          { word: "language", start: 14.5, end: 15.2 },
+          { word: "with", start: 15.2, end: 15.6 },
+          { word: "instant", start: 15.6, end: 16.3 },
+          { word: "multi-language", start: 16.3, end: 17.2 },
+          { word: "detection", start: 17.2, end: 18.0 }
         ]
       },
       {
-        lang: 'es',
-        text: "Subtítulos dinámicos con animación y colores personalizados",
+        lang: 'en',
+        originalLanguage: 'es',
+        text: "Dynamic captions with animations and custom styling colors",
         start: 19.2,
         words: [
-          { word: "Subtítulos", start: 19.2, end: 20.0 },
-          { word: "dinámicos", start: 20.0, end: 20.8 },
-          { word: "con", start: 20.8, end: 21.1 },
-          { word: "animación", start: 21.1, end: 22.0 },
-          { word: "y", start: 22.0, end: 22.3 },
-          { word: "colores", start: 22.3, end: 23.0 },
-          { word: "personalizados", start: 23.0, end: 24.2 }
+          { word: "Dynamic", start: 19.2, end: 19.9 },
+          { word: "captions", start: 19.9, end: 20.6 },
+          { word: "with", start: 20.6, end: 21.0 },
+          { word: "animations", start: 21.0, end: 21.9 },
+          { word: "and", start: 21.9, end: 22.2 },
+          { word: "custom", start: 22.2, end: 22.8 },
+          { word: "styling", start: 22.8, end: 23.5 },
+          { word: "colors", start: 23.5, end: 24.2 }
         ]
       },
-      // Segment 3: Hindi (27s - 42s)
+      // Segment 3: Urdu / Hindi (Translated to English, 26s - 32s)
       {
-        lang: 'hi',
-        text: "यह सिस्टम पूरी तरह से ऑफ़लाइन काम करता है",
+        lang: 'en',
+        originalLanguage: 'ur',
+        text: "This system works completely offline with high performance",
         start: 26.5,
         words: [
-          { word: "यह", start: 26.5, end: 27.0 },
-          { word: "सिस्टम", start: 27.0, end: 27.7 },
-          { word: "पूरी", start: 27.7, end: 28.2 },
-          { word: "तरह", start: 28.2, end: 28.7 },
-          { word: "से", start: 28.7, end: 29.1 },
-          { word: "ऑफ़लाइन", start: 29.1, end: 29.9 },
-          { word: "काम", start: 29.9, end: 30.4 },
-          { word: "करता", start: 30.4, end: 30.9 },
-          { word: "है", start: 30.9, end: 31.5 }
+          { word: "This", start: 26.5, end: 27.0 },
+          { word: "system", start: 27.0, end: 27.7 },
+          { word: "works", start: 27.7, end: 28.3 },
+          { word: "completely", start: 28.3, end: 29.1 },
+          { word: "offline", start: 29.1, end: 29.9 },
+          { word: "with", start: 29.9, end: 30.3 },
+          { word: "high", start: 30.3, end: 30.8 },
+          { word: "performance", start: 30.8, end: 31.5 }
         ]
       },
       {
