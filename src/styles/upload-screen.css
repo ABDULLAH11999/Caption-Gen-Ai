@@ -764,3 +764,309 @@
   background: rgba(239, 68, 68, 0.25);
   color: var(--red-error);
 }
+
+/* ==========================================================================
+   RESPONSIVE MOBILE ENGINE FOR UPLOAD & STUDIO WORKSPACE
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .studio-main {
+    padding: 12px 12px 48px 12px;
+    gap: 16px;
+  }
+
+  /* Compact Responsive Header */
+  .studio-header {
+    padding: 12px 14px;
+    gap: 12px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .brand-section {
+    justify-content: space-between;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .brand-logo {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+  }
+
+  .brand-info h1 {
+    font-size: 1.05rem;
+    letter-spacing: 0.5px;
+  }
+
+  .brand-info p {
+    font-size: 0.72rem;
+  }
+
+  .header-actions {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .mode-toggle-group {
+    padding: 2px;
+  }
+
+  .mode-btn {
+    padding: 5px 9px;
+    font-size: 0.76rem;
+    gap: 4px;
+  }
+
+  .btn-open-style-studio {
+    padding: 7px 14px;
+    font-size: 0.8rem;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .btn-lock-site {
+    padding: 7px 12px;
+    font-size: 0.76rem;
+    white-space: nowrap;
+  }
+
+  /* Responsive Upload Card */
+  .upload-card {
+    padding: 30px 16px;
+    border-radius: var(--radius-md);
+  }
+
+  .upload-icon-wrapper {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 14px;
+  }
+
+  .upload-card h2 {
+    font-size: 1.22rem;
+    margin-bottom: 6px;
+  }
+
+  .upload-card p {
+    font-size: 0.82rem;
+    margin-bottom: 18px;
+    line-height: 1.45;
+  }
+
+  .upload-limits-row {
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+
+  .upload-limits-row .badge {
+    font-size: 0.68rem;
+    padding: 3px 8px;
+  }
+
+  .upload-btn-group {
+    width: 100%;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .btn-browse {
+    width: 100%;
+    padding: 12px 18px;
+    font-size: 0.92rem;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  /* Single Column Workspace on Mobile */
+  .workspace-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+  }
+
+  /* Responsive Player & Video Container */
+  .video-player-card {
+    padding: 12px;
+    gap: 12px;
+    border-radius: var(--radius-md);
+  }
+
+  .video-container.portrait {
+    max-height: 60vh;
+    max-width: 100%;
+  }
+
+  .player-controls {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .timeline-scrubber-wrapper {
+    gap: 8px;
+  }
+
+  .timeline-scrubber {
+    height: 7px;
+  }
+
+  .timeline-scrubber::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
+  }
+
+  .timestamp-indicator {
+    font-size: 0.74rem;
+    min-width: 72px;
+  }
+
+  .control-buttons-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .playback-buttons {
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .btn-ctrl {
+    width: 36px;
+    height: 36px;
+  }
+
+  .btn-ctrl.btn-play-pause {
+    width: 42px;
+    height: 42px;
+  }
+
+  .player-export-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .btn-export-video {
+    grid-column: 1 / -1 !important;
+    order: -1 !important;
+    padding: 12px 14px !important;
+    font-size: 0.88rem !important;
+    justify-content: center !important;
+  }
+
+  .btn-export-sub {
+    padding: 10px 8px !important;
+    font-size: 0.78rem !important;
+    text-align: center !important;
+  }
+
+  /* Sidebar Cards on Mobile */
+  .lang-identifier-card,
+  .transcript-card {
+    padding: 14px 14px;
+    border-radius: var(--radius-md);
+  }
+
+  .transcript-card {
+    max-height: 400px;
+  }
+
+  .sentence-block {
+    padding: 10px 12px;
+  }
+
+  .sentence-meta-row {
+    font-size: 0.72rem;
+  }
+
+  .interactive-word {
+    padding: 3px 6px;
+    font-size: 0.82rem;
+  }
+
+  /* Mobile Modals */
+  .transcription-box {
+    padding: 24px 18px;
+    width: 92%;
+    border-radius: var(--radius-md);
+  }
+
+  .transcription-title {
+    font-size: 1.05rem;
+  }
+
+  .script-editor-card {
+    padding: 18px 16px;
+    width: 95vw;
+    max-width: 95vw;
+    border-radius: var(--radius-md);
+  }
+
+  .script-textarea {
+    height: 130px;
+    font-size: 0.86rem;
+    padding: 10px;
+  }
+
+  .script-editor-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .script-editor-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .studio-main {
+    padding: 8px 8px 40px 8px;
+  }
+
+  .studio-header {
+    padding: 10px 12px;
+  }
+
+  .brand-info h1 {
+    font-size: 0.98rem;
+  }
+
+  .header-actions {
+    gap: 6px;
+  }
+
+  .btn-open-style-studio {
+    flex: 1;
+    justify-content: center;
+    padding: 7px 10px;
+    font-size: 0.75rem;
+  }
+
+  .mode-btn {
+    padding: 4px 7px;
+    font-size: 0.72rem;
+  }
+
+  .upload-card {
+    padding: 24px 12px;
+  }
+
+  .upload-card h2 {
+    font-size: 1.12rem;
+  }
+
+  .upload-limits-row .badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+  }
+}
+

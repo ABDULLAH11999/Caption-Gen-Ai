@@ -143,7 +143,7 @@ export class UploadScreen {
               </div>
 
               <!-- Export Controls -->
-              <div style="display: flex; gap: 8px;">
+              <div class="player-export-actions" style="display: flex; gap: 8px;">
                 <button class="btn-export-sub" id="btn-export-srt" title="Download SubRip Subtitles">.SRT</button>
                 <button class="btn-export-sub" id="btn-export-vtt" title="Download WebVTT Subtitles">.VTT</button>
                 <button class="btn-export-video" id="btn-burn-video">
@@ -875,9 +875,11 @@ export class UploadScreen {
       );
 
       progressBox.style.display = 'none';
-      const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
-      this.downloadBlob(blob, `Zen_Captioned_Video.${ext}`);
-      this.showToast('Lossless video export finished and downloaded!', 'success');
+      const isMp4 = blob.type.includes('mp4');
+      const ext = isMp4 ? 'mp4' : 'webm';
+      const cleanTitle = (this.currentProject?.filename || 'Zen_Video').replace(/\.[^/.]+$/, "");
+      this.downloadBlob(blob, `${cleanTitle}_captioned.${ext}`);
+      this.showToast(`Video exported with seekable duration (${ext.toUpperCase()} format)!`, 'success');
       soundFx.playUnlockChime();
     } catch (err) {
       progressBox.style.display = 'none';

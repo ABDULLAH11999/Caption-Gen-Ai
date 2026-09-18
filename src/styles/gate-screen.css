@@ -314,3 +314,93 @@
   0% { border-color: rgba(0, 240, 255, 0.4); }
   100% { border-color: #ffffff; box-shadow: 0 0 12px var(--cyan-primary); }
 }
+
+/* ==========================================================================
+   RESPONSIVE MOBILE ENGINE FOR SECURITY GATE
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .gate-terminal-container {
+    width: 92%;
+    max-width: 340px;
+    padding: 24px 18px;
+    border-radius: var(--radius-md);
+  }
+
+  .terminal-header {
+    margin-bottom: 16px;
+  }
+
+  .terminal-icon {
+    width: 46px;
+    height: 46px;
+    margin-bottom: 8px;
+  }
+
+  .terminal-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .terminal-title {
+    font-size: 1.22rem;
+    letter-spacing: 1.5px;
+  }
+
+  .terminal-subtitle {
+    font-size: 0.78rem;
+  }
+
+  .pin-display-wrapper {
+    margin-bottom: 16px;
+  }
+
+  .pin-display {
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+
+  .pin-digit-slot {
+    width: 46px;
+    height: 52px;
+    font-size: 1.5rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .keypad-grid {
+    gap: 8px;
+  }
+
+  .keypad-btn {
+    height: 48px;
+    font-size: 1.2rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .keypad-btn.action-btn {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .gate-terminal-container {
+    width: 95%;
+    padding: 18px 12px;
+  }
+
+  .pin-digit-slot {
+    width: 40px;
+    height: 48px;
+    font-size: 1.35rem;
+  }
+
+  .pin-display {
+    gap: 6px;
+  }
+
+  .keypad-btn {
+    height: 44px;
+    font-size: 1.1rem;
+  }
+}
+

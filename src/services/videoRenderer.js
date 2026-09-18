@@ -1,5 +1,6 @@
 // Lossless Native-Resolution Video Caption Burn-In & Export Engine
 import { CAPTION_POSITIONS } from '../config.js';
+import { fixVideoMetadata } from './videoDurationFixer.js';
 
 export class VideoRenderer {
   constructor() {
@@ -217,16 +218,27 @@ export class VideoRenderer {
 
       const combinedStream = new MediaStream(combinedTracks);
 
-      // MediaRecorder with ultra high bitrate for lossless preservation
-      const mimeType = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')
-        ? 'video/mp4'
-        : MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
-        ? 'video/webm;codecs=vp9,opus'
-        : 'video/webm';
+      // Select best format supported by browser with WhatsApp & media player compatibility
+      let mimeType = 'video/webm;codecs=vp9,opus';
+      if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.42E01E,mp4a.40.2')) {
+        mimeType = 'video/mp4;codecs=avc1.42E01E,mp4a.40.2';
+      } else if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')) {
+        mimeType = 'video/mp4;codecs=avc1';
+      } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+        mimeType = 'video/mp4';
+      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+        mimeType = 'video/webm;codecs=vp9,opus';
+      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+        mimeType = 'video/webm;codecs=vp8,opus';
+      } else if (MediaRecorder.isTypeSupported('video/webm')) {
+        mimeType = 'video/webm';
+      }
 
+      // 5 Mbps video + 128 kbps audio: pristine 1080p/720p clarity, fast encoding, fits WhatsApp limits
       const recorder = new MediaRecorder(combinedStream, {
         mimeType,
-        videoBitsPerSecond: 16000000 // 16 Mbps
+        videoBitsPerSecond: 5000000,
+        audioBitsPerSecond: 128000
       });
 
       const chunks = [];
@@ -275,13 +287,17 @@ export class VideoRenderer {
       };
 
       requestAnimationFrame(renderLoop);
-      const exportedBlob = await exportPromise;
+      const rawBlob = await exportPromise;
 
       // Restore video position
       videoElement.currentTime = originalTime;
       if (!originalPaused) videoElement.play();
 
-      return exportedBlob;
+      // Fix missing duration and container metadata for media players and WhatsApp sharing
+      const finalDuration = duration > 0 ? duration : (videoElement.duration || 1);
+      const fixedBlob = await fixVideoMetadata(rawBlob, finalDuration);
+
+      return fixedBlob;
     } catch (err) {
       this.isRendering = false;
       console.error('Export error:', err);

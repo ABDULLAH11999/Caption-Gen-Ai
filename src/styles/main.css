@@ -202,3 +202,20 @@ input, select, textarea {
   color: var(--yellow-accent);
   border: 1px solid rgba(255, 230, 0, 0.3);
 }
+
+@media (max-width: 480px) {
+  .toast-container {
+    left: 12px;
+    right: 12px;
+    bottom: 14px;
+    width: calc(100% - 24px);
+  }
+
+  .toast {
+    min-width: unset;
+    width: 100%;
+    font-size: 0.85rem;
+    padding: 10px 14px;
+  }
+}
+
