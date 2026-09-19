@@ -66,7 +66,7 @@ export class LanguageIdentifier {
     }
 
     // Spanish indicators
-    if (/\b(hola|gracias|amigo|por favor|buenos|dias|estamos|video|crear|subtitulos|mundo|muy|bien|como)\b/.test(lower) || /[áéíóúñ¿¡]/.test(lower)) {
+    if (/\b(hola|gracias|amigo|amigos|por favor|buenos dias|buenas tardes|buenas noches|estamos|subtitulos|ahora)\b/.test(lower) || /[áéíóúñ¿¡]/.test(lower)) {
       return 'es';
     }
     // French indicators

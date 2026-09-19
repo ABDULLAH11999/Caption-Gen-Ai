@@ -4,7 +4,10 @@ export default defineConfig({
   server: {
     port: 5173,
     open: false,
-    cors: true
+    cors: true,
+    watch: {
+      ignored: ['**/video-for-testrun/**', '**/node_modules/**', '**/scratch/**']
+    }
   },
   build: {
     target: 'esnext',

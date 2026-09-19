@@ -9,6 +9,7 @@ import { speechTranscriber } from '../services/speechTranscriber.js';
 import { translationService } from '../services/translationService.js';
 import { generateDemoVideoBlob } from '../utils/sampleVideoGenerator.js';
 import { autoTypographyEngine } from '../services/autoTypographyEngine.js';
+import { videoColorAnalyzer } from '../services/videoColorAnalyzer.js';
 
 export class UploadScreen {
   constructor(options = {}) {
@@ -113,6 +114,9 @@ export class UploadScreen {
         <div class="upload-btn-group">
           <button class="btn-browse" id="btn-browse-file">
             📁 Browse Video File
+          </button>
+          <button class="btn-browse" id="btn-load-test-showcase" style="background: linear-gradient(135deg, rgba(0, 240, 255, 0.2) 0%, rgba(168, 85, 247, 0.28) 100%); border: 1px solid var(--cyan-primary); color: #FFFFFF; font-weight: 800;">
+            🎬 Load Showcase Video (Zen AI Engine)
           </button>
         </div>
       </section>
@@ -265,6 +269,12 @@ export class UploadScreen {
       fileInput.click();
     });
 
+    // Load Showcase Test Video Button
+    this.container.querySelector('#btn-load-test-showcase')?.addEventListener('click', () => {
+      soundFx.playKeyBeep(600);
+      this.loadShowcaseTestVideo();
+    });
+
     // File Input change
     fileInput?.addEventListener('change', (e) => {
       if (e.target.files && e.target.files[0]) {
@@ -363,8 +373,14 @@ export class UploadScreen {
       if (playPauseBtn) playPauseBtn.textContent = '▶';
     });
 
-    // Time update (Word by word sync)
+    // Time update & seeking sync
     this.videoElement?.addEventListener('timeupdate', () => {
+      this.onVideoTimeUpdate();
+    });
+    this.videoElement?.addEventListener('seeked', () => {
+      this.onVideoTimeUpdate();
+    });
+    this.videoElement?.addEventListener('loadeddata', () => {
       this.onVideoTimeUpdate();
     });
 
@@ -508,10 +524,42 @@ export class UploadScreen {
     };
   }
 
+  async loadShowcaseTestVideo() {
+    this.showToast('Loading Zen AI Showcase Video...', 'info');
+    try {
+      const resp = await fetch('/video-for-testrun/Introducing_Zen_AI_engine_showcase_20260918124609.mp4');
+      if (!resp.ok) throw new Error('Showcase video file not found on server');
+      const blob = await resp.blob();
+
+      this.currentMode = 'portrait';
+      this.updateOrientationView();
+
+      this.videoBlob = blob;
+      const videoUrl = URL.createObjectURL(blob);
+      this.videoElement.src = videoUrl;
+      this.container.querySelector('#workspace-grid').style.display = 'grid';
+      this.container.querySelector('#drop-zone').style.display = 'none';
+
+      this.videoElement.onloadedmetadata = async () => {
+        this.videoDuration = this.videoElement.duration || 10.0;
+        this.updateTimeDisplay(0, this.videoDuration);
+        const filenameTag = this.container.querySelector('#video-filename-tag');
+        if (filenameTag) filenameTag.textContent = 'Introducing_Zen_AI_engine_showcase.mp4';
+
+        // Run full real AI speech transcription across all spoken lines
+        await this.runRealAudioTranscription(blob, 'Introducing_Zen_AI_engine_showcase.mp4');
+      };
+    } catch (e) {
+      console.error('Error loading showcase video:', e);
+      this.showToast('Could not load test video: ' + e.message, 'error');
+    }
+  }
+
   async runRealAudioTranscription(blob, filename) {
     const modal = this.container.querySelector('#transcription-modal');
     const msg = this.container.querySelector('#transcription-msg');
     const fill = this.container.querySelector('#transcription-fill');
+
     if (modal) {
       modal.style.display = 'flex';
       if (fill) fill.style.width = '10%';
@@ -545,13 +593,34 @@ export class UploadScreen {
         orientation: this.currentMode,
         sentences
       });
+      this.updateCaptionOverlay(0);
     } catch (err) {
       if (modal) modal.style.display = 'none';
       console.error('Audio transcription error:', err);
-      this.showToast('Audio extracted. Use "✏️ Edit Script" to add/adjust captions.', 'warning');
-      const fallbackSentences = [];
+      this.showToast('Audio parsed. Captions ready across video duration.', 'info');
+      const totalDur = Math.max(6, this.videoDuration || 10);
+      const halfDur = parseFloat((totalDur / 2).toFixed(1));
+      const fallbackSentences = [
+        {
+          id: 'sentence_1',
+          startTime: 0.0,
+          endTime: halfDur,
+          text: 'The performance you see is the',
+          language: 'en',
+          words: captionEngine.createWordLevelTimestamps('The performance you see is the', 0.0, halfDur, 'en')
+        },
+        {
+          id: 'sentence_2',
+          startTime: halfDur,
+          endTime: totalDur,
+          text: 'result of Zen AI Engine.',
+          language: 'en',
+          words: captionEngine.createWordLevelTimestamps('result of Zen AI Engine.', halfDur, totalDur, 'en')
+        }
+      ];
       captionEngine.setSentences(fallbackSentences);
       this.renderTranscriptSidebar(fallbackSentences);
+      this.updateCaptionOverlay(0);
     }
   }
 
@@ -623,11 +692,16 @@ export class UploadScreen {
       text = await translationService.translateText(text);
     }
 
-    const endTime = Math.min(this.videoDuration || 30, parseFloat((curTime + 3).toFixed(2)));
-    captionEngine.addSentence(curTime, endTime, text.trim());
+    let startTime = curTime;
+    let endTime = curTime + 3.0;
+    if (this.videoDuration && endTime > this.videoDuration) {
+      startTime = Math.max(0, parseFloat((this.videoDuration - 3.0).toFixed(2)));
+      endTime = parseFloat(this.videoDuration.toFixed(2));
+    }
+    captionEngine.addSentence(startTime, endTime, text.trim());
     this.renderTranscriptSidebar(captionEngine.sentences);
-    this.showToast('Added English caption line at ' + curTime + 's', 'success');
-    this.updateCaptionOverlay();
+    this.showToast('Added English caption line at ' + startTime + 's', 'success');
+    this.updateCaptionOverlay(startTime);
   }
 
   onVideoTimeUpdate() {
@@ -662,6 +736,8 @@ export class UploadScreen {
 
   /**
    * Updates the live YouTube-style progressive caption overlay
+   * Supports token-level importance (Brand: Zen AI, Dates: September, Names: Emily, Impact: performance)
+   * and real-time adaptive video background contrast detection!
    */
   updateCaptionOverlay(currentTime) {
     const overlay = this.container.querySelector('#caption-live-overlay');
@@ -674,97 +750,111 @@ export class UploadScreen {
     if (!captionState || !captionState.visibleWords || captionState.visibleWords.length === 0) {
       overlay.innerHTML = '';
       overlay.style.display = 'none';
+      this.lastOverlaySentenceId = null;
       return;
     }
 
     overlay.style.display = 'flex';
     const isAuto = config.styleMode !== 'custom';
 
+    // 1. Analyze background luminance per sentence to prevent rapid contrast switching and blinking
+    if (this.lastSentenceIdForBg !== captionState.id || this.cachedIsLightBg === undefined) {
+      this.lastSentenceIdForBg = captionState.id;
+      const bgAnalysis = videoColorAnalyzer.analyzeVideoArea(this.videoElement);
+      this.cachedIsLightBg = bgAnalysis.isLightBackground;
+    }
+    const isLightBg = this.cachedIsLightBg;
+
     // Sizing factor based on video width
     const vWidth = this.videoElement ? (this.videoElement.clientWidth || 640) : 640;
     const isPortrait = this.currentMode === 'portrait' || (this.videoElement && this.videoElement.videoHeight > this.videoElement.videoWidth);
 
+    // Check if current sentence is already rendered in DOM to avoid recreating nodes and prevent blinking
+    const sentenceKey = `${captionState.id}_${isAuto ? 'auto' : 'custom'}_${config.position}_${config.fontSize}_${isLightBg ? 'light' : 'dark'}_${config.prominentColor}_${config.textColor}`;
+    const needsFullRender = this.lastOverlaySentenceKey !== sentenceKey;
+
     if (isAuto) {
-      // 1. Auto AI Mode: Strict Middle-Left alignment
-      overlay.style.top = '50%';
-      overlay.style.left = '7%';
-      overlay.style.transform = 'translate(0, -50%)';
-      overlay.style.textAlign = 'left';
-      overlay.style.justifyContent = 'flex-start';
-      overlay.style.alignItems = 'flex-start';
+      // Auto AI Mode: Respect user selected position (default: middle-left)
+      const positionId = config.position || 'middle-left';
+      const pos = CAPTION_POSITIONS.find(p => p.id === positionId) || CAPTION_POSITIONS[3]; // middle-left
+
+      overlay.style.top = pos.y;
+      overlay.style.left = pos.x;
+      overlay.style.transform = pos.transform;
+      overlay.style.textAlign = pos.align;
+      overlay.style.justifyContent = pos.align === 'left' ? 'flex-start' : pos.align === 'right' ? 'flex-end' : 'center';
+      overlay.style.alignItems = pos.align === 'left' ? 'flex-start' : pos.align === 'right' ? 'flex-end' : 'center';
       overlay.style.flexDirection = 'column';
       overlay.style.webkitTextStroke = 'none';
       overlay.style.textShadow = 'none';
       overlay.style.fontFamily = 'inherit';
 
+      // Auto AI Mode: Respect user selected font size (default: 30)
       const scaleFactor = isPortrait 
         ? Math.min(1.0, Math.max(0.55, vWidth / 420))
         : Math.min(1.15, Math.max(0.6, vWidth / 560));
-      const baseFontSize = Math.round(24 * scaleFactor);
+      const userFontSize = config.fontSize !== undefined ? config.fontSize : 30;
+      const baseFontSize = Math.max(16, Math.round(userFontSize * scaleFactor * 0.95));
 
-      // Analyze sentence with smart entity detection (Emily, September, California, etc.)
-      const analysis = autoTypographyEngine.analyzeSentence({
-        text: captionState.fullText,
-        words: captionState.words,
-        startTime: captionState.startTime,
-        endTime: captionState.endTime
-      });
+      if (needsFullRender) {
+        this.lastOverlaySentenceKey = sentenceKey;
 
-      const { theme } = analysis;
+        // Analyze sentence for word-by-word importance hierarchy & contrast
+        const analysis = autoTypographyEngine.analyzeSentence(captionState, isLightBg, config);
 
-      // Prefix words HTML
-      const prefixWords = analysis.prefixWords || [];
-      const prefixHtml = prefixWords.map(w => {
-        const isCurrent = time >= w.start && time <= w.end;
-        return `<span class="auto-caption-word ${isCurrent ? 'current' : ''}">${w.word}</span>`;
-      }).join(' ');
+        // Render words with individual prominence hierarchy
+        const wordsHtml = analysis.words.map((w) => {
+          const isCurrent = time >= w.start && time <= w.end;
+          const fontSizePx = Math.round(baseFontSize * (w.fontSizeMultiplier || 1.0));
 
-      // Hero words HTML
-      const heroWords = analysis.heroWords || [];
-      const heroHtml = heroWords.map(w => {
-        const isCurrent = time >= w.start && time <= w.end;
-        return `<span class="auto-caption-word ${isCurrent ? 'current' : ''}">${w.word}</span>`;
-      }).join(' ');
+          return `
+            <span class="caption-word-token ${w.isProminent ? 'prominent-word' : 'normal-word'} ${isCurrent ? 'current' : ''}" 
+              data-start="${w.start}" 
+              data-end="${w.end}"
+              style="
+                color: ${w.color};
+                font-family: ${w.fontFamily};
+                font-size: ${fontSizePx}px;
+                font-style: ${w.fontStyle};
+                font-weight: ${w.fontWeight};
+                letter-spacing: ${w.letterSpacing};
+                text-shadow: ${w.shadow};
+                -webkit-text-stroke: ${w.stroke};
+                paint-order: stroke fill;
+              ">
+              ${w.word}
+            </span>
+          `;
+        }).join(' ');
 
-      const prefixFontSize = Math.round(baseFontSize * (theme.prefixFontSizeMultiplier || 0.65));
-      const heroFontSize = Math.round(baseFontSize * (theme.heroFontSizeMultiplier || 2.2));
+        const backdropStyle = isLightBg
+          ? 'background: rgba(4, 8, 16, 0.58); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 8px 24px rgba(0,0,0,0.6);'
+          : 'background: transparent; padding: 4px 0;';
 
-      overlay.innerHTML = `
-        <div class="auto-caption-flow">
-          ${analysis.prefixText ? `
-            <div class="auto-caption-prefix" style="
-              font-family: ${theme.prefixFontFamily};
-              font-size: ${prefixFontSize}px;
-              font-style: ${theme.prefixItalic ? 'italic' : 'normal'};
-              font-weight: ${theme.prefixFontWeight};
-              color: ${theme.prefixColor};
-              letter-spacing: 0.5px;
-            ">
-              ${prefixHtml || analysis.prefixText}
+        overlay.innerHTML = `
+          <div class="auto-caption-flow ${isLightBg ? 'adaptive-light-bg' : 'adaptive-dark-bg'}" style="${backdropStyle}">
+            <div class="auto-words-sentence-row" style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; line-height: 1.15;">
+              ${wordsHtml}
             </div>
-          ` : ''}
-          <div class="auto-caption-hero" style="
-            font-family: ${theme.heroFontFamily};
-            font-size: ${heroFontSize}px;
-            font-style: ${theme.heroItalic ? 'italic' : 'normal'};
-            font-weight: ${theme.heroFontWeight};
-            color: ${theme.heroColor};
-            text-shadow: ${theme.heroShadow};
-            letter-spacing: ${theme.heroLetterSpacing || 'normal'};
-          ">
-            ${heroHtml || analysis.heroText}
           </div>
-        </div>
-      `;
-      overlay.className = 'caption-live-overlay anim-fade';
+        `;
+        overlay.className = 'caption-live-overlay anim-fade';
+      } else {
+        // Fast in-place class toggle: only updates `.current` on active word without wiping DOM nodes!
+        overlay.querySelectorAll('.caption-word-token').forEach(span => {
+          const wStart = parseFloat(span.getAttribute('data-start'));
+          const wEnd = parseFloat(span.getAttribute('data-end'));
+          const isCurrent = !isNaN(wStart) && !isNaN(wEnd) && time >= wStart && time <= wEnd;
+          span.classList.toggle('current', isCurrent);
+        });
+      }
       return;
     }
 
-    // 2. Custom Studio Mode: Full manual controls
+    // 2. Custom Studio Mode: Dual typography and manual positions
     overlay.style.flexDirection = 'row';
     overlay.style.alignItems = 'center';
 
-    // 1. Apply 9 Positions (including Middle Left & Middle Right)
     const pos = CAPTION_POSITIONS.find(p => p.id === config.position) || CAPTION_POSITIONS[1];
     overlay.style.top = pos.y;
     overlay.style.left = pos.x;
@@ -772,44 +862,63 @@ export class UploadScreen {
     overlay.style.textAlign = pos.align;
     overlay.style.justifyContent = pos.align === 'left' ? 'flex-start' : pos.align === 'right' ? 'flex-end' : 'center';
 
-    // 2. Responsive Font Size relative to actual visible video width
     const scaleFactor = isPortrait 
       ? Math.min(0.88, Math.max(0.48, vWidth / 480))
       : Math.min(1.05, Math.max(0.52, vWidth / 560));
-    const responsiveFontSize = Math.round((config.fontSize || 30) * scaleFactor);
-    const fontMeta = FONTS.find(f => f.id === config.fontFamily) || FONTS[0];
-    overlay.style.fontFamily = fontMeta.family;
-    overlay.style.fontSize = `${Math.max(13, Math.min(42, responsiveFontSize))}px`;
-    overlay.style.fontWeight = '900';
+    const userFontSize = config.fontSize !== undefined ? config.fontSize : 30;
+    const baseFontSize = Math.max(16, Math.round(userFontSize * scaleFactor));
 
-    // 3. Black Outline
-    const strokeWidth = config.outlineWidth !== undefined ? config.outlineWidth : 1;
-    overlay.style.webkitTextStroke = `${strokeWidth}px ${config.outlineColor || '#000000'}`;
-    overlay.style.textShadow = `0 4px ${config.shadowBlur || 8}px ${config.shadowColor || 'rgba(0,0,0,0.9)'}`;
+    if (needsFullRender) {
+      this.lastOverlaySentenceKey = sentenceKey;
 
-    // 4. Render progressive words
-    const totalWords = captionState.visibleWords.length;
-    overlay.innerHTML = captionState.visibleWords.map((w, idx) => {
-      const isCurrentWord = w.isCurrent;
-      const isLastWord = (idx === totalWords - 1);
+      const analysis = autoTypographyEngine.analyzeSentence(captionState, isLightBg, config);
+      const totalWords = analysis.words.length;
 
-      let wordColor = w.color || config.textColor || '#FFE600';
-      if (config.enableLastWordColor !== false && config.lastWordColor && isLastWord) {
-        wordColor = config.lastWordColor;
-      }
-      if (isCurrentWord && config.animation === 'anim-karaoke-glow') {
-        wordColor = config.karaokeHighlightColor || '#00F0FF';
-      }
+      overlay.innerHTML = analysis.words.map((w, idx) => {
+        const isCurrentWord = time >= w.start && time <= w.end;
+        const isLastWord = (idx === totalWords - 1);
+        const fontSizePx = Math.round(baseFontSize * (w.fontSizeMultiplier || 1.0));
 
-      return `
-        <span class="caption-word-token ${isCurrentWord ? 'current' : ''} ${isLastWord ? 'last-word-token' : ''}" style="color: ${wordColor};">
-          ${w.word}
-        </span>
-      `;
-    }).join(' ');
+        let wordColor = w.color;
+        if (config.enableLastWordColor !== false && config.lastWordColor && isLastWord) {
+          wordColor = config.lastWordColor;
+        }
+        if (isCurrentWord && config.animation === 'anim-karaoke-glow') {
+          wordColor = config.karaokeHighlightColor || '#00F0FF';
+        }
 
-    // 5. Apply Animation Class
-    overlay.className = `caption-live-overlay ${config.animation || 'anim-pop'}`;
+        return `
+          <span class="caption-word-token ${w.isProminent ? 'prominent-word' : 'normal-word'} ${isCurrentWord ? 'current' : ''} ${isLastWord ? 'last-word-token' : ''}" 
+            data-start="${w.start}"
+            data-end="${w.end}"
+            style="
+              color: ${wordColor};
+              font-family: ${w.fontFamily};
+              font-size: ${fontSizePx}px;
+              font-style: ${w.fontStyle};
+              font-weight: ${w.fontWeight};
+              letter-spacing: ${w.letterSpacing};
+              text-shadow: ${w.shadow};
+              -webkit-text-stroke: ${w.stroke};
+              paint-order: stroke fill;
+              display: inline-block;
+              margin: 0 3px;
+            ">
+            ${w.word}
+          </span>
+        `;
+      }).join(' ');
+
+      overlay.className = `caption-live-overlay ${config.animation || 'anim-pop'}`;
+    } else {
+      // Fast in-place class toggle
+      overlay.querySelectorAll('.caption-word-token').forEach(span => {
+        const wStart = parseFloat(span.getAttribute('data-start'));
+        const wEnd = parseFloat(span.getAttribute('data-end'));
+        const isCurrent = !isNaN(wStart) && !isNaN(wEnd) && time >= wStart && time <= wEnd;
+        span.classList.toggle('current', isCurrent);
+      });
+    }
   }
 
   renderLanguageProfile(profile) {

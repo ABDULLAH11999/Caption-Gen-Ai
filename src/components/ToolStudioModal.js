@@ -27,6 +27,7 @@ export class ToolStudioModal {
       'creating Viral Reels'
     ];
     this.phraseIdx = 0;
+    this.activeFontTarget = 'normal'; // 'normal' | 'prominent'
   }
 
   async initConfigs() {
@@ -160,7 +161,7 @@ export class ToolStudioModal {
                 <div class="auto-ai-chip">
                   <span class="pulse-dot">●</span> AUTO SMART TYPOGRAPHY ACTIVE
                 </div>
-                <div class="auto-pos-badge">📍 Locked to Middle-Left Safe Zone</div>
+                <div class="auto-pos-badge" id="auto-pos-badge">📍 Customizable 9-Point Grid & Sizing</div>
               </div>
               
               <div class="auto-feature-grid">
@@ -201,129 +202,193 @@ export class ToolStudioModal {
                 </div>
               </div>
               <div class="auto-switch-hint">
-                💡 Need manual fonts or 9-point positions? Click <strong>Custom Studio</strong> above to unlock manual sliders and pickers.
+                💡 <strong>Auto Smart Typography</strong> applies dynamic prominence, contrast, and font styling automatically. You can freely adjust the <strong>Position</strong> and <strong>Font Size</strong> below!
+              </div>
+            </div>
+
+            <!-- Universal Controls (Available in BOTH Auto Mode & Custom Mode) -->
+            <!-- 1. Caption Position (9 Locations) -->
+            <div class="config-section-card">
+              <div class="config-section-title">
+                <span>📍 Caption Position (9 Locations)</span>
+                <span class="badge badge-purple" id="selected-pos-name">Middle Left</span>
+              </div>
+              <div class="position-grid-7" id="position-grid-7">
+                <!-- Row 1: Top Left, Top, Top Right -->
+                <button class="pos-btn" data-pos="top-left">Top Left</button>
+                <button class="pos-btn" data-pos="top">Top</button>
+                <button class="pos-btn" data-pos="top-right">Top Right</button>
+
+                <!-- Row 2: Middle Left, Middle, Middle Right -->
+                <button class="pos-btn" data-pos="middle-left">Mid Left</button>
+                <button class="pos-btn" data-pos="middle">Middle</button>
+                <button class="pos-btn" data-pos="middle-right">Mid Right</button>
+
+                <!-- Row 3: Bottom Left, Bottom, Bottom Right -->
+                <button class="pos-btn" data-pos="bottom-left">Bottom Left</button>
+                <button class="pos-btn" data-pos="bottom">Bottom</button>
+                <button class="pos-btn" data-pos="bottom-right">Bottom Right</button>
+              </div>
+            </div>
+
+            <!-- 2. Caption Size (1 - 100, default 30) -->
+            <div class="config-section-card">
+              <div class="config-section-title">
+                <span>🔤 Caption Size (Scale 1 - 100)</span>
+                <span class="slider-value-tag" id="caption-size-value">30</span>
+              </div>
+              <div class="slider-control-group">
+                <div class="slider-label-row">
+                  <span>Small (1)</span>
+                  <span>Default (30)</span>
+                  <span>Huge (100)</span>
+                </div>
+                <input type="range" min="1" max="100" value="30" class="custom-range-slider" id="caption-size-slider">
               </div>
             </div>
             
             <!-- Custom Sections Wrapper (Hidden in Auto Mode) -->
             <div id="custom-sections-wrapper" class="custom-sections-wrapper" style="display: ${!isAuto ? 'flex' : 'none'}; flex-direction: column; gap: 22px;">
 
-              <!-- 1. Font Family -->
+              <!-- 1. Dual Font Family Selection -->
               <div class="config-section-card">
                 <div class="config-section-title">
-                  <span>1. Caption Font</span>
-                  <span class="badge badge-cyan" id="selected-font-name">Playfair Display</span>
+                  <span>1. Caption Fonts</span>
+                  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <span class="badge badge-cyan" id="selected-normal-font-name">Normal: Inter</span>
+                    <span class="badge badge-purple" id="selected-prominent-font-name">Prominent: Playfair</span>
+                  </div>
                 </div>
+                
+                <div class="font-tab-group">
+                  <button class="font-tab-btn active" data-font-target="normal" id="tab-font-normal">
+                    Normal Text Font
+                  </button>
+                  <button class="font-tab-btn" data-font-target="prominent" id="tab-font-prominent">
+                    Prominent Words Font (Hero/Accent)
+                  </button>
+                </div>
+                
                 <div class="font-picker-grid" id="font-picker-grid"></div>
               </div>
 
-              <!-- 2. Caption Size (1 - 100, default 30) -->
+              <!-- 2. Text & Outline Colors + Time Intervals (Enterprise Redesign) -->
               <div class="config-section-card">
                 <div class="config-section-title">
-                  <span>2. Caption Size (Scale 1 - 100)</span>
-                  <span class="slider-value-tag" id="caption-size-value">30</span>
+                  <span>2. Colors & Stroke Styling</span>
+                  <span class="badge badge-cyan">DUAL-COLOR PRO</span>
                 </div>
-                <div class="slider-control-group">
-                  <div class="slider-label-row">
-                    <span>Small (1)</span>
-                    <span>Default (30)</span>
-                    <span>Huge (100)</span>
+
+                <div class="dual-styling-grid">
+                  <!-- Card A: Normal Words Styling -->
+                  <div class="sub-config-card">
+                    <div class="sub-card-header">
+                      <span class="sub-card-title">⚪ Normal Words</span>
+                      <span class="badge badge-cyan" id="badge-normal-color">#FFFFFF</span>
+                    </div>
+
+                    <div style="font-size: 0.78rem; color: var(--text-muted);">Text Color Palette:</div>
+                    <div class="color-swatches-row" id="normal-color-palette-row">
+                      <button class="normal-color-swatch-btn selected" data-color="#FFFFFF" style="background: #FFFFFF;" title="Pure White"></button>
+                      <button class="normal-color-swatch-btn" data-color="#FFE600" style="background: #FFE600;" title="Electric Yellow"></button>
+                      <button class="normal-color-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;" title="Cyber Cyan"></button>
+                      <button class="normal-color-swatch-btn" data-color="#FF4DA6" style="background: #FF4DA6;" title="Neon Pink"></button>
+                      <button class="normal-color-swatch-btn" data-color="#10B981" style="background: #10B981;" title="Emerald"></button>
+                      <button class="normal-color-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;" title="Vibrant Orange"></button>
+                      <input type="color" id="custom-normal-color-input" class="color-input-native" value="#FFFFFF" title="Custom Normal Color">
+                    </div>
+
+                    <!-- Stroke controls -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                      <span style="font-size: 0.78rem; color: var(--text-muted);">Outline Stroke Width:</span>
+                      <span id="normal-outline-width-val" style="font-size: 0.8rem; font-weight:700;">2px</span>
+                    </div>
+                    <input type="range" min="0" max="14" value="2" class="custom-range-slider" id="normal-outline-slider">
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                      <span style="font-size: 0.78rem; color: var(--text-muted);">Stroke Color:</span>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <button class="outline-color-btn active" data-target="normal" data-color="#000000" style="width:20px;height:20px;border-radius:50%;background:#000000;border:1px solid #fff;"></button>
+                        <button class="outline-color-btn" data-target="normal" data-color="#FFFFFF" style="width:20px;height:20px;border-radius:50%;background:#FFFFFF;border:1px solid #000;"></button>
+                        <input type="color" id="custom-normal-outline-color" class="color-input-native" value="#000000" style="width:22px;height:22px;" title="Custom Stroke Color">
+                      </div>
+                    </div>
                   </div>
-                  <input type="range" min="1" max="100" value="30" class="custom-range-slider" id="caption-size-slider">
+
+                  <!-- Card B: Prominent Words Styling (Hero / Accent / Dates / Names) -->
+                  <div class="sub-config-card" style="border-color: rgba(255, 77, 166, 0.35);">
+                    <div class="sub-card-header">
+                      <span class="sub-card-title" style="color: #FF4DA6;">✨ Prominent Words</span>
+                      <span class="badge badge-purple" id="badge-prominent-color">#FF4DA6</span>
+                    </div>
+
+                    <div style="font-size: 0.78rem; color: var(--text-muted);">Accent Color Palette:</div>
+                    <div class="color-swatches-row" id="prominent-color-palette-row">
+                      <button class="prominent-color-swatch-btn selected" data-color="#FF4DA6" style="background: #FF4DA6;" title="Neon Pink (Ref Image 2)"></button>
+                      <button class="prominent-color-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;" title="Vibrant Orange"></button>
+                      <button class="prominent-color-swatch-btn" data-color="#FFFFFF" style="background: #FFFFFF;" title="Pure White (Ref Image 1)"></button>
+                      <button class="prominent-color-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;" title="Cyber Cyan"></button>
+                      <button class="prominent-color-swatch-btn" data-color="#FFE600" style="background: #FFE600;" title="Electric Yellow"></button>
+                      <button class="prominent-color-swatch-btn" data-color="#10B981" style="background: #10B981;" title="Emerald"></button>
+                      <input type="color" id="custom-prominent-color-input" class="color-input-native" value="#FF4DA6" title="Custom Prominent Color">
+                    </div>
+
+                    <!-- Stroke controls -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                      <span style="font-size: 0.78rem; color: var(--text-muted);">Outline Stroke Width:</span>
+                      <span id="prominent-outline-width-val" style="font-size: 0.8rem; font-weight:700;">3px</span>
+                    </div>
+                    <input type="range" min="0" max="14" value="3" class="custom-range-slider" id="prominent-outline-slider">
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                      <span style="font-size: 0.78rem; color: var(--text-muted);">Stroke Color:</span>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <button class="outline-color-btn active" data-target="prominent" data-color="#000000" style="width:20px;height:20px;border-radius:50%;background:#000000;border:1px solid #fff;"></button>
+                        <button class="outline-color-btn" data-target="prominent" data-color="#FFFFFF" style="width:20px;height:20px;border-radius:50%;background:#FFFFFF;border:1px solid #000;"></button>
+                        <input type="color" id="custom-prominent-outline-color" class="color-input-native" value="#000000" style="width:22px;height:22px;" title="Custom Stroke Color">
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                <!-- Collapsible Advanced: Time-Interval Colors & Last Word Accent -->
+                <details style="margin-top: 14px; background: rgba(9, 13, 22, 0.4); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-sm); padding: 10px 12px;">
+                  <summary style="font-size: 0.8rem; font-weight: 700; color: var(--cyan-primary); cursor: pointer;">
+                    ⏱️ Time-Interval Colors & Last Word Options
+                  </summary>
+                  <div style="margin-top: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <span style="font-size: 0.78rem; font-weight: 700; color: var(--yellow-accent);">Time Interval Colors:</span>
+                      <button id="btn-add-interval" style="font-size: 0.74rem; padding: 3px 8px; background: rgba(255,230,0,0.15); color: var(--yellow-accent); border: 1px solid var(--yellow-accent); border-radius: var(--radius-full);">
+                        + Add Interval
+                      </button>
+                    </div>
+                    <div class="interval-list-container" id="interval-list-container"></div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; margin-bottom: 6px;">
+                      <span style="font-size: 0.78rem; font-weight: 700;">Last Word of Line Highlight:</span>
+                      <label style="display: flex; align-items: center; gap: 6px; font-size: 0.74rem; cursor: pointer;">
+                        <input type="checkbox" id="enable-last-word-toggle" style="accent-color: var(--cyan-primary);">
+                        <span>Enable</span>
+                      </label>
+                    </div>
+                    <div class="color-swatches-row" id="last-word-palette-row">
+                      <button class="last-word-swatch-btn" data-color="#FF4DA6" style="background: #FF4DA6;"></button>
+                      <button class="last-word-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;"></button>
+                      <button class="last-word-swatch-btn" data-color="#FFE600" style="background: #FFE600;"></button>
+                      <button class="last-word-swatch-btn" data-color="#10B981" style="background: #10B981;"></button>
+                      <button class="last-word-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;"></button>
+                      <button class="last-word-swatch-btn" data-color="#FFFFFF" style="background: #FFFFFF;"></button>
+                      <input type="color" id="custom-last-word-input" class="color-input-native" value="#FF4DA6" title="Choose Custom Last Word Color">
+                    </div>
+                  </div>
+                </details>
               </div>
 
-              <!-- 3. Caption Position (9 Options) -->
+              <!-- 5. Caption Animation (22+ Styles) -->
               <div class="config-section-card">
                 <div class="config-section-title">
-                  <span>3. Caption Position (9 Locations)</span>
-                  <span class="badge badge-purple" id="selected-pos-name">Middle Left</span>
-                </div>
-                <div class="position-grid-7" id="position-grid-7">
-                  <!-- Row 1: Top Left, Top, Top Right -->
-                  <button class="pos-btn" data-pos="top-left">Top Left</button>
-                  <button class="pos-btn" data-pos="top">Top</button>
-                  <button class="pos-btn" data-pos="top-right">Top Right</button>
-
-                  <!-- Row 2: Middle Left, Middle, Middle Right -->
-                  <button class="pos-btn" data-pos="middle-left">Mid Left</button>
-                  <button class="pos-btn" data-pos="middle">Middle</button>
-                  <button class="pos-btn" data-pos="middle-right">Mid Right</button>
-
-                  <!-- Row 3: Bottom Left, Bottom, Bottom Right -->
-                  <button class="pos-btn" data-pos="bottom-left">Bottom Left</button>
-                  <button class="pos-btn" data-pos="bottom">Bottom</button>
-                  <button class="pos-btn" data-pos="bottom-right">Bottom Right</button>
-                </div>
-              </div>
-
-              <!-- 4. Text & Outline Colors + Time Intervals -->
-              <div class="config-section-card">
-                <div class="config-section-title">
-                  <span>4. Colors & Time-Interval Coloring</span>
-                </div>
-                
-                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Base Font Color Palette:</div>
-                <div class="color-swatches-row" id="color-palette-row">
-                  <button class="color-swatch-btn" data-color="#FFFFFF" style="background: #FFFFFF;"></button>
-                  <button class="color-swatch-btn" data-color="#FFE600" style="background: #FFE600;"></button>
-                  <button class="color-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;"></button>
-                  <button class="color-swatch-btn" data-color="#FF4DA6" style="background: #FF4DA6;"></button>
-                  <button class="color-swatch-btn" data-color="#10B981" style="background: #10B981;"></button>
-                  <button class="color-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;"></button>
-                  <input type="color" id="custom-color-input" class="color-input-native" value="#FFFFFF" title="Choose Custom Color">
-                </div>
-
-                <!-- Black Outline Setting -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; margin-bottom: 8px;">
-                  <span style="font-size: 0.82rem; font-weight: 600;">Default Outline Color:</span>
-                  <span class="badge badge-cyan" id="outline-color-badge">Black (#000000)</span>
-                </div>
-                <div class="slider-control-group">
-                  <div class="slider-label-row">
-                    <span>Outline Stroke Width</span>
-                    <span id="outline-width-val">1px</span>
-                  </div>
-                  <input type="range" min="0" max="14" value="1" class="custom-range-slider" id="outline-width-slider">
-                </div>
-
-                <!-- Time-Interval Coloring Section -->
-                <div style="margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 0.82rem; font-weight: 700; color: var(--yellow-accent);">Time Interval Colors:</span>
-                    <button id="btn-add-interval" style="font-size: 0.76rem; padding: 4px 10px; background: rgba(255,230,0,0.15); color: var(--yellow-accent); border: 1px solid var(--yellow-accent); border-radius: var(--radius-full);">
-                      + Add Interval
-                    </button>
-                  </div>
-                  <div class="interval-list-container" id="interval-list-container"></div>
-                </div>
-
-                <!-- Last Word Accent Color Section -->
-                <div style="margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <span style="font-size: 0.82rem; font-weight: 700; color: var(--cyan-primary);">Last Word of Line Color:</span>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; cursor: pointer; color: var(--text-main);">
-                      <input type="checkbox" id="enable-last-word-toggle" style="accent-color: var(--cyan-primary); cursor: pointer;">
-                      <span>Highlight Last Word</span>
-                    </label>
-                  </div>
-                  <div class="color-swatches-row" id="last-word-palette-row">
-                    <button class="last-word-swatch-btn" data-color="#FF4DA6" style="background: #FF4DA6;"></button>
-                    <button class="last-word-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;"></button>
-                    <button class="last-word-swatch-btn" data-color="#FFE600" style="background: #FFE600;"></button>
-                    <button class="last-word-swatch-btn" data-color="#10B981" style="background: #10B981;"></button>
-                    <button class="last-word-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;"></button>
-                    <button class="last-word-swatch-btn" data-color="#FFFFFF" style="background: #FFFFFF;"></button>
-                    <input type="color" id="custom-last-word-input" class="color-input-native" value="#FF4DA6" title="Choose Custom Last Word Color">
-                  </div>
-                </div>
-
-              </div>
-
-              <!-- 5. Caption Animation (15+ Styles) -->
-              <div class="config-section-card">
-                <div class="config-section-title">
-                  <span>5. Caption Animation (15 Styles)</span>
+                  <span>5. Caption Animation (22 Styles)</span>
                   <span class="badge badge-purple" id="selected-anim-name">Smooth Fade</span>
                 </div>
                 <p style="font-size: 0.78rem; color: var(--text-muted); margin: -4px 0 14px 0; line-height: 1.4;">
@@ -406,19 +471,7 @@ export class ToolStudioModal {
     }
 
     // 1. Populate Fonts
-    const fontGrid = this.container.querySelector('#font-picker-grid');
-    if (fontGrid) {
-      fontGrid.innerHTML = FONTS.map(f => `
-        <button class="font-option-btn ${config.fontFamily === f.id ? 'selected' : ''}" data-font="${f.id}" style="font-family: ${f.family}">
-          ${f.name.split(' ')[0]}
-        </button>
-      `).join('');
-    }
-    const fontBadge = this.container.querySelector('#selected-font-name');
-    if (fontBadge) {
-      const activeF = FONTS.find(f => f.id === config.fontFamily) || FONTS[0];
-      fontBadge.textContent = activeF.name.split(' ')[0];
-    }
+    this.renderFontGrid();
 
     // 2. Set Size Slider
     const sizeSlider = this.container.querySelector('#caption-size-slider');
@@ -437,14 +490,71 @@ export class ToolStudioModal {
     const posName = this.container.querySelector('#selected-pos-name');
     if (posName) posName.textContent = config.position?.toUpperCase() || 'MIDDLE LEFT';
 
-    // 4. Set Outline Width Slider
-    const outlineSlider = this.container.querySelector('#outline-width-slider');
-    const outlineVal = this.container.querySelector('#outline-width-val');
-    const outWidth = config.outlineWidth !== undefined ? config.outlineWidth : 1;
-    if (outlineSlider) outlineSlider.value = outWidth;
-    if (outlineVal) outlineVal.textContent = `${outWidth}px`;
+    // 4. Populate Normal Words Controls
+    const normalColor = config.textColor || '#FFFFFF';
+    const badgeNormal = this.container.querySelector('#badge-normal-color');
+    if (badgeNormal) badgeNormal.textContent = normalColor;
 
-    // 4B. Populate Last Word Accent Color
+    this.container.querySelectorAll('.normal-color-swatch-btn').forEach(b => {
+      if (b.getAttribute('data-color').toLowerCase() === normalColor.toLowerCase()) {
+        b.classList.add('selected');
+      } else {
+        b.classList.remove('selected');
+      }
+    });
+    const normalColorInput = this.container.querySelector('#custom-normal-color-input');
+    if (normalColorInput) normalColorInput.value = normalColor;
+
+    const normalOutSlider = this.container.querySelector('#normal-outline-slider');
+    const normalOutVal = this.container.querySelector('#normal-outline-width-val');
+    const normalOutWidth = config.normalOutlineWidth !== undefined ? config.normalOutlineWidth : (config.outlineWidth || 2);
+    if (normalOutSlider) normalOutSlider.value = normalOutWidth;
+    if (normalOutVal) normalOutVal.textContent = `${normalOutWidth}px`;
+
+    const normalOutColor = config.normalOutlineColor || config.outlineColor || '#000000';
+    this.container.querySelectorAll('.outline-color-btn[data-target="normal"]').forEach(btn => {
+      if (btn.getAttribute('data-color').toLowerCase() === normalOutColor.toLowerCase()) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    const normalOutColorInput = this.container.querySelector('#custom-normal-outline-color');
+    if (normalOutColorInput) normalOutColorInput.value = normalOutColor;
+
+    // 4B. Populate Prominent Words Controls
+    const prominentColor = config.prominentColor || '#FF4DA6';
+    const badgeProminent = this.container.querySelector('#badge-prominent-color');
+    if (badgeProminent) badgeProminent.textContent = prominentColor;
+
+    this.container.querySelectorAll('.prominent-color-swatch-btn').forEach(b => {
+      if (b.getAttribute('data-color').toLowerCase() === prominentColor.toLowerCase()) {
+        b.classList.add('selected');
+      } else {
+        b.classList.remove('selected');
+      }
+    });
+    const prominentColorInput = this.container.querySelector('#custom-prominent-color-input');
+    if (prominentColorInput) prominentColorInput.value = prominentColor;
+
+    const prominentOutSlider = this.container.querySelector('#prominent-outline-slider');
+    const prominentOutVal = this.container.querySelector('#prominent-outline-width-val');
+    const prominentOutWidth = config.prominentOutlineWidth !== undefined ? config.prominentOutlineWidth : 3;
+    if (prominentOutSlider) prominentOutSlider.value = prominentOutWidth;
+    if (prominentOutVal) prominentOutVal.textContent = `${prominentOutWidth}px`;
+
+    const prominentOutColor = config.prominentOutlineColor || '#000000';
+    this.container.querySelectorAll('.outline-color-btn[data-target="prominent"]').forEach(btn => {
+      if (btn.getAttribute('data-color').toLowerCase() === prominentOutColor.toLowerCase()) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    const prominentOutColorInput = this.container.querySelector('#custom-prominent-outline-color');
+    if (prominentOutColorInput) prominentOutColorInput.value = prominentOutColor;
+
+    // 4C. Populate Last Word Accent Color
     const lwToggle = this.container.querySelector('#enable-last-word-toggle');
     if (lwToggle) lwToggle.checked = config.enableLastWordColor !== false;
 
@@ -462,7 +572,7 @@ export class ToolStudioModal {
     // 5. Populate Interval Colors
     this.renderIntervalsList();
 
-    // 6. Populate Animations (15+ styles)
+    // 6. Populate Animations (22 styles)
     const animGrid = this.container.querySelector('#animation-cards-grid');
     if (animGrid) {
       animGrid.innerHTML = CAPTION_ANIMATIONS.map(a => `
@@ -496,6 +606,35 @@ export class ToolStudioModal {
     if (badge && curAnim) badge.textContent = curAnim.name;
 
     this.updatePreview();
+  }
+
+  renderFontGrid() {
+    const config = this.getActiveConfig();
+    const fontGrid = this.container?.querySelector('#font-picker-grid');
+    if (!fontGrid) return;
+
+    const isNormalTarget = this.activeFontTarget === 'normal';
+    const activeFontId = isNormalTarget
+      ? (config.normalFontFamily || config.fontFamily || 'Inter')
+      : (config.prominentFontFamily || 'PlayfairDisplay');
+
+    fontGrid.innerHTML = FONTS.map(f => `
+      <button class="font-option-btn ${activeFontId === f.id ? 'selected' : ''}" data-font="${f.id}" style="font-family: ${f.family}">
+        ${f.name.split(' (')[0]}
+      </button>
+    `).join('');
+
+    const normalBadge = this.container.querySelector('#selected-normal-font-name');
+    if (normalBadge) {
+      const fObj = FONTS.find(f => f.id === (config.normalFontFamily || config.fontFamily)) || FONTS[8];
+      normalBadge.textContent = `Normal: ${fObj.name.split(' (')[0]}`;
+    }
+
+    const prominentBadge = this.container.querySelector('#selected-prominent-font-name');
+    if (prominentBadge) {
+      const fObj = FONTS.find(f => f.id === (config.prominentFontFamily || 'PlayfairDisplay')) || FONTS[0];
+      prominentBadge.textContent = `Prominent: ${fObj.name.split(' (')[0]}`;
+    }
   }
 
   renderIntervalsList() {
@@ -562,17 +701,38 @@ export class ToolStudioModal {
       });
     });
 
-    // Font selection
+    // Font target tabs (Normal Text Font vs Prominent Words Font)
+    this.container.querySelector('#tab-font-normal')?.addEventListener('click', () => {
+      soundFx.playKeyBeep(550);
+      this.activeFontTarget = 'normal';
+      this.container.querySelector('#tab-font-normal').classList.add('active');
+      this.container.querySelector('#tab-font-prominent').classList.remove('active');
+      this.renderFontGrid();
+    });
+
+    this.container.querySelector('#tab-font-prominent')?.addEventListener('click', () => {
+      soundFx.playKeyBeep(550);
+      this.activeFontTarget = 'prominent';
+      this.container.querySelector('#tab-font-prominent').classList.add('active');
+      this.container.querySelector('#tab-font-normal').classList.remove('active');
+      this.renderFontGrid();
+    });
+
+    // Clicks on interactive elements
     this.container.addEventListener('click', (e) => {
+      // Font selection
       const fontBtn = e.target.closest('.font-option-btn');
       if (fontBtn) {
         soundFx.playKeyBeep(600);
         const fontId = fontBtn.getAttribute('data-font');
-        this.container.querySelectorAll('.font-option-btn').forEach(b => b.classList.remove('selected'));
-        fontBtn.classList.add('selected');
-        const badge = this.container.querySelector('#selected-font-name');
-        if (badge) badge.textContent = fontId;
-        this.setActiveConfig({ fontFamily: fontId });
+        if (this.activeFontTarget === 'normal') {
+          this.setActiveConfig({ normalFontFamily: fontId, fontFamily: fontId });
+        } else {
+          this.setActiveConfig({ prominentFontFamily: fontId });
+        }
+        this.renderFontGrid();
+        this.updatePreview();
+        return;
       }
 
       // Position selection
@@ -585,16 +745,50 @@ export class ToolStudioModal {
         const badge = this.container.querySelector('#selected-pos-name');
         if (badge) badge.textContent = posId.toUpperCase();
         this.setActiveConfig({ position: posId });
+        return;
       }
 
-      // Color swatches (Base Font)
-      const swatch = e.target.closest('.color-swatch-btn');
-      if (swatch) {
+      // Normal Color swatches
+      const normalSwatch = e.target.closest('.normal-color-swatch-btn');
+      if (normalSwatch) {
         soundFx.playKeyBeep(650);
-        const color = swatch.getAttribute('data-color');
-        this.container.querySelectorAll('.color-swatch-btn').forEach(b => b.classList.remove('selected'));
-        swatch.classList.add('selected');
+        const color = normalSwatch.getAttribute('data-color');
+        this.container.querySelectorAll('.normal-color-swatch-btn').forEach(b => b.classList.remove('selected'));
+        normalSwatch.classList.add('selected');
+        const badge = this.container.querySelector('#badge-normal-color');
+        if (badge) badge.textContent = color;
         this.setActiveConfig({ textColor: color });
+        return;
+      }
+
+      // Prominent Color swatches (Pink, Orange, White, Cyan, Yellow, Emerald)
+      const prominentSwatch = e.target.closest('.prominent-color-swatch-btn');
+      if (prominentSwatch) {
+        soundFx.playKeyBeep(660);
+        const color = prominentSwatch.getAttribute('data-color');
+        this.container.querySelectorAll('.prominent-color-swatch-btn').forEach(b => b.classList.remove('selected'));
+        prominentSwatch.classList.add('selected');
+        const badge = this.container.querySelector('#badge-prominent-color');
+        if (badge) badge.textContent = color;
+        this.setActiveConfig({ prominentColor: color });
+        return;
+      }
+
+      // Outline Stroke color buttons (Normal vs Prominent)
+      const outlineBtn = e.target.closest('.outline-color-btn');
+      if (outlineBtn) {
+        soundFx.playKeyBeep(640);
+        const target = outlineBtn.getAttribute('data-target');
+        const color = outlineBtn.getAttribute('data-color');
+        this.container.querySelectorAll(`.outline-color-btn[data-target="${target}"]`).forEach(b => b.classList.remove('active'));
+        outlineBtn.classList.add('active');
+
+        if (target === 'normal') {
+          this.setActiveConfig({ normalOutlineColor: color, outlineColor: color });
+        } else {
+          this.setActiveConfig({ prominentOutlineColor: color });
+        }
+        return;
       }
 
       // Last Word Accent Color Swatches
@@ -605,6 +799,7 @@ export class ToolStudioModal {
         this.container.querySelectorAll('.last-word-swatch-btn').forEach(b => b.classList.remove('selected'));
         lwSwatch.classList.add('selected');
         this.setActiveConfig({ lastWordColor: color });
+        return;
       }
 
       // Animation selection
@@ -618,12 +813,50 @@ export class ToolStudioModal {
         const badge = this.container.querySelector('#selected-anim-name');
         if (badge && animMeta) badge.textContent = animMeta.name;
         this.setActiveConfig({ animation: animId });
+        return;
       }
     });
 
-    // Native Color Picker (Base Font)
-    this.container.querySelector('#custom-color-input')?.addEventListener('input', (e) => {
-      this.setActiveConfig({ textColor: e.target.value });
+    // Custom Normal Color Picker
+    this.container.querySelector('#custom-normal-color-input')?.addEventListener('input', (e) => {
+      const color = e.target.value;
+      const badge = this.container.querySelector('#badge-normal-color');
+      if (badge) badge.textContent = color;
+      this.setActiveConfig({ textColor: color });
+    });
+
+    // Custom Prominent Color Picker
+    this.container.querySelector('#custom-prominent-color-input')?.addEventListener('input', (e) => {
+      const color = e.target.value;
+      const badge = this.container.querySelector('#badge-prominent-color');
+      if (badge) badge.textContent = color;
+      this.setActiveConfig({ prominentColor: color });
+    });
+
+    // Custom Normal Outline Color Picker
+    this.container.querySelector('#custom-normal-outline-color')?.addEventListener('input', (e) => {
+      this.setActiveConfig({ normalOutlineColor: e.target.value, outlineColor: e.target.value });
+    });
+
+    // Custom Prominent Outline Color Picker
+    this.container.querySelector('#custom-prominent-outline-color')?.addEventListener('input', (e) => {
+      this.setActiveConfig({ prominentOutlineColor: e.target.value });
+    });
+
+    // Normal Outline Width Slider
+    const normalOutSlider = this.container.querySelector('#normal-outline-slider');
+    normalOutSlider?.addEventListener('input', (e) => {
+      const val = Number(e.target.value);
+      this.container.querySelector('#normal-outline-width-val').textContent = `${val}px`;
+      this.setActiveConfig({ normalOutlineWidth: val, outlineWidth: val });
+    });
+
+    // Prominent Outline Width Slider
+    const prominentOutSlider = this.container.querySelector('#prominent-outline-slider');
+    prominentOutSlider?.addEventListener('input', (e) => {
+      const val = Number(e.target.value);
+      this.container.querySelector('#prominent-outline-width-val').textContent = `${val}px`;
+      this.setActiveConfig({ prominentOutlineWidth: val });
     });
 
     // Custom Last Word Color Picker
@@ -642,14 +875,6 @@ export class ToolStudioModal {
       const val = Number(e.target.value);
       this.container.querySelector('#caption-size-value').textContent = val;
       this.setActiveConfig({ fontSize: val });
-    });
-
-    // Outline Width Slider
-    const outlineSlider = this.container.querySelector('#outline-width-slider');
-    outlineSlider?.addEventListener('input', (e) => {
-      const val = Number(e.target.value);
-      this.container.querySelector('#outline-width-val').textContent = `${val}px`;
-      this.setActiveConfig({ outlineWidth: val });
     });
 
     // Add Interval button
@@ -702,36 +927,25 @@ export class ToolStudioModal {
 
     const isAuto = config.styleMode !== 'custom';
 
-    if (isAuto) {
-      // Auto Mode: Middle-Left Position
-      previewText.style.top = '50%';
-      previewText.style.left = '7%';
-      previewText.style.transform = 'translate(0, -50%)';
-      previewText.style.textAlign = 'left';
-      previewText.style.webkitTextStroke = 'none';
-      previewText.style.textShadow = 'none';
-      previewText.style.fontFamily = 'inherit';
-    } else {
-      // Custom Mode: Custom Position
-      const pos = CAPTION_POSITIONS.find(p => p.id === config.position) || CAPTION_POSITIONS[1];
-      previewText.style.top = pos.y;
-      previewText.style.left = pos.x;
-      previewText.style.transform = pos.transform;
-      previewText.style.textAlign = pos.align;
+    // Position preview text based on user selected position (defaults to middle-left for Auto, bottom-center for Custom)
+    const positionId = config.position || (isAuto ? 'middle-left' : 'bottom-center');
+    const pos = CAPTION_POSITIONS.find(p => p.id === positionId) || CAPTION_POSITIONS[3];
+    previewText.style.top = pos.y;
+    previewText.style.left = pos.x;
+    previewText.style.transform = pos.transform;
+    previewText.style.textAlign = pos.align;
+    previewText.style.webkitTextStroke = 'none';
+    previewText.style.textShadow = 'none';
 
-      // Font & Size
-      const fontMeta = FONTS.find(f => f.id === config.fontFamily) || FONTS[0];
-      previewText.style.fontFamily = fontMeta.family;
-      previewText.style.fontSize = `${Math.max(14, config.fontSize * 0.9)}px`;
-      previewText.style.color = config.textColor || '#FFE600';
-
-      // Outline
-      const outWidth = config.outlineWidth !== undefined ? config.outlineWidth : 1;
-      previewText.style.webkitTextStroke = `${outWidth}px ${config.outlineColor || '#000000'}`;
-      previewText.style.textShadow = `0 4px ${config.shadowBlur || 8}px ${config.shadowColor || 'rgba(0,0,0,0.8)'}`;
+    // Update auto-pos-badge in header
+    const autoBadge = this.container?.querySelector('#auto-pos-badge');
+    if (autoBadge && isAuto) {
+      const posName = pos.name || 'Middle Left';
+      const sizeVal = config.fontSize !== undefined ? config.fontSize : 30;
+      autoBadge.textContent = `📍 ${posName} • Size ${sizeVal}`;
     }
 
-    // Render phrase with highlighted styling
+    // Render phrase with dual normal & prominent styling
     this.renderPreviewPhrase(this.previewPhrases[this.phraseIdx]);
 
     // Trigger Live Animation
@@ -742,57 +956,36 @@ export class ToolStudioModal {
     const previewText = this.container?.querySelector('#preview-caption-text');
     if (!previewText) return;
     const config = this.getActiveConfig();
-    const isAuto = config.styleMode !== 'custom';
 
-    if (isAuto) {
-      // Auto AI Dynamic Typography
-      const analysis = autoTypographyEngine.analyzeSentence({ text: phrase });
-      const { theme } = analysis;
+    // Analyze phrase using dual word-importance logic & config
+    const analysis = autoTypographyEngine.analyzeSentence({ text: phrase }, false, config);
+    const baseFontSize = Math.max(16, Math.round((config.fontSize || 30) * 0.95));
 
-      previewText.innerHTML = `
-        <div class="preview-auto-flow">
-          ${analysis.prefixText ? `
-            <div class="preview-auto-prefix" style="
-              font-family: ${theme.prefixFontFamily};
-              font-size: 15px;
-              font-style: ${theme.prefixItalic ? 'italic' : 'normal'};
-              font-weight: ${theme.prefixFontWeight};
-              color: ${theme.prefixColor};
-              text-shadow: 0 3px 10px rgba(0,0,0,0.9);
-              letter-spacing: 0.5px;
-              line-height: 1.2;
-              margin-bottom: 2px;
-            ">
-              ${analysis.prefixText}
-            </div>
-          ` : ''}
-          <div class="preview-auto-hero" style="
-            font-family: ${theme.heroFontFamily};
-            font-size: 34px;
-            font-style: ${theme.heroItalic ? 'italic' : 'normal'};
-            font-weight: ${theme.heroFontWeight};
-            color: ${theme.heroColor};
-            text-shadow: ${theme.heroShadow};
-            letter-spacing: ${theme.heroLetterSpacing || 'normal'};
-            line-height: 1.05;
-          ">
-            ${analysis.heroText}
-          </div>
-        </div>
+    const wordsHtml = analysis.words.map((w) => {
+      const fontSizePx = Math.round(baseFontSize * (w.fontSizeMultiplier || 1.0));
+      return `
+        <span class="caption-word-token ${w.isProminent ? 'prominent-word' : 'normal-word'}" style="
+          color: ${w.color};
+          font-family: ${w.fontFamily};
+          font-size: ${fontSizePx}px;
+          font-style: ${w.fontStyle};
+          font-weight: ${w.fontWeight};
+          letter-spacing: ${w.letterSpacing};
+          text-shadow: ${w.shadow};
+          -webkit-text-stroke: ${w.stroke};
+          paint-order: stroke fill;
+          display: inline-block;
+          margin: 0 3px;
+        ">
+          ${w.word}
+        </span>
       `;
-      return;
-    }
-
-    // Custom mode manual rendering
-    const words = phrase.split(' ');
-    const lastWord = words.pop();
-    const leadingText = words.join(' ');
-    const lastWordColor = (config.enableLastWordColor !== false && config.lastWordColor)
-      ? config.lastWordColor
-      : (config.textColor || '#FFE600');
+    }).join(' ');
 
     previewText.innerHTML = `
-      <span style="color: ${config.textColor || '#FFE600'};">${leadingText} </span><span style="color: ${lastWordColor}; font-weight: 900;">${lastWord}</span>
+      <div class="preview-caption-flow" style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; line-height: 1.15;">
+        ${wordsHtml}
+      </div>
     `;
   }
 
@@ -801,9 +994,9 @@ export class ToolStudioModal {
     if (!previewText) return;
 
     const config = this.getActiveConfig();
-    const activeAnimId = animOverride || config.animation || 'anim-blur';
+    const activeAnimId = animOverride || config.animation || 'anim-fade';
     const animMeta = CAPTION_ANIMATIONS.find(a => a.id === activeAnimId);
-    const cssClass = animMeta ? animMeta.cssClass : 'anim-blur';
+    const cssClass = animMeta ? animMeta.cssClass : 'anim-fade';
 
     // Remove all animation classes
     CAPTION_ANIMATIONS.forEach(a => previewText.classList.remove(a.cssClass));

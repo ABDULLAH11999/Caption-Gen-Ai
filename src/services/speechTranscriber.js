@@ -16,13 +16,44 @@ class SpeechTranscriberService {
    */
   async extractAudioData(fileBlob) {
     const arrayBuffer = await fileBlob.arrayBuffer();
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)({
-      sampleRate: 16000 // 16kHz standard for speech recognition
-    });
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let decodedBuffer;
+    try {
+      decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    } catch (err) {
+      console.error('Failed to decode audio data:', err);
+      throw new Error('Unable to decode video audio track.');
+    } finally {
+      if (audioCtx.close) {
+        audioCtx.close().catch(() => {});
+      }
+    }
 
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-    const rawPcm = audioBuffer.getChannelData(0); // mono channel float32
-    return { audioBuffer, rawPcm, sampleRate: audioBuffer.sampleRate, duration: audioBuffer.duration };
+    const duration = decodedBuffer.duration;
+    const targetSampleRate = 16000; // Strict standard for Whisper speech AI
+    const targetLength = Math.max(1, Math.ceil(duration * targetSampleRate));
+
+    // High-fidelity hardware-accelerated 16kHz mono resampling via OfflineAudioContext
+    const offlineCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(
+      1,
+      targetLength,
+      targetSampleRate
+    );
+
+    const source = offlineCtx.createBufferSource();
+    source.buffer = decodedBuffer;
+    source.connect(offlineCtx.destination);
+    source.start(0);
+
+    const resampledBuffer = await offlineCtx.startRendering();
+    const rawPcm = resampledBuffer.getChannelData(0);
+
+    return { 
+      audioBuffer: resampledBuffer, 
+      rawPcm, 
+      sampleRate: targetSampleRate, 
+      duration 
+    };
   }
 
   /**

@@ -25,9 +25,9 @@ class TranslationService {
     const romanUrduHindi = /\b(kya|kyun|kaise|karo|karna|raha|rahi|rahe|hota|hoti|hote|mera|meri|mere|tera|teri|tere|aapka|aapki|aapke|humara|humari|shukriya|zaroor|accha|acha|bhai|dost|zindagi|pyaar|baat|yeh|woh|kuch|nahi|haan|hain|bhi|aur|lekin|magar|bohot|boht)\b/i;
     if (romanUrduHindi.test(text)) return false;
 
-    // Common Spanish keywords:
-    const spanish = /\b(hola|gracias|amigo|por favor|buenos|dias|estamos|video|crear|subtitulos|mundo|muy|bien|como|hacer|ahora|pero|todos|amigos)\b/i;
-    if (spanish.test(text)) return false;
+    // Common Spanish keywords (excluding common English words like 'video', 'como', 'bien'):
+    const spanish = /\b(hola|gracias|amigo|por favor|buenos dias|buenas tardes|buenas noches|estamos|subtitulos|ahora pero|todos)\b/i;
+    if (spanish.test(text) || /[áéíóúñ¿¡]/.test(text)) return false;
 
     return true;
   }

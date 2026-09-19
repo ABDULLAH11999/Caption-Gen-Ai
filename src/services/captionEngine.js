@@ -140,7 +140,29 @@ export class CaptionEngine {
   }
 
   setSentences(sentences) {
-    this.sentences = sentences || [];
+    this.sentences = (sentences || []).map((s, idx) => {
+      let start = s.startTime !== undefined ? Number(s.startTime) : idx * 3;
+      let end = s.endTime !== undefined ? Number(s.endTime) : start + 3;
+      if (end <= start) {
+        end = start + Math.max(2.2, ((s.words && s.words.length) || 4) * 0.5);
+      }
+      const words = (s.words && s.words.length > 0)
+        ? s.words.map((w, wIdx) => {
+            let wStart = w.start !== undefined ? Number(w.start) : start + (wIdx * (end - start) / s.words.length);
+            let wEnd = w.end !== undefined ? Number(w.end) : start + ((wIdx + 1) * (end - start) / s.words.length);
+            if (wEnd <= wStart) wEnd = wStart + 0.35;
+            return { ...w, start: parseFloat(wStart.toFixed(2)), end: parseFloat(wEnd.toFixed(2)) };
+          })
+        : this.createWordLevelTimestamps(s.text || '', start, end, s.language || 'en');
+
+      return {
+        ...s,
+        startTime: parseFloat(start.toFixed(2)),
+        endTime: parseFloat(end.toFixed(2)),
+        words
+      };
+    });
+    this.sentences.sort((a, b) => a.startTime - b.startTime);
   }
 
   updateSentenceText(sentenceId, newText) {
@@ -162,12 +184,17 @@ export class CaptionEngine {
   }
 
   addSentence(startTime, endTime, text, language = 'en') {
+    let start = parseFloat(Number(startTime).toFixed(2));
+    let end = parseFloat(Number(endTime).toFixed(2));
+    if (end <= start) {
+      end = start + 3.0;
+    }
     const newId = `sentence_${Date.now()}`;
-    const words = this.createWordLevelTimestamps(text, startTime, endTime, language);
+    const words = this.createWordLevelTimestamps(text, start, end, language);
     this.sentences.push({
       id: newId,
-      startTime,
-      endTime,
+      startTime: start,
+      endTime: end,
       text,
       language,
       words
@@ -179,10 +206,14 @@ export class CaptionEngine {
    * Build progressive word timestamps for custom user-entered or speech-transcribed text
    */
   createWordLevelTimestamps(text, startTime, endTime, language = 'en') {
-    const rawWords = text.trim().split(/\s+/).filter(Boolean);
+    const rawWords = (text || '').trim().split(/\s+/).filter(Boolean);
     if (rawWords.length === 0) return [];
 
-    const duration = Math.max(0.5, endTime - startTime);
+    let duration = endTime - startTime;
+    if (duration <= 0.2) {
+      duration = Math.max(2.0, rawWords.length * 0.45);
+      endTime = startTime + duration;
+    }
     const wordDuration = duration / rawWords.length;
 
     const words = rawWords.map((word, idx) => {
@@ -200,19 +231,36 @@ export class CaptionEngine {
 
   /**
    * Get active sentence and active words at a given playback time (in seconds).
-   * Exact YouTube Caption behavior:
-   * - Shows current sentence.
-   * - Indicates which words have been spoken so far (visible: true),
-   *   which word is actively being spoken right now (isCurrent: true),
-   *   and which words are upcoming (visible: false or dimmer depending on style).
+   * Exact YouTube Caption behavior with graceful persistence:
+   * - Never returns null if sentences exist (shows current or nearest preview).
+   * - Maintains displayed caption across small speech pauses.
    */
   getActiveCaptionState(currentTime, config = {}) {
     if (!this.sentences || this.sentences.length === 0) {
       return null;
     }
 
-    // Find sentence active at currentTime (or with a small lead-in)
-    const activeSentence = this.sentences.find(s => currentTime >= s.startTime && currentTime <= s.endTime);
+    const t = Number(currentTime);
+
+    // 1. Check exact match
+    let activeSentence = this.sentences.find(s => t >= s.startTime && t <= s.endTime);
+
+    // 2. Check graceful hold: if within 1.5s after a sentence ended before the next starts
+    if (!activeSentence) {
+      activeSentence = this.sentences.find(s => t >= s.startTime && t <= s.endTime + 1.5);
+    }
+
+    // 3. Fallback: If paused or seeking, pick closest sentence so video NEVER has empty screen
+    if (!activeSentence) {
+      if (t < this.sentences[0].startTime) {
+        // At beginning of video before first speech: preview first sentence
+        activeSentence = this.sentences[0];
+      } else {
+        // Pick most recent sentence that completed
+        const past = this.sentences.filter(s => t >= s.endTime);
+        activeSentence = past.length > 0 ? past[past.length - 1] : this.sentences[0];
+      }
+    }
 
     if (!activeSentence) {
       return null;

@@ -9,6 +9,13 @@ export const APP_CONFIG = {
 // Available Fonts (Local system & web-safe creative fonts)
 export const FONTS = [
   { id: 'PlayfairDisplay', name: 'Playfair Display (Luxury Editorial)', family: "'Playfair Display', Georgia, serif" },
+  { id: 'BodoniModa', name: 'Bodoni Moda (Vogue Runway Luxury)', family: "'Bodoni Moda', Georgia, serif" },
+  { id: 'Cinzel', name: 'Cinzel (Classical Roman Serif)', family: "'Cinzel', serif" },
+  { id: 'Syne', name: 'Syne (Viral Ultra Display)', family: "'Syne', sans-serif" },
+  { id: 'Righteous', name: 'Righteous (Bold Rounded Retro)', family: "'Righteous', cursive, sans-serif" },
+  { id: 'PlusJakartaSans', name: 'Plus Jakarta Sans (Viral Clean)', family: "'Plus Jakarta Sans', sans-serif" },
+  { id: 'Anton', name: 'Anton (Heavy Poster Impact)', family: "'Anton', sans-serif" },
+  { id: 'Bungee', name: 'Bungee (Urban Block Display)', family: "'Bungee', cursive, sans-serif" },
   { id: 'Inter', name: 'Inter (Modern Sans)', family: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" },
   { id: 'Montserrat', name: 'Montserrat (Bold Clean)', family: "'Montserrat', sans-serif" },
   { id: 'Roboto', name: 'Roboto (Universal)', family: "'Roboto', sans-serif" },
@@ -34,8 +41,15 @@ export const CAPTION_POSITIONS = [
   { id: 'bottom-right', label: 'Bottom Right', x: '94%', y: '82%', align: 'right', transform: 'translate(-100%, -50%)' }
 ];
 
-// 15+ Caption Animation Styles
+// 22+ Caption Animation Styles
 export const CAPTION_ANIMATIONS = [
+  { id: 'anim-3d-tilt', name: '3D Tilt & Spring', description: 'Dynamic 3D perspective swing with spring recoil', cssClass: 'anim-3d-tilt' },
+  { id: 'anim-neon-shimmer', name: 'Neon Shimmer Sweep', description: 'Luminous light beam scanning across words', cssClass: 'anim-neon-shimmer' },
+  { id: 'anim-bounce-drop', name: 'Kinetic Bounce Drop', description: 'Falling from above with elastic rubber bounce', cssClass: 'anim-bounce-drop' },
+  { id: 'anim-cinematic-drift', name: 'Cinematic Drift', description: 'Anti-gravity floating zero-g sway', cssClass: 'anim-cinematic-drift' },
+  { id: 'anim-elastic-snap', name: 'Elastic Magnetic Snap', description: 'Dramatic oversize zoom snap into place', cssClass: 'anim-elastic-snap' },
+  { id: 'anim-liquid-gradient', name: 'Holo Liquid Flow', description: 'Rotating holographic rainbow gradient flow', cssClass: 'anim-liquid-gradient' },
+  { id: 'anim-fire-flare', name: 'Solar Flare Pulse', description: 'Energetic warm flare burst with heatwave blur', cssClass: 'anim-fire-flare' },
   { id: 'anim-left-right', name: 'Left to Right', description: 'Smooth slide-in from left', cssClass: 'anim-slide-left-right' },
   { id: 'anim-right-left', name: 'Right to Left', description: 'Smooth slide-in from right', cssClass: 'anim-slide-right-left' },
   { id: 'anim-top-bottom', name: 'Top to Bottom', description: 'Descend smoothly into frame', cssClass: 'anim-slide-top-bottom' },
@@ -56,12 +70,19 @@ export const CAPTION_ANIMATIONS = [
 // Default configuration for Landscape (16:9)
 export const DEFAULT_LANDSCAPE_CONFIG = {
   styleMode: 'auto', // 'auto' | 'custom' (default: Auto AI Mode)
-  fontFamily: 'PlayfairDisplay',
+  normalFontFamily: 'Inter',
+  prominentFontFamily: 'PlayfairDisplay',
+  fontFamily: 'PlayfairDisplay', // legacy fallback
   fontSize: 30, // 1 - 100 scale
   position: 'middle-left', // Auto mode uses middle-left
-  textColor: '#FFFFFF',
-  outlineColor: '#000000',
-  outlineWidth: 1,
+  textColor: '#FFFFFF', // Normal words color (default white)
+  prominentColor: '#FF4DA6', // Prominent words color (Pink / Orange / White / Cyan / Yellow)
+  normalOutlineColor: '#000000',
+  normalOutlineWidth: 2,
+  prominentOutlineColor: '#000000',
+  prominentOutlineWidth: 3,
+  outlineColor: '#000000', // legacy fallback
+  outlineWidth: 2, // legacy fallback
   shadowColor: 'rgba(0,0,0,0.85)',
   shadowBlur: 8,
   animation: 'anim-fade',
@@ -81,12 +102,19 @@ export const DEFAULT_LANDSCAPE_CONFIG = {
 // Default configuration for Portrait (9:16 Shorts/Reels)
 export const DEFAULT_PORTRAIT_CONFIG = {
   styleMode: 'auto', // 'auto' | 'custom' (default: Auto AI Mode)
-  fontFamily: 'PlayfairDisplay',
+  normalFontFamily: 'Inter',
+  prominentFontFamily: 'PlayfairDisplay',
+  fontFamily: 'PlayfairDisplay', // legacy fallback
   fontSize: 34,
   position: 'middle-left', // Auto mode uses middle-left
-  textColor: '#FFFFFF',
-  outlineColor: '#000000',
-  outlineWidth: 1,
+  textColor: '#FFFFFF', // Normal words color (default white)
+  prominentColor: '#FF4DA6', // Prominent words color (Pink / Orange / White / Cyan / Yellow)
+  normalOutlineColor: '#000000',
+  normalOutlineWidth: 2,
+  prominentOutlineColor: '#000000',
+  prominentOutlineWidth: 3,
+  outlineColor: '#000000', // legacy fallback
+  outlineWidth: 2, // legacy fallback
   shadowColor: 'rgba(0,0,0,0.95)',
   shadowBlur: 10,
   animation: 'anim-fade',

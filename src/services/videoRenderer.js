@@ -27,84 +27,196 @@ export class VideoRenderer {
 
     const isAuto = config.styleMode !== 'custom';
     if (isAuto) {
-      // Analyze sentence for dynamic Auto AI typography
-      const analysis = autoTypographyEngine.analyzeSentence({
-        text: captionState.fullText,
-        words: captionState.words,
-        startTime: captionState.startTime,
-        endTime: captionState.endTime
-      });
-      const { theme } = analysis;
+      // 1. Position from config.position in Auto Mode (default: middle-left)
+      const positionId = config.position || 'middle-left';
+      let posX = canvasWidth * 0.06;
+      let posY = canvasHeight * 0.50;
+      let textAlign = 'left';
 
-      // Position: Strictly Middle Left Safe Zone
-      const posX = canvasWidth * 0.07;
-      const posY = canvasHeight * 0.50;
+      switch (positionId) {
+        case 'top':
+          posX = canvasWidth * 0.5;
+          posY = canvasHeight * 0.14;
+          textAlign = 'center';
+          break;
+        case 'bottom':
+          posX = canvasWidth * 0.5;
+          posY = canvasHeight * 0.82;
+          textAlign = 'center';
+          break;
+        case 'middle':
+          posX = canvasWidth * 0.5;
+          posY = canvasHeight * 0.50;
+          textAlign = 'center';
+          break;
+        case 'middle-left':
+          posX = canvasWidth * 0.06;
+          posY = canvasHeight * 0.50;
+          textAlign = 'left';
+          break;
+        case 'middle-right':
+          posX = canvasWidth * 0.94;
+          posY = canvasHeight * 0.50;
+          textAlign = 'right';
+          break;
+        case 'top-left':
+          posX = canvasWidth * 0.06;
+          posY = canvasHeight * 0.14;
+          textAlign = 'left';
+          break;
+        case 'top-right':
+          posX = canvasWidth * 0.94;
+          posY = canvasHeight * 0.14;
+          textAlign = 'right';
+          break;
+        case 'bottom-left':
+          posX = canvasWidth * 0.06;
+          posY = canvasHeight * 0.82;
+          textAlign = 'left';
+          break;
+        case 'bottom-right':
+          posX = canvasWidth * 0.94;
+          posY = canvasHeight * 0.82;
+          textAlign = 'right';
+          break;
+      }
+
+      let isLightBackground = false;
+      try {
+        const sampleW = Math.min(160, Math.floor(canvasWidth * 0.4));
+        const sampleH = Math.min(100, Math.floor(canvasHeight * 0.2));
+        const sampleImg = ctx.getImageData(Math.floor(posX), Math.floor(posY - sampleH * 0.5), sampleW, sampleH);
+        let lumSum = 0;
+        const pCount = sampleImg.data.length / 4;
+        for (let i = 0; i < sampleImg.data.length; i += 4) {
+          lumSum += 0.299 * sampleImg.data[i] + 0.587 * sampleImg.data[i + 1] + 0.114 * sampleImg.data[i + 2];
+        }
+        isLightBackground = (lumSum / (pCount || 1)) > 130;
+      } catch (e) {
+        isLightBackground = false;
+      }
+
+      // 2. Analyze sentence for token-level word importance with dual typography
+      const analysis = autoTypographyEngine.analyzeSentence(captionState, isLightBackground, config);
 
       const baseScale = Math.min(canvasWidth, canvasHeight);
-      const baseFontSize = Math.max(22, Math.round((baseScale / 720) * 36));
+      const userFontSize = config.fontSize !== undefined ? config.fontSize : 30;
+      const baseFontSize = Math.max(16, Math.round(userFontSize * (baseScale / 720) * 1.15));
+      const maxLineWidth = canvasWidth * 0.86;
 
-      const prefixFontSize = Math.round(baseFontSize * (theme.prefixFontSizeMultiplier || 0.65));
-      const heroFontSize = Math.round(baseFontSize * (theme.heroFontSizeMultiplier || 2.2));
+      // 3. Layout words into lines
+      const lines = [];
+      let curLine = [];
+      let curLineWidth = 0;
 
-      let prefixHeight = 0;
-      if (analysis.prefixText) {
-        prefixHeight = prefixFontSize * 1.25;
+      analysis.words.forEach((w) => {
+        const wordFontSize = Math.round(baseFontSize * (w.fontSizeMultiplier || 1.0));
+        const pItalic = w.fontStyle === 'italic' ? 'italic' : 'normal';
+        const pWeight = w.fontWeight || '800';
+        const pFamily = w.fontFamily || "'Inter', -apple-system, sans-serif";
+
+        ctx.font = `${pItalic} ${pWeight} ${wordFontSize}px ${pFamily}`;
+        const wWidth = ctx.measureText(w.word).width;
+        const spacing = wordFontSize * 0.24;
+        const testWidth = curLineWidth + (curLine.length > 0 ? spacing : 0) + wWidth;
+
+        if (testWidth > maxLineWidth && curLine.length > 0) {
+          lines.push({ words: curLine, width: curLineWidth });
+          curLine = [{ ...w, width: wWidth, spacing, font: `${pItalic} ${pWeight} ${wordFontSize}px ${pFamily}`, fontSize: wordFontSize }];
+          curLineWidth = wWidth;
+        } else {
+          curLine.push({ ...w, width: wWidth, spacing, font: `${pItalic} ${pWeight} ${wordFontSize}px ${pFamily}`, fontSize: wordFontSize });
+          curLineWidth = testWidth;
+        }
+      });
+      if (curLine.length > 0) {
+        lines.push({ words: curLine, width: curLineWidth });
       }
-      const heroHeight = heroFontSize * 1.1;
-      const totalBlockHeight = prefixHeight + heroHeight;
-      const startY = posY - totalBlockHeight * 0.5;
 
-      // Draw Prefix if present (e.g. "this is", "for")
-      if (analysis.prefixText) {
+      const lineHeight = baseFontSize * 1.35;
+      const totalBlockHeight = lines.length * lineHeight;
+      const startBlockY = posY - totalBlockHeight * 0.5 + lineHeight * 0.4;
+      const maxBlockWidth = Math.max(...lines.map(l => l.width), 100);
+
+      // 4. If light background, draw dark glass backing pill
+      if (isLightBackground) {
         ctx.save();
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        const pFontWeight = theme.prefixFontWeight || '600';
-        const pItalic = theme.prefixItalic ? 'italic' : 'normal';
-        const pFamily = theme.prefixFontFamily.includes('Playfair') ? "'Playfair Display', Georgia, serif" : "'Inter', -apple-system, sans-serif";
-        ctx.font = `${pItalic} ${pFontWeight} ${prefixFontSize}px ${pFamily}`;
+        ctx.fillStyle = 'rgba(4, 8, 16, 0.62)';
+        ctx.beginPath();
+        const padX = 20;
+        const padY = 14;
+        let pillX = posX - padX * 0.5;
+        if (textAlign === 'center') {
+          pillX = posX - maxBlockWidth * 0.5 - padX * 0.5;
+        } else if (textAlign === 'right') {
+          pillX = posX - maxBlockWidth - padX * 0.5;
+        }
+        const pillY = posY - totalBlockHeight * 0.5 - padY * 0.5;
+        const pillW = maxBlockWidth + padX;
+        const pillH = totalBlockHeight + padY;
 
-        ctx.shadowColor = 'rgba(0,0,0,0.85)';
-        ctx.shadowBlur = Math.round(8 * (baseScale / 720));
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 2;
-
-        ctx.fillStyle = theme.prefixColor || '#FFFFFF';
-        ctx.fillText(analysis.prefixText, posX, startY);
+        if (ctx.roundRect) {
+          ctx.roundRect(pillX, pillY, pillW, pillH, 12);
+        } else {
+          ctx.rect(pillX, pillY, pillW, pillH);
+        }
+        ctx.fill();
         ctx.restore();
       }
 
-      // Draw Hero Text (e.g. "Emily", "September")
-      ctx.save();
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      const hFontWeight = theme.heroFontWeight || '900';
-      const hItalic = theme.heroItalic ? 'italic' : 'normal';
-      const hFamily = theme.heroFontFamily.includes('Playfair') ? "'Playfair Display', Georgia, serif" : "'Inter', -apple-system, sans-serif";
-      ctx.font = `${hItalic} ${hFontWeight} ${heroFontSize}px ${hFamily}`;
+      // 5. Draw words
+      lines.forEach((line, lineIdx) => {
+        const lineY = startBlockY + lineIdx * lineHeight;
+        let curX = posX;
+        if (textAlign === 'center') {
+          curX = posX - line.width / 2;
+        } else if (textAlign === 'right') {
+          curX = posX - line.width;
+        }
 
-      if (theme.heroColor === '#FF4DA6') {
-        ctx.shadowColor = 'rgba(255, 77, 166, 0.75)';
-        ctx.shadowBlur = Math.round(25 * (baseScale / 720));
-      } else if (theme.heroColor === '#00F0FF') {
-        ctx.shadowColor = 'rgba(0, 240, 255, 0.75)';
-        ctx.shadowBlur = Math.round(25 * (baseScale / 720));
-      } else {
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-        ctx.shadowBlur = Math.round(20 * (baseScale / 720));
-      }
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = Math.round(4 * (baseScale / 720));
+        line.words.forEach((w) => {
+          ctx.save();
+          ctx.font = w.font;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
 
-      const heroY = startY + prefixHeight;
+          // Stroke & Outline
+          const rawStrokeWidth = w.isProminent 
+            ? (config?.prominentOutlineWidth !== undefined ? config.prominentOutlineWidth : 3.0)
+            : (config?.normalOutlineWidth !== undefined ? config.normalOutlineWidth : (isLightBackground ? 2.5 : 1.2));
+          ctx.lineWidth = Math.max(1.0, rawStrokeWidth * (baseScale / 720));
+          ctx.strokeStyle = w.isProminent 
+            ? (config?.prominentOutlineColor || '#000000')
+            : (config?.normalOutlineColor || '#000000');
+          ctx.lineJoin = 'round';
+          ctx.miterLimit = 2;
 
-      ctx.lineWidth = Math.max(1, Math.round(1.5 * (baseScale / 720)));
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-      ctx.strokeText(analysis.heroText, posX, heroY);
+          // Shadows & Neon Glows
+          if (w.category === 'brand') {
+            ctx.shadowColor = 'rgba(0, 240, 255, 0.85)';
+            ctx.shadowBlur = Math.round(18 * (baseScale / 720));
+          } else if (w.category === 'date') {
+            ctx.shadowColor = 'rgba(255, 77, 166, 0.85)';
+            ctx.shadowBlur = Math.round(20 * (baseScale / 720));
+          } else if (w.category === 'impact') {
+            ctx.shadowColor = 'rgba(255, 230, 0, 0.8)';
+            ctx.shadowBlur = Math.round(16 * (baseScale / 720));
+          } else {
+            ctx.shadowColor = isLightBackground ? 'rgba(0,0,0,0.95)' : 'rgba(0, 0, 0, 0.85)';
+            ctx.shadowBlur = Math.round(8 * (baseScale / 720));
+          }
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = Math.round(2 * (baseScale / 720));
 
-      ctx.fillStyle = theme.heroColor;
-      ctx.fillText(analysis.heroText, posX, heroY);
-      ctx.restore();
+          // Draw stroke then fill
+          ctx.strokeText(w.word, curX, lineY);
+          ctx.fillStyle = w.color || '#FFFFFF';
+          ctx.fillText(w.word, curX, lineY);
+          ctx.restore();
+
+          curX += w.width + (w.spacing || 6);
+        });
+      });
 
       return;
     }
