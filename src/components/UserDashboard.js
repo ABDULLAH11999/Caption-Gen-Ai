@@ -1076,6 +1076,13 @@ export class UserDashboard {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   }
 
+
+  getFontFamily(fontId) {
+    if (!fontId) return "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+    const found = FONTS.find(f => f.id.toLowerCase() === fontId.toLowerCase() || f.name.toLowerCase().includes(fontId.toLowerCase()));
+    return found ? found.family : `'${fontId}', -apple-system, sans-serif`;
+  }
+
   updateCaptionOverlay() {
     const overlay = this.container.querySelector('#user-caption-live-overlay');
     if (!overlay || !this.videoElement) return;
@@ -1108,7 +1115,7 @@ export class UserDashboard {
     // 3. Resolve active template and user custom/studio configurations
     const tpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
     const customConfig = this.userCustomTemplates[tpl.id] || {};
-    const studioConfig = (this.activeConfig && (!this.activeConfig.templateId || this.activeConfig.templateId === tpl.id)) ? this.activeConfig : {};
+    const studioConfig = this.activeConfig || {};
     const cfg = { ...tpl.config, ...customConfig, ...studioConfig };
 
     // 4. Ensure words array exists with valid timings
@@ -1117,11 +1124,6 @@ export class UserDashboard {
       const sStart = currentSentence.start ?? currentSentence.startTime ?? 0;
       const sEnd = currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5);
       words = captionEngine.createWordLevelTimestamps(currentSentence.text || '', sStart, sEnd);
-    }
-
-    // Guard: ensure line segment NEVER exceeds 2 rows (clamp to max 5 words)
-    if (words.length > 5) {
-      words = words.slice(0, 5);
     }
 
     // 5. Determine the current speaking single word index
@@ -1142,54 +1144,65 @@ export class UserDashboard {
       if (speakingWordIdx === -1) speakingWordIdx = 0;
     }
 
-    // 6. Font sizes: Standard other words 28px, speaking single word 32px (+4px size)
-    const baseFontSize = (cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28;
-    const speakingFontSize = baseFontSize + 4; // Exactly 32px when base is 28px
+    // 6. Strict 2-Row Guarantee: Never make a 3rd row!
+    // When a line segment has > 3 words, display active 2-3 word window so it NEVER wraps onto a 3rd row
+    let displayWords = words;
+    let chunkOffset = 0;
+    if (words.length > 3) {
+      const mid = Math.ceil(words.length / 2);
+      if (speakingWordIdx < mid) {
+        displayWords = words.slice(0, mid);
+        chunkOffset = 0;
+      } else {
+        displayWords = words.slice(mid);
+        chunkOffset = mid;
+      }
+    }
 
-    // 7. Typography settings from config
-    const normalFont = cfg.normalFontFamily || 'Inter';
-    const prominentFont = cfg.prominentFontFamily || 'Syne';
+    // 7. Font sizes: Standard other words 25px in portrait / 28px in landscape, speaking word +4px
+    const isPortrait = this.currentMode === 'portrait';
+    const baseFontSize = isPortrait ? 25 : ((cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28);
+    const speakingFontSize = baseFontSize + 4;
+
+    // 8. Typography settings from config (Looked up through FONTS dictionary)
+    const normalFontFamily = this.getFontFamily(cfg.normalFontFamily || 'Inter');
+    const prominentFontFamily = this.getFontFamily(cfg.prominentFontFamily || 'Syne');
 
     const defaultTextColor = cfg.textColor || '#FFFFFF';
     const prominentColor = cfg.prominentColor || '#FFE600';
     const hasLastWordColor = cfg.enableLastWordColor !== false && !!cfg.lastWordColor;
     const lastWordColor = hasLastWordColor ? cfg.lastWordColor : prominentColor;
-    const speakingHighlightColor = cfg.karaokeHighlightColor || prominentColor;
 
-    // 8. Build styled words: 100% OPAQUE (coming words never transparent), colorful, tight word flow
-    const wordsHtml = words.map((w, idx) => {
+    // 9. Build styled words: Keep actual color of the word (NEVER apply separate color on speaking word)
+    const wordsHtml = displayWords.map((w, localIdx) => {
+      const globalIdx = chunkOffset + localIdx;
       const cleanWord = (w.word || '').replace(/[.,!?:;"'()]/g, '');
       const isHeroKeyword = autoTypographyEngine.brandRegex.test(cleanWord) || 
                             autoTypographyEngine.monthsDatesRegex.test(cleanWord) || 
                             autoTypographyEngine.placesRegex.test(cleanWord) || 
                             autoTypographyEngine.impactWordsRegex.test(cleanWord);
       
-      const isSpeaking = (idx === speakingWordIdx);
-      const isLastWord = (idx === words.length - 1);
-      const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && idx === 1);
+      const isSpeaking = (globalIdx === speakingWordIdx);
+      const isLastWord = (globalIdx === words.length - 1);
+      const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && globalIdx === 1);
 
-      let font = normalFont;
-      let color = defaultTextColor;
-
-      if (isProminent) {
-        font = prominentFont;
-        color = prominentColor;
-      }
+      let font = isProminent ? prominentFontFamily : normalFontFamily;
+      let color = isProminent ? prominentColor : defaultTextColor;
 
       if (isLastWord && hasLastWordColor) {
-        font = prominentFont;
+        font = prominentFontFamily;
         color = lastWordColor;
       }
 
+      // Speaking word keeps its actual color; gets prominent font and subtle size boost
       if (isSpeaking) {
-        color = speakingHighlightColor;
-        font = prominentFont;
+        font = prominentFontFamily;
       }
 
       const wordFontSize = isSpeaking ? speakingFontSize : baseFontSize;
       const fontWeight = isSpeaking ? 900 : (isProminent ? 800 : 700);
       const textShadow = isSpeaking
-        ? `0 0 16px ${color}, 0 2px 8px rgba(0,0,0,0.98), 0 0 3px #000000`
+        ? `0 0 16px ${color}88, 0 2px 8px rgba(0,0,0,0.98), 0 0 3px #000000`
         : `0 2px 6px rgba(0,0,0,0.95), 0 0 2px #000000`;
 
       const strokeWidth = isProminent
@@ -1206,7 +1219,7 @@ export class UserDashboard {
           margin: 1px 2px !important;
           padding: 0 1px !important;
           box-sizing: border-box !important;
-          font-family: '${font}', sans-serif;
+          font-family: ${font} !important;
           color: ${color} !important;
           font-size: ${wordFontSize}px !important;
           font-weight: ${fontWeight};
@@ -1220,26 +1233,25 @@ export class UserDashboard {
           -webkit-paint-order: stroke fill;
           transform: none !important;
           white-space: nowrap !important;
-          transition: font-size 0.12s cubic-bezier(0.16, 1, 0.3, 1), color 0.12s ease, text-shadow 0.12s ease;
+          transition: font-size 0.12s cubic-bezier(0.16, 1, 0.3, 1), text-shadow 0.12s ease;
         ">
           ${w.word}
         </span>
       `;
     }).join('');
 
-    // 9. Detect new line segment transition to trigger configured entrance animation
+    // 10. Detect new line segment transition to trigger configured entrance animation
     const sStart = Number(currentSentence.start ?? currentSentence.startTime ?? 0);
     const sEnd = Number(currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5));
-    const sText = (currentSentence.text || '').trim();
-    const sKey = `seg_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}_${sText}`}`;
-
-    const isNewSegment = this.lastRenderedSentenceKey !== sKey;
-    this.lastRenderedSentenceKey = sKey;
-
-    // 10. Retrieve animation class from config
+    const subChunkKey = displayWords.map(w => w.word).join('_');
     const animId = cfg.animation || 'anim-pop';
     const animMeta = CAPTION_ANIMATIONS.find(a => a.id === animId || a.cssClass === animId);
     const animClass = animMeta ? animMeta.cssClass : (animId.startsWith('anim-') ? animId : 'anim-pop');
+
+    const sKey = `seg_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}`;
+
+    const isNewSegment = this.lastRenderedSentenceKey !== sKey;
+    this.lastRenderedSentenceKey = sKey;
 
     // 11. Precise Position from CAPTION_POSITIONS (supports middle-left, top-left, center, etc.)
     const positionId = cfg.position || 'middle-left';
@@ -1256,7 +1268,7 @@ export class UserDashboard {
     if (!anchor || !animWrapper || isNewSegment) {
       // Re-create segment with configured entrance animation and tight natural word spacing (no overflow clipping!)
       overlay.innerHTML = `
-        <div class="caption-segment-anchor" style="position: absolute; top: ${posY}; left: ${posX}; transform: ${posTransform}; width: auto; max-width: 88%; text-align: ${textAlign}; pointer-events: none; z-index: 20;">
+        <div class="caption-segment-anchor" style="position: absolute; top: ${posY}; left: ${posX}; transform: ${posTransform}; width: auto; max-width: 94%; text-align: ${textAlign}; pointer-events: none; z-index: 20;">
           <div class="caption-anim-segment-wrapper ${animClass}" style="display: inline-flex; flex-wrap: wrap; justify-content: ${justifyAlign}; align-items: baseline; gap: 2px 4px; width: auto; max-width: 100%; text-transform: uppercase; line-height: 1.05;">
             ${wordsHtml}
           </div>

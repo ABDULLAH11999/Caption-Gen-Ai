@@ -59,6 +59,7 @@ class ZenSaaSApp {
         onConfigChanged: (config) => {
           if (this.userDashboard) {
             this.userDashboard.activeConfig = config;
+            this.userDashboard.lastRenderedSentenceKey = null;
             this.userDashboard.updateCaptionOverlay();
           }
         }

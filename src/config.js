@@ -24,7 +24,7 @@ export const FONTS = [
   { id: 'Oswald', name: 'Oswald (Punchy Bold)', family: "'Oswald', sans-serif" },
   { id: 'Outfit', name: 'Outfit (Futuristic Tech)', family: "'Outfit', sans-serif" },
   { id: 'Bangers', name: 'Bangers (Comic / Dynamic)', family: "'Bangers', cursive, Impact" },
-  { id: 'CourierNew', name: 'Courier New (Terminal Typewriter)', family: "'Courier New', monospace" },
+  { id: 'CourierNew', name: 'Courier New (Terminal Typewriter)', family: "'Courier Prime', 'Courier New', Courier, monospace" },
   { id: 'Arial', name: 'Arial (Common Clean)', family: "Arial, Helvetica, sans-serif" }
 ];
 

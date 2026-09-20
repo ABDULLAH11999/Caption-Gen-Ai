@@ -144,7 +144,7 @@ export class CaptionEngine {
    * Keeps segments compact (max 5 words), breaking longer sentences into
    * 2 balanced line segments with precise proportional timestamps.
    */
-  splitLongSegments(sentences, maxWords = 5) {
+  splitLongSegments(sentences, maxWords = 3) {
     const result = [];
     (sentences || []).forEach((s, sIdx) => {
       let words = s.words;
@@ -233,8 +233,8 @@ export class CaptionEngine {
       };
     });
 
-    // Automatically break long segments so no segment ever creates a 3rd row (max 5 words / 2 rows)
-    this.sentences = this.splitLongSegments(normalized, 5);
+    // Automatically break long segments so no segment ever creates a 3rd row (max 3 words / 2 rows)
+    this.sentences = this.splitLongSegments(normalized, 3);
     this.sentences.sort((a, b) => a.start - b.start);
   }
 
