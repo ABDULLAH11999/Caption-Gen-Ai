@@ -1,88 +1,365 @@
-// Main Application Bootstrapper
-import './styles/main.css';
-import './styles/gate-screen.css';
-import './styles/upload-screen.css';
+// Main Application Bootstrapper & Client Router
+// SaaS Platform: Public Landing, Sub-pages, 30 SEO Blogs, User Studio Dashboard & Admin Console
+
+import './styles/theme.css';
+import './styles/landing.css';
+import './styles/user-dashboard.css';
+import './styles/admin.css';
 import './styles/tool-modal.css';
 import './styles/captions.css';
 
-import { APP_CONFIG } from './config.js';
-import { GateScreen } from './components/GateScreen.js';
-import { UploadScreen } from './components/UploadScreen.js';
+import { api } from './services/apiClient.js';
+import { Navbar } from './components/Navbar.js';
+import { Footer } from './components/Footer.js';
+import { CookieBanner } from './components/CookieBanner.js';
+import { AuthModal } from './components/AuthModal.js';
+import { LandingPage } from './components/LandingPage.js';
+import { AboutPage } from './components/AboutPage.js';
+import { ContactPage } from './components/ContactPage.js';
+import { TermsPage } from './components/TermsPage.js';
+import { CookiePolicyPage } from './components/CookiePolicyPage.js';
+import { BlogListPage } from './components/BlogListPage.js';
+import { BlogDetailPage } from './components/BlogDetailPage.js';
+import { UserDashboard } from './components/UserDashboard.js';
+import { AdminDashboard } from './components/AdminDashboard.js';
 import { ToolStudioModal } from './components/ToolStudioModal.js';
-import { storage } from './services/storageService.js';
 
-class ZenApp {
+class ZenSaaSApp {
   constructor() {
     this.appRoot = null;
-    this.gateScreen = null;
-    this.uploadScreen = null;
+    this.currentRoute = 'home';
+    this.routeParams = {};
+    this.settings = {};
+
+    // Components
+    this.navbar = null;
+    this.footer = null;
+    this.cookieBanner = null;
+    this.authModal = null;
     this.toolStudio = null;
+    this.userDashboard = null;
+    this.adminDashboard = null;
+
+    this.mainContainer = null;
     this.toastContainer = null;
   }
 
   async init() {
     this.appRoot = document.getElementById('app') || document.body;
+    this.appRoot.innerHTML = '';
     this.setupToastContainer();
 
     try {
-      // 1. Initialize Tool Studio (Screen 3)
+      // 1. Check existing session and load site settings
+      await api.checkMe();
+      await this.loadSiteSettings();
+
+      // 2. Initialize Tool Studio Modal (Reusable across dashboard)
       this.toolStudio = new ToolStudioModal({
-        onConfigChanged: (config, mode) => {
-          if (this.uploadScreen) {
-            this.uploadScreen.setConfig(config, mode);
+        onConfigChanged: (config) => {
+          if (this.userDashboard) {
+            this.userDashboard.activeConfig = config;
+            this.userDashboard.updateCaptionOverlay();
           }
         }
       });
       await this.toolStudio.initConfigs();
       this.toolStudio.render(this.appRoot);
 
-      // 2. Initialize Upload & Caption Workspace (Screen 2)
-      this.uploadScreen = new UploadScreen({
-        onOpenStyleStudio: (currentMode) => {
-          this.toolStudio.open(currentMode);
-        },
-        onLockGate: () => {
-          sessionStorage.removeItem('zen_unlocked');
-          this.gateScreen.lockGate();
-          this.showToast('Security gate locked.', 'warning');
+      // 3. Initialize Auth Modal
+      this.authModal = new AuthModal({
+        onSuccess: (user) => {
+          this.showToast(`Welcome back, ${user.name}!`, 'success');
+          if (this.navbar) this.navbar.updateAuthButtons();
+          if (this.currentRoute === 'home') {
+            this.navigate('app');
+          } else {
+            this.renderRoute(this.currentRoute, this.routeParams);
+          }
         },
         showToast: (msg, type) => this.showToast(msg, type)
       });
-      this.uploadScreen.render(this.appRoot);
-      this.uploadScreen.setConfig(this.toolStudio.getActiveConfig(), this.toolStudio.currentMode);
+      this.authModal.render(this.appRoot);
 
-      // 3. Initialize Passcode Security Gate (Screen 1)
-      this.gateScreen = new GateScreen({
-        passcode: APP_CONFIG.SITE_PASSCODE,
-        onUnlocked: () => {
-          sessionStorage.setItem('zen_unlocked', 'true');
-          this.showToast('Access Authorized: Welcome to Zen Caption AI Studio', 'success');
-        }
+      // 4. Initialize Navbar
+      this.navbar = new Navbar({
+        onNavigate: (route, params) => this.navigate(route, params),
+        onOpenAuth: (mode) => this.authModal.open(mode)
       });
-      this.gateScreen.render(this.appRoot);
+      await this.navbar.init(this.settings);
+      this.navbar.render(this.appRoot);
 
-      // Check if user was already unlocked in this session
-      const unlockedSession = sessionStorage.getItem('zen_unlocked');
-      if (unlockedSession === 'true') {
-        this.gateScreen.container.classList.add('open', 'unlocked');
-        this.gateScreen.container.style.display = 'none';
-        this.gateScreen.isUnlocked = true;
+      // 5. Main Content Area
+      this.mainContainer = document.createElement('div');
+      this.mainContainer.id = 'page-content-host';
+      this.mainContainer.className = 'page-content-host';
+      this.appRoot.appendChild(this.mainContainer);
+
+      // 6. Initialize Footer
+      this.footer = new Footer({
+        onNavigate: (route, params) => this.navigate(route, params)
+      });
+      this.footer.render(this.appRoot);
+
+      // 7. Initialize Cookie Consent Banner
+      this.cookieBanner = new CookieBanner({
+        onNavigate: (route) => this.navigate(route)
+      });
+      this.cookieBanner.render(this.appRoot);
+
+      // 8. Handle browser back/forward and initial path
+      window.addEventListener('popstate', () => this.handleLocationChange());
+      this.handleLocationChange();
+
+    } catch (err) {
+      console.error('[ZenSaaSApp] Initialization error:', err);
+      this.showToast('Failed to initialize platform: ' + err.message, 'error');
+    }
+  }
+
+  async loadSiteSettings() {
+    try {
+      const res = await api.getSettings();
+      if (res && res.settings) {
+        this.settings = res.settings;
+        this.applySiteMeta(this.settings);
+      }
+    } catch (e) {
+      console.warn('Could not load site settings:', e.message);
+    }
+  }
+
+  applySiteMeta(s) {
+    if (s.site_title) document.title = s.site_title;
+    
+    // Meta Description
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.name = 'description';
+      document.head.appendChild(metaDesc);
+    }
+    if (s.meta_description) metaDesc.content = s.meta_description;
+
+    // Meta Keywords
+    let metaKw = document.querySelector('meta[name="keywords"]');
+    if (!metaKw) {
+      metaKw = document.createElement('meta');
+      metaKw.name = 'keywords';
+      document.head.appendChild(metaKw);
+    }
+    if (s.meta_keywords) metaKw.content = s.meta_keywords;
+
+    // OpenGraph Tags
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle && s.og_title) ogTitle.content = s.og_title;
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc && s.og_description) ogDesc.content = s.og_description;
+    const ogImg = document.querySelector('meta[property="og:image"]');
+    if (ogImg && s.og_image) ogImg.content = s.og_image;
+
+    // Favicon
+    if (s.favicon_url) {
+      let link = document.querySelector("link[rel*='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = s.favicon_url;
+    }
+
+    // JSON-LD Schema
+    if (s.json_ld_schema) {
+      let script = document.getElementById('site-json-ld');
+      if (!script) {
+        script = document.createElement('script');
+        script.id = 'site-json-ld';
+        script.type = 'application/ld+json';
+        document.head.appendChild(script);
+      }
+      script.text = s.json_ld_schema;
+    }
+
+    // Header scripts
+    if (s.header_scripts) {
+      const headerScriptContainer = document.getElementById('custom-header-scripts') || document.createElement('div');
+      headerScriptContainer.id = 'custom-header-scripts';
+      headerScriptContainer.innerHTML = s.header_scripts;
+      document.head.appendChild(headerScriptContainer);
+    }
+
+    // Footer scripts
+    if (s.footer_scripts) {
+      const footerScriptContainer = document.getElementById('custom-footer-scripts') || document.createElement('div');
+      footerScriptContainer.id = 'custom-footer-scripts';
+      footerScriptContainer.innerHTML = s.footer_scripts;
+      document.body.appendChild(footerScriptContainer);
+    }
+  }
+
+  handleLocationChange() {
+    const path = window.location.pathname;
+    const hash = window.location.hash;
+
+    if (path.startsWith('/blog/')) {
+      const slug = path.replace('/blog/', '').trim();
+      this.navigate('blog-detail', { slug }, false);
+    } else if (path === '/blog') {
+      this.navigate('blog', {}, false);
+    } else if (path === '/about') {
+      this.navigate('about', {}, false);
+    } else if (path === '/contact') {
+      this.navigate('contact', {}, false);
+    } else if (path === '/terms') {
+      this.navigate('terms', {}, false);
+    } else if (path === '/cookies') {
+      this.navigate('cookies', {}, false);
+    } else if (path === '/app') {
+      this.navigate('app', {}, false);
+    } else if (path === '/admin') {
+      this.navigate('admin', {}, false);
+    } else {
+      this.navigate('home', {}, false);
+      if (hash) {
+        setTimeout(() => {
+          const el = document.querySelector(hash);
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      }
+    }
+  }
+
+  navigate(route, params = {}, pushState = true) {
+    this.currentRoute = route;
+    this.routeParams = params;
+
+    let targetUrl = '/';
+    if (route === 'blog') targetUrl = '/blog';
+    else if (route === 'blog-detail' && params.slug) targetUrl = `/blog/${params.slug}`;
+    else if (route === 'about') targetUrl = '/about';
+    else if (route === 'contact') targetUrl = '/contact';
+    else if (route === 'terms') targetUrl = '/terms';
+    else if (route === 'cookies') targetUrl = '/cookies';
+    else if (route === 'app') targetUrl = '/app';
+    else if (route === 'admin') targetUrl = '/admin';
+
+    if (pushState && window.location.pathname !== targetUrl) {
+      window.history.pushState({}, '', targetUrl);
+    }
+
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    this.renderRoute(route, params);
+  }
+
+  renderRoute(route, params = {}) {
+    if (!this.mainContainer) return;
+    this.mainContainer.innerHTML = '';
+
+    // Handle Navbar and Footer visibility:
+    // Dashboard and Admin panels have their own standalone sidebar workspace layout
+    const isStudioOrAdmin = route === 'app' || route === 'admin';
+    if (this.navbar?.container) {
+      this.navbar.container.style.display = isStudioOrAdmin ? 'none' : 'block';
+    }
+    if (this.footer?.container) {
+      this.footer.container.style.display = isStudioOrAdmin ? 'none' : 'block';
+    }
+
+    switch (route) {
+      case 'home': {
+        const page = new LandingPage({
+          onNavigate: (r, p) => this.navigate(r, p),
+          onOpenAuth: (m) => this.authModal.open(m),
+          showToast: (msg, t) => this.showToast(msg, t)
+        });
+        page.render(this.mainContainer);
+        page.init();
+        break;
       }
 
-      this.initOfflineService();
-    } catch (err) {
-      console.error('[ZenApp] Critical initialization error:', err);
-      if (this.appRoot) {
-        const errorCard = document.createElement('div');
-        errorCard.style.cssText = 'padding: 40px 20px; text-align: center; color: #fff; font-family: sans-serif;';
-        errorCard.innerHTML = `
-          <h2 style="color: #00F0FF; margin-bottom: 12px;">Zen AI Caption Studio</h2>
-          <p style="color: #ef4444; margin-bottom: 16px;">Failed to initialize interface. Retrying...</p>
-          <button onclick="window.location.reload(true)" style="padding: 10px 20px; background: #00F0FF; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
-            Reload Studio
-          </button>
-        `;
-        this.appRoot.appendChild(errorCard);
+      case 'about': {
+        const page = new AboutPage({
+          onNavigate: (r) => this.navigate(r)
+        });
+        page.render(this.mainContainer);
+        break;
+      }
+
+      case 'contact': {
+        const page = new ContactPage({
+          onNavigate: (r) => this.navigate(r),
+          showToast: (msg, t) => this.showToast(msg, t)
+        });
+        page.render(this.mainContainer);
+        break;
+      }
+
+      case 'terms': {
+        const page = new TermsPage({
+          onNavigate: (r) => this.navigate(r)
+        });
+        page.render(this.mainContainer);
+        break;
+      }
+
+      case 'cookies': {
+        const page = new CookiePolicyPage({
+          onNavigate: (r) => this.navigate(r)
+        });
+        page.render(this.mainContainer);
+        break;
+      }
+
+      case 'blog': {
+        const page = new BlogListPage({
+          onNavigate: (r, p) => this.navigate(r, p)
+        });
+        page.render(this.mainContainer);
+        break;
+      }
+
+      case 'blog-detail': {
+        const page = new BlogDetailPage({
+          onNavigate: (r, p) => this.navigate(r, p)
+        });
+        page.render(this.mainContainer, params.slug);
+        break;
+      }
+
+      case 'app': {
+        this.userDashboard = new UserDashboard({
+          navigate: (r, p) => this.navigate(r, p),
+          showToast: (msg, t) => this.showToast(msg, t),
+          openAuthModal: (m) => this.authModal.open(m),
+          toolStudio: this.toolStudio
+        });
+        this.userDashboard.render(this.mainContainer);
+        this.userDashboard.init();
+        break;
+      }
+
+      case 'admin': {
+        // Enforce admin role
+        if (!api.currentUser || api.currentUser.role !== 'admin') {
+          this.showToast('Admin authorization required. Please sign in as an administrator.', 'warning');
+          this.authModal.open('signin');
+          this.navigate('home');
+          return;
+        }
+
+        this.adminDashboard = new AdminDashboard({
+          onNavigate: (r, p) => this.navigate(r, p),
+          showToast: (msg, t) => this.showToast(msg, t)
+        });
+        this.adminDashboard.render(this.mainContainer);
+        this.adminDashboard.init();
+        break;
+      }
+
+      default: {
+        this.navigate('home');
+        break;
       }
     }
   }
@@ -116,26 +393,17 @@ class ZenApp {
       setTimeout(() => toast.remove(), 300);
     }, 4200);
   }
-
-  initOfflineService() {
-    if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
-      navigator.serviceWorker.register('/sw.js').catch((err) => {
-        console.warn('Service worker registration:', err.message);
-      });
-    }
-  }
 }
 
-// Resilient Bootstrapper (handles both pre-DOM and post-DOM evaluation)
-function bootstrapZenApp() {
-  const app = new ZenApp();
+function bootstrapZenSaaS() {
+  const app = new ZenSaaSApp();
   app.init().catch(err => {
-    console.error('[ZenApp] Boot error:', err);
+    console.error('[ZenSaaSApp] Boot error:', err);
   });
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', bootstrapZenApp);
+  document.addEventListener('DOMContentLoaded', bootstrapZenSaaS);
 } else {
-  bootstrapZenApp();
+  bootstrapZenSaaS();
 }

@@ -1,93 +1,104 @@
-// Production Node.js Server for Zen AI Caption Studio (Render Web Service)
-import http from 'node:http';
-import fs from 'node:fs';
+// Production Express & API Server for Zen AI Caption Studio (Render Web Service)
+import express from 'express';
+import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
+import { initDb, query } from './server/db.js';
+import { seedBlogs } from './server/seedBlogs.js';
+import { apiRouter } from './server/apiRouter.js';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DIST_DIR = path.join(__dirname, 'dist');
 const PORT = process.env.PORT || 10000;
 
-const MIME_TYPES = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'application/javascript; charset=utf-8',
-  '.mjs': 'application/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.wasm': 'application/wasm',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.webp': 'image/webp',
-  '.gif': 'image/gif',
-  '.ico': 'image/x-icon',
-  '.mp4': 'video/mp4',
-  '.webm': 'video/webm',
-  '.mp3': 'audio/mpeg',
-  '.wav': 'audio/wav',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf'
-};
+const app = express();
 
-const server = http.createServer((req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+// Enable CORS & JSON parsing
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204);
-    res.end();
-    return;
-  }
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-  let safePath = path.normalize(decodeURIComponent(req.url.split('?')[0])).replace(/^(\.\.[\/\\])+/, '');
-  if (safePath === '/' || safePath === '' || safePath === '\\') {
-    safePath = '/index.html';
-  }
+// Mount REST API
+app.use('/api', apiRouter);
 
-  const filePath = path.join(DIST_DIR, safePath);
-  const ext = path.extname(safePath).toLowerCase();
+// Dynamic sitemap.xml generator for SEO search ranking & indexing
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const blogsRes = await query("SELECT slug, published_at FROM blogs WHERE status = 'published'");
+    const baseUrl = process.env.SITE_URL || `https://${req.headers.host}`;
 
-  fs.stat(filePath, (err, stats) => {
-    if (!err && stats.isFile()) {
-      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-      
-      // Cache-Control headers
-      if (ext === '.html' || safePath.includes('sw.js')) {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      } else if (safePath.includes('/assets/')) {
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-      }
+    const staticRoutes = [
+      { url: '/', priority: '1.0', changefreq: 'daily' },
+      { url: '/templates', priority: '0.9', changefreq: 'weekly' },
+      { url: '/pricing', priority: '0.9', changefreq: 'weekly' },
+      { url: '/blog', priority: '0.8', changefreq: 'daily' },
+      { url: '/about', priority: '0.7', changefreq: 'monthly' },
+      { url: '/contact', priority: '0.7', changefreq: 'monthly' },
+      { url: '/terms', priority: '0.5', changefreq: 'yearly' },
+      { url: '/cookies', priority: '0.5', changefreq: 'yearly' }
+    ];
 
-      res.writeHead(200, { 'Content-Type': contentType });
-      fs.createReadStream(filePath).pipe(res);
-    } else {
-      // SPA fallback ONLY for HTML navigation requests, NOT for missing JS/CSS/image files
-      const isStaticAsset = Boolean(ext && ext !== '.html');
-      if (isStaticAsset) {
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end(`404 Not Found: ${safePath}`);
-        return;
-      }
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
 
-      // Serve index.html for SPA routes
-      const indexPath = path.join(DIST_DIR, 'index.html');
-      fs.readFile(indexPath, (readErr, content) => {
-        if (readErr) {
-          res.writeHead(500, { 'Content-Type': 'text/plain' });
-          res.end('Please run "npm run build" first to generate the dist directory.');
-        } else {
-          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-          res.end(content);
-        }
-      });
+    // Static pages
+    for (const route of staticRoutes) {
+      xml += `  <url>\n    <loc>${baseUrl}${route.url}</loc>\n    <changefreq>${route.changefreq}</changefreq>\n    <priority>${route.priority}</priority>\n  </url>\n`;
     }
-  });
+
+    // All 30+ SEO Blog Articles
+    for (const blog of blogsRes.rows) {
+      const lastmod = new Date(blog.published_at || Date.now()).toISOString().split('T')[0];
+      xml += `  <url>\n    <loc>${baseUrl}/blog/${blog.slug}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+    }
+
+    xml += `</urlset>`;
+
+    res.setHeader('Content-Type', 'application/xml');
+    res.send(xml);
+  } catch (err) {
+    console.error('Failed to generate sitemap.xml:', err);
+    res.status(500).send('Error generating sitemap');
+  }
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[Zen AI Caption Studio] Production server running at http://0.0.0.0:${PORT}`);
+// Serve compiled static assets from dist
+app.use(express.static(DIST_DIR, {
+  maxAge: '1d',
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.includes('sw.js')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else if (filePath.includes('/assets/')) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }
+}));
+
+// SPA Fallback for all other HTML routes
+app.use((req, res) => {
+  res.sendFile(path.join(DIST_DIR, 'index.html'));
 });
+
+// Initialize database and start listening
+async function startServer() {
+  try {
+    await initDb();
+    await seedBlogs();
+  } catch (err) {
+    console.error('[Server] DB init error:', err);
+  }
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Zen Caption AI] Enterprise SaaS server running on port ${PORT}`);
+  });
+}
+
+startServer();

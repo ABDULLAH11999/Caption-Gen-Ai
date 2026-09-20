@@ -5,6 +5,16 @@ export default defineConfig({
     port: 5173,
     open: false,
     cors: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:10000',
+        changeOrigin: true
+      },
+      '/sitemap.xml': {
+        target: 'http://localhost:10000',
+        changeOrigin: true
+      }
+    },
     watch: {
       ignored: ['**/video-for-testrun/**', '**/node_modules/**', '**/scratch/**']
     }
