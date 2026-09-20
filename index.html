@@ -109,7 +109,18 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Bungee&family=Cinzel:wght@600;700;900&family=Outfit:wght@600;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,600;1,700;1,900&family=Plus+Jakarta+Sans:wght@600;700;800&family=Righteous&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <!-- Non-render-blocking Google Fonts loading for sub-1s Mobile PageSpeed -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Anton&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Bungee&family=Cinzel:wght@600;700;900&family=Outfit:wght@600;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,600;1,700;1,900&family=Plus+Jakarta+Sans:wght@600;700;800&family=Righteous&family=Syne:wght@700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Bungee&family=Cinzel:wght@600;700;900&family=Outfit:wght@600;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,600;1,700;1,900&family=Plus+Jakarta+Sans:wght@600;700;800&family=Righteous&family=Syne:wght@700;800&display=swap">
+    </noscript>
+    <!-- Critical Above-the-Fold Inline CSS for Instant Mobile Paint -->
+    <style>
+      :root { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+      body { margin: 0; padding: 0; background: #fafbfe; color: #0c0c0e; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+      .app-container { min-height: 100vh; display: flex; flex-direction: column; }
+      .hero-title { font-size: clamp(26px, 5.5vw, 54px); font-weight: 900; line-height: 1.15; }
+    </style>
   </head>
   <body>
     <!-- Hardware-Accelerated Video Quality Enhancement SVG Filter Definition -->
