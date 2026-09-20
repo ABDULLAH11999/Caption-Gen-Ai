@@ -711,7 +711,9 @@ export class UserDashboard {
                 <button class="btn btn-outline btn-compact-action" id="user-btn-srt">.SRT</button>
                 <button class="btn btn-outline btn-compact-action" id="user-btn-vtt">.VTT</button>
                 <button class="btn btn-primary btn-burn-captions" id="user-btn-burn">
-                  🎥 Burn Captions (60 FPS Export)
+                  <div class="burn-btn-content">
+                    <span>🎥 Burn Captions (60 FPS Export)</span>
+                  </div>
                 </button>
               </div>
             </div>
@@ -1350,30 +1352,79 @@ export class UserDashboard {
   }
 
   async burnVideoCaptions() {
+    const burnBtn = this.container.querySelector('#user-btn-burn');
     const progBox = this.container.querySelector('#user-export-progress');
     const bar = this.container.querySelector('#user-export-bar');
     const pct = this.container.querySelector('#user-export-percent');
     if (progBox) progBox.style.display = 'block';
 
+    const defaultBtnHtml = `
+      <div class="burn-btn-content">
+        <span>🎥 Burn Captions (60 FPS Export)</span>
+      </div>
+    `;
+
+    if (burnBtn) {
+      burnBtn.disabled = true;
+      burnBtn.style.cursor = 'wait';
+      burnBtn.innerHTML = `
+        <div class="burn-progress-fill" style="width: 0%;"></div>
+        <div class="burn-btn-content">
+          <span style="display: inline-block; animation: spin 1s linear infinite;">⏳</span>
+          <span class="burn-status-label">Burning... <strong>0%</strong></span>
+        </div>
+      `;
+    }
+
     try {
+      const tpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
       const customConfig = this.userCustomTemplates[tpl.id] || {};
       const studioConfig = (this.activeConfig && (!this.activeConfig.templateId || this.activeConfig.templateId === tpl.id)) ? this.activeConfig : {};
       const cfg = { ...tpl.config, ...customConfig, ...studioConfig };
 
       await videoRenderer.burnCaptionsToVideoLossless(this.videoBlob, captionEngine.sentences, cfg, (p) => {
-        const percentVal = Math.round(p * 100);
+        const percentVal = Math.max(0, Math.min(100, Math.round(p * 100)));
         if (bar) bar.style.width = `${percentVal}%`;
         if (pct) pct.textContent = `${percentVal}%`;
+
+        if (burnBtn) {
+          const fill = burnBtn.querySelector('.burn-progress-fill');
+          if (fill) fill.style.width = `${percentVal}%`;
+          const statusLabel = burnBtn.querySelector('.burn-status-label');
+          if (statusLabel) {
+            statusLabel.innerHTML = `Burning... <strong>${percentVal}%</strong>`;
+          }
+        }
       }, this.enhanceVideoQuality);
 
       soundFx.playExportComplete();
       this.showToast('Export Complete! Downloaded 60 FPS video.', 'success');
+
+      if (burnBtn) {
+        burnBtn.innerHTML = `
+          <div class="burn-progress-fill" style="width: 100%; background: rgba(16, 185, 129, 0.45);"></div>
+          <div class="burn-btn-content">
+            <span>✅ Complete! <strong>100%</strong></span>
+          </div>
+        `;
+      }
+
       setTimeout(() => {
         if (progBox) progBox.style.display = 'none';
-      }, 2000);
+        if (burnBtn) {
+          burnBtn.disabled = false;
+          burnBtn.style.cursor = 'pointer';
+          burnBtn.innerHTML = defaultBtnHtml;
+        }
+      }, 2500);
     } catch (err) {
       this.showToast('Export failed: ' + err.message, 'error');
       if (progBox) progBox.style.display = 'none';
+      if (burnBtn) {
+        burnBtn.disabled = false;
+        burnBtn.style.cursor = 'pointer';
+        burnBtn.innerHTML = defaultBtnHtml;
+      }
     }
   }
 
