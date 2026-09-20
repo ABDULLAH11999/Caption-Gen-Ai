@@ -716,6 +716,18 @@ export class ToolStudioModal {
       `).join('');
 
       animGrid.querySelectorAll('.anim-card-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          soundFx.playKeyBeep(650);
+          const animId = btn.getAttribute('data-anim');
+          const animMeta = CAPTION_ANIMATIONS.find(a => a.id === animId);
+          animGrid.querySelectorAll('.anim-card-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          const b = this.container.querySelector('#selected-anim-name');
+          if (b && animMeta) b.textContent = animMeta.name;
+          this.setActiveConfig({ animation: animId });
+          this.triggerPreviewAnimation(animId);
+        });
+
         btn.addEventListener('mouseenter', () => {
           const animId = btn.getAttribute('data-anim');
           const animMeta = CAPTION_ANIMATIONS.find(a => a.id === animId);
@@ -930,6 +942,21 @@ export class ToolStudioModal {
         return;
       }
 
+      // Animation selection
+      const animBtn = e.target.closest('.anim-card-btn');
+      if (animBtn) {
+        soundFx.playKeyBeep(650);
+        const animId = animBtn.getAttribute('data-anim');
+        const animMeta = CAPTION_ANIMATIONS.find(a => a.id === animId);
+        this.container.querySelectorAll('.anim-card-btn').forEach(b => b.classList.remove('selected'));
+        animBtn.classList.add('selected');
+        const b = this.container.querySelector('#selected-anim-name');
+        if (b && animMeta) b.textContent = animMeta.name;
+        this.setActiveConfig({ animation: animId });
+        this.triggerPreviewAnimation(animId);
+        return;
+      }
+
       // Normal Color Swatches
       const normalSwatch = e.target.closest('.normal-color-swatch-btn');
       if (normalSwatch) {
@@ -981,20 +1008,6 @@ export class ToolStudioModal {
         this.container.querySelectorAll('.last-word-swatch-btn').forEach(b => b.classList.remove('selected'));
         lwSwatch.classList.add('selected');
         this.setActiveConfig({ lastWordColor: color });
-        return;
-      }
-
-      // Animation selection
-      const animBtn = e.target.closest('.anim-card-btn');
-      if (animBtn) {
-        soundFx.playKeyBeep(700);
-        const animId = animBtn.getAttribute('data-anim');
-        this.container.querySelectorAll('.anim-card-btn').forEach(b => b.classList.remove('selected'));
-        animBtn.classList.add('selected');
-        const animMeta = CAPTION_ANIMATIONS.find(a => a.id === animId);
-        const b = this.container.querySelector('#selected-anim-name');
-        if (b && animMeta) b.textContent = animMeta.name;
-        this.setActiveConfig({ animation: animId });
         return;
       }
     });

@@ -140,11 +140,174 @@ export class CaptionEngine {
   }
 
   /**
-   * Splits long sentences so line segments NEVER create a 3rd row.
-   * Keeps segments compact (max 5 words), breaking longer sentences into
-   * 2 balanced line segments with precise proportional timestamps.
+   * Consolidates orphaned time suffixes (e.g. "3 to 6" followed by "p" and ".m.")
+   * into clean, unified phrases ("3 to 6 PM") with extended end times.
    */
-  splitLongSegments(sentences, maxWords = 3) {
+  consolidateTimeAndOrphanSegments(sentences) {
+    if (!Array.isArray(sentences) || sentences.length === 0) return sentences || [];
+
+    const isOrphanPmAm = (text) => {
+      const clean = (text || '').trim().toLowerCase();
+      return /^(p|\.m\.|p\.m\.|pm|am|a|a\.m\.|m\.|m)$/.test(clean);
+    };
+
+    const isTimePmPrefix = (text) => {
+      const clean = (text || '').trim().toLowerCase();
+      return /^(p|p\.)$/.test(clean);
+    };
+
+    const isTimeAmPrefix = (text) => {
+      const clean = (text || '').trim().toLowerCase();
+      return /^(a|a\.)$/.test(clean);
+    };
+
+    const isTimeSuffix = (text) => {
+      const clean = (text || '').trim().toLowerCase();
+      return /^(\.m\.|m\.|m)$/.test(clean);
+    };
+
+    const isFullTimeToken = (text) => {
+      const clean = (text || '').trim().toLowerCase();
+      return /^(pm|am|p\.m\.|a\.m\.)$/.test(clean);
+    };
+
+    // Step 1: Consolidate internal words in each sentence (e.g. word "p" + word ".m." -> word "PM")
+    sentences.forEach(s => {
+      if (!s.words || s.words.length <= 1) return;
+      const newWords = [];
+      for (let i = 0; i < s.words.length; i++) {
+        const curW = s.words[i];
+        const nextW = s.words[i + 1];
+
+        if (nextW && isTimePmPrefix(curW.word) && isTimeSuffix(nextW.word)) {
+          newWords.push({
+            ...curW,
+            word: 'PM',
+            end: nextW.end ?? nextW.endTime ?? curW.end,
+            endTime: nextW.end ?? nextW.endTime ?? curW.end
+          });
+          i++; // skip next
+        } else if (nextW && isTimeAmPrefix(curW.word) && isTimeSuffix(nextW.word)) {
+          newWords.push({
+            ...curW,
+            word: 'AM',
+            end: nextW.end ?? nextW.endTime ?? curW.end,
+            endTime: nextW.end ?? nextW.endTime ?? curW.end
+          });
+          i++;
+        } else if (isFullTimeToken(curW.word)) {
+          newWords.push({
+            ...curW,
+            word: curW.word.toLowerCase().startsWith('p') ? 'PM' : 'AM'
+          });
+        } else {
+          newWords.push(curW);
+        }
+      }
+      s.words = newWords;
+      s.text = s.words.map(w => w.word).join(' ');
+    });
+
+    // Step 2: Merge orphaned consecutive segments into the previous segment
+    const merged = [];
+    for (let i = 0; i < sentences.length; i++) {
+      const cur = sentences[i];
+      const next1 = sentences[i + 1];
+      const next2 = sentences[i + 2];
+
+      // Check Case A: cur is "3 to 6", next1 is "p", next2 is ".m."
+      if (next1 && next2 && isTimePmPrefix(next1.text) && isTimeSuffix(next2.text)) {
+        const pStart = Number(next1.start ?? next1.startTime ?? cur.end);
+        const mEnd = Number(next2.end ?? next2.endTime ?? (pStart + 0.5));
+        cur.words = cur.words || [];
+        cur.words.push({
+          word: 'PM',
+          start: pStart,
+          end: mEnd,
+          startTime: pStart,
+          endTime: mEnd
+        });
+        cur.end = mEnd;
+        cur.endTime = mEnd;
+        cur.text = `${cur.text.trim()} PM`;
+        merged.push(cur);
+        i += 2; // skip next1 and next2
+        continue;
+      }
+
+      // Check Case B: cur is "3 to 6", next1 is "a", next2 is ".m."
+      if (next1 && next2 && isTimeAmPrefix(next1.text) && isTimeSuffix(next2.text)) {
+        const aStart = Number(next1.start ?? next1.startTime ?? cur.end);
+        const mEnd = Number(next2.end ?? next2.endTime ?? (aStart + 0.5));
+        cur.words = cur.words || [];
+        cur.words.push({
+          word: 'AM',
+          start: aStart,
+          end: mEnd,
+          startTime: aStart,
+          endTime: mEnd
+        });
+        cur.end = mEnd;
+        cur.endTime = mEnd;
+        cur.text = `${cur.text.trim()} AM`;
+        merged.push(cur);
+        i += 2;
+        continue;
+      }
+
+      // Check Case C: cur is "3 to 6", next1 is "pm" or "p.m." or "am" or "a.m."
+      if (next1 && isFullTimeToken(next1.text)) {
+        const timeUnit = next1.text.toLowerCase().startsWith('p') ? 'PM' : 'AM';
+        const nStart = Number(next1.start ?? next1.startTime ?? cur.end);
+        const nEnd = Number(next1.end ?? next1.endTime ?? (nStart + 0.4));
+        cur.words = cur.words || [];
+        cur.words.push({
+          word: timeUnit,
+          start: nStart,
+          end: nEnd,
+          startTime: nStart,
+          endTime: nEnd
+        });
+        cur.end = nEnd;
+        cur.endTime = nEnd;
+        cur.text = `${cur.text.trim()} ${timeUnit}`;
+        merged.push(cur);
+        i += 1;
+        continue;
+      }
+
+      // Check Case D: next1 is an orphaned token (e.g. lone "p" or lone ".m." or single dangling abbreviation)
+      if (next1 && isOrphanPmAm(next1.text)) {
+        const timeUnit = next1.text.toLowerCase().includes('a') ? 'AM' : 'PM';
+        const nStart = Number(next1.start ?? next1.startTime ?? cur.end);
+        const nEnd = Number(next1.end ?? next1.endTime ?? (nStart + 0.4));
+        cur.words = cur.words || [];
+        cur.words.push({
+          word: timeUnit,
+          start: nStart,
+          end: nEnd,
+          startTime: nStart,
+          endTime: nEnd
+        });
+        cur.end = nEnd;
+        cur.endTime = nEnd;
+        cur.text = `${cur.text.trim()} ${timeUnit}`;
+        merged.push(cur);
+        i += 1;
+        continue;
+      }
+
+      merged.push(cur);
+    }
+
+    return merged;
+  }
+
+  /**
+   * Splits long sentences so line segments NEVER create a 3rd row.
+   * Keeps compact phrases (up to 4 words / <= 24 chars like "3 to 6 PM") together on 1-2 rows.
+   */
+  splitLongSegments(sentences, maxWords = 4) {
     const result = [];
     (sentences || []).forEach((s, sIdx) => {
       let words = s.words;
@@ -155,7 +318,10 @@ export class CaptionEngine {
         words = this.createWordLevelTimestamps(s.text || '', sStart, sEnd, s.language || 'en');
       }
 
-      if (words.length <= maxWords) {
+      const totalChars = words.reduce((acc, w) => acc + (w.word ? w.word.length : 0), 0);
+
+      // Keep phrases with up to 4 words or <= 24 characters together so "3 to 6 PM" stays on one row
+      if (words.length <= maxWords || totalChars <= 24) {
         result.push({
           ...s,
           start: parseFloat(sStart.toFixed(2)),
@@ -168,8 +334,9 @@ export class CaptionEngine {
         return;
       }
 
-      // Break into 2 (or more) balanced segments so neither exceeds maxWords
-      const numChunks = Math.ceil(words.length / maxWords);
+      // Break longer phrases into balanced 2-row segments
+      const targetChunkSize = 3;
+      const numChunks = Math.ceil(words.length / targetChunkSize);
       const chunkSize = Math.ceil(words.length / numChunks);
 
       for (let i = 0; i < words.length; i += chunkSize) {
@@ -233,8 +400,11 @@ export class CaptionEngine {
       };
     });
 
-    // Automatically break long segments so no segment ever creates a 3rd row (max 3 words / 2 rows)
-    this.sentences = this.splitLongSegments(normalized, 3);
+    // Consolidate fragmented PM / AM orphan tokens and time ranges
+    const consolidated = this.consolidateTimeAndOrphanSegments(normalized);
+
+    // Automatically format segments so no segment creates a 3rd row while preserving "3 to 6 PM"
+    this.sentences = this.splitLongSegments(consolidated, 4);
     this.sentences.sort((a, b) => a.start - b.start);
   }
 

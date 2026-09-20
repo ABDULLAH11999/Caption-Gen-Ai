@@ -1144,11 +1144,11 @@ export class UserDashboard {
       if (speakingWordIdx === -1) speakingWordIdx = 0;
     }
 
-    // 6. Strict 2-Row Guarantee: Never make a 3rd row!
-    // When a line segment has > 3 words, display active 2-3 word window so it NEVER wraps onto a 3rd row
+    // 6. Strict 2-Row Guarantee: Never make a 3rd row, while preserving 4-word phrases like "3 to 6 PM"
+    const totalChars = words.reduce((acc, w) => acc + ((w.word || '').length), 0);
     let displayWords = words;
     let chunkOffset = 0;
-    if (words.length > 3) {
+    if (words.length > 4 || (words.length === 4 && totalChars > 22)) {
       const mid = Math.ceil(words.length / 2);
       if (speakingWordIdx < mid) {
         displayWords = words.slice(0, mid);
@@ -1159,10 +1159,9 @@ export class UserDashboard {
       }
     }
 
-    // 7. Font sizes: Standard other words 25px in portrait / 28px in landscape, speaking word +4px
+    // 7. Base font size: 25px in portrait / 28px in landscape (constant across all words to eliminate layout shifts)
     const isPortrait = this.currentMode === 'portrait';
     const baseFontSize = isPortrait ? 25 : ((cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28);
-    const speakingFontSize = baseFontSize + 4;
 
     // 8. Typography settings from config (Looked up through FONTS dictionary)
     const normalFontFamily = this.getFontFamily(cfg.normalFontFamily || 'Inter');
@@ -1194,12 +1193,11 @@ export class UserDashboard {
         color = lastWordColor;
       }
 
-      // Speaking word keeps its actual color; gets prominent font and subtle size boost
+      // Speaking word keeps its actual color; gets prominent font and smooth GPU scale bounce
       if (isSpeaking) {
         font = prominentFontFamily;
       }
 
-      const wordFontSize = isSpeaking ? speakingFontSize : baseFontSize;
       const fontWeight = isSpeaking ? 900 : (isProminent ? 800 : 700);
       const textShadow = isSpeaking
         ? `0 0 16px ${color}88, 0 2px 8px rgba(0,0,0,0.98), 0 0 3px #000000`
@@ -1212,16 +1210,22 @@ export class UserDashboard {
         ? (cfg.prominentOutlineColor || '#000000')
         : (cfg.normalOutlineColor || '#000000');
 
+      const wordScale = isSpeaking ? 'scale(1.15)' : 'scale(1)';
+      const wordZIndex = isSpeaking ? 5 : 1;
+      const transitionTiming = isSpeaking
+        ? 'transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), text-shadow 0.2s ease, filter 0.2s ease'
+        : 'transform 0.18s ease-out, text-shadow 0.18s ease';
+
       return `
         <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''}" style="
           display: inline-block !important;
           vertical-align: baseline !important;
-          margin: 1px 2px !important;
+          margin: 1px 3px !important;
           padding: 0 1px !important;
           box-sizing: border-box !important;
           font-family: ${font} !important;
           color: ${color} !important;
-          font-size: ${wordFontSize}px !important;
+          font-size: ${baseFontSize}px !important;
           font-weight: ${fontWeight};
           opacity: 1 !important;
           visibility: visible !important;
@@ -1231,9 +1235,12 @@ export class UserDashboard {
           -webkit-text-stroke: ${strokeWidth}px ${strokeColor};
           paint-order: stroke fill;
           -webkit-paint-order: stroke fill;
-          transform: none !important;
+          transform: ${wordScale} !important;
+          transform-origin: center bottom !important;
+          z-index: ${wordZIndex} !important;
           white-space: nowrap !important;
-          transition: font-size 0.12s cubic-bezier(0.16, 1, 0.3, 1), text-shadow 0.12s ease;
+          will-change: transform;
+          transition: ${transitionTiming};
         ">
           ${w.word}
         </span>
@@ -1269,11 +1276,17 @@ export class UserDashboard {
       // Re-create segment with configured entrance animation and tight natural word spacing (no overflow clipping!)
       overlay.innerHTML = `
         <div class="caption-segment-anchor" style="position: absolute; top: ${posY}; left: ${posX}; transform: ${posTransform}; width: auto; max-width: 94%; text-align: ${textAlign}; pointer-events: none; z-index: 20;">
-          <div class="caption-anim-segment-wrapper ${animClass}" style="display: inline-flex; flex-wrap: wrap; justify-content: ${justifyAlign}; align-items: baseline; gap: 2px 4px; width: auto; max-width: 100%; text-transform: uppercase; line-height: 1.05;">
+          <div class="caption-anim-segment-wrapper ${animClass}" style="display: inline-flex; flex-wrap: wrap; justify-content: ${justifyAlign}; align-items: baseline; gap: 2px 5px; width: auto; max-width: 100%; text-transform: uppercase; line-height: 1.05; transform-origin: center center; will-change: transform, opacity;">
             ${wordsHtml}
           </div>
         </div>
       `;
+      const freshWrapper = overlay.querySelector('.caption-anim-segment-wrapper');
+      if (freshWrapper) {
+        freshWrapper.classList.remove(animClass);
+        void freshWrapper.offsetWidth;
+        freshWrapper.classList.add(animClass);
+      }
     } else {
       // Continuously enforce latest position & alignment coordinates even when paused
       anchor.style.top = posY;

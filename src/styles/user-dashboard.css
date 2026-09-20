@@ -942,30 +942,36 @@ video.video-enhanced {
   display: inline-flex !important;
   flex-wrap: wrap !important;
   align-items: baseline !important;
-  gap: 2px 4px !important;
+  gap: 2px 5px !important;
   width: auto !important;
-  max-width: 90% !important;
+  max-width: 94% !important;
   margin: 0 !important;
   box-sizing: border-box !important;
   overflow: visible !important;
   line-height: 1.05 !important;
+  transform-origin: center center !important;
+  will-change: transform, opacity !important;
 }
 
 .caption-anim-segment-wrapper .caption-word-token {
   display: inline-block !important;
   vertical-align: baseline !important;
-  margin: 1px 2px !important;
+  margin: 1px 3px !important;
   padding: 0 1px !important;
   box-sizing: border-box !important;
   white-space: nowrap !important;
   opacity: 1 !important;
   visibility: visible !important;
-  transform: none !important;
+  transform-origin: center bottom !important;
   line-height: 1.05 !important;
+  will-change: transform;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), text-shadow 0.2s ease;
 }
 
+.caption-anim-segment-wrapper .caption-word-token.speaking,
 .caption-anim-segment-wrapper .caption-word-token.current {
-  transform: none !important;
+  transform: scale(1.15) !important;
+  z-index: 5 !important;
 }
 
 

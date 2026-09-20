@@ -327,6 +327,67 @@ class SpeechTranscriberService {
     });
   }
 
+  consolidateTimeTokens(sentences) {
+    if (!Array.isArray(sentences) || sentences.length === 0) return sentences || [];
+
+    const isTimePmPrefix = (text) => /^(p|p\.)$/i.test((text || '').trim());
+    const isTimeAmPrefix = (text) => /^(a|a\.)$/i.test((text || '').trim());
+    const isTimeSuffix = (text) => /^(\.m\.|m\.|m)$/i.test((text || '').trim());
+    const isFullTimeToken = (text) => /^(pm|am|p\.m\.|a\.m\.)$/i.test((text || '').trim());
+    const isOrphanPmAm = (text) => /^(p|\.m\.|p\.m\.|pm|am|a|a\.m\.|m\.|m)$/i.test((text || '').trim());
+
+    const merged = [];
+    for (let i = 0; i < sentences.length; i++) {
+      const cur = sentences[i];
+      const next1 = sentences[i + 1];
+      const next2 = sentences[i + 2];
+
+      if (next1 && next2 && isTimePmPrefix(next1.text) && isTimeSuffix(next2.text)) {
+        const pStart = Number(next1.startTime ?? next1.start ?? cur.endTime);
+        const mEnd = Number(next2.endTime ?? next2.end ?? (pStart + 0.5));
+        cur.words = cur.words || [];
+        cur.words.push({ word: 'PM', start: pStart, end: mEnd, startTime: pStart, endTime: mEnd });
+        cur.endTime = mEnd;
+        cur.end = mEnd;
+        cur.text = `${cur.text.trim()} PM`;
+        merged.push(cur);
+        i += 2;
+        continue;
+      }
+
+      if (next1 && next2 && isTimeAmPrefix(next1.text) && isTimeSuffix(next2.text)) {
+        const aStart = Number(next1.startTime ?? next1.start ?? cur.endTime);
+        const mEnd = Number(next2.endTime ?? next2.end ?? (aStart + 0.5));
+        cur.words = cur.words || [];
+        cur.words.push({ word: 'AM', start: aStart, end: mEnd, startTime: aStart, endTime: mEnd });
+        cur.endTime = mEnd;
+        cur.end = mEnd;
+        cur.text = `${cur.text.trim()} AM`;
+        merged.push(cur);
+        i += 2;
+        continue;
+      }
+
+      if (next1 && (isFullTimeToken(next1.text) || isOrphanPmAm(next1.text))) {
+        const timeUnit = next1.text.toLowerCase().includes('a') ? 'AM' : 'PM';
+        const nStart = Number(next1.startTime ?? next1.start ?? cur.endTime);
+        const nEnd = Number(next1.endTime ?? next1.end ?? (nStart + 0.4));
+        cur.words = cur.words || [];
+        cur.words.push({ word: timeUnit, start: nStart, end: nEnd, startTime: nStart, endTime: nEnd });
+        cur.endTime = nEnd;
+        cur.end = nEnd;
+        cur.text = `${cur.text.trim()} ${timeUnit}`;
+        merged.push(cur);
+        i += 1;
+        continue;
+      }
+
+      merged.push(cur);
+    }
+
+    return merged;
+  }
+
   /**
    * Formats Whisper output (with chunks/timestamps) into structured sentences
    */
@@ -384,7 +445,7 @@ class SpeechTranscriberService {
 
       if (sentences.length > 0) {
         this.normalizeWordSequences(sentences);
-        return sentences;
+        return this.consolidateTimeTokens(sentences);
       }
     }
 
