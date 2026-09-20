@@ -305,6 +305,100 @@ apiRouter.post('/auth/resend-otp', signupLimiter.middleware(), async (req, res) 
   });
 });
 
+// Forgot Password - Send Reset Code
+apiRouter.post('/auth/forgot-password', signupLimiter.middleware(), async (req, res) => {
+  const { email } = req.body;
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email address is required.' });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const userCheck = await query('SELECT id, name FROM users WHERE email = $1', [cleanEmail]);
+  if (userCheck.rows.length === 0) {
+    return res.status(404).json({ error: 'No account registered with this email address.' });
+  }
+
+  const userName = userCheck.rows[0].name || 'Creator';
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+  await query(
+    'INSERT INTO otps (email, code, type, expires_at, attempts) VALUES ($1, $2, $3, $4, 0)',
+    [cleanEmail, otpCode, 'password_reset', expiresAt]
+  );
+
+  const html = generateOtpEmailHtml({ name: userName, otpCode });
+  sendEmail({
+    to: cleanEmail,
+    subject: `${otpCode} is your password reset code`,
+    html
+  }).catch(err => console.error('[Forgot Password Email Error]:', err.message));
+
+  return res.json({
+    success: true,
+    message: `A 6-digit password reset code has been sent to ${cleanEmail}`,
+    email: cleanEmail,
+    devCode: otpCode
+  });
+});
+
+// Reset Password - Verify Code & Update Password
+apiRouter.post('/auth/reset-password', otpVerifyLimiter.middleware(), async (req, res) => {
+  const { email, code, newPassword } = req.body;
+  if (!email || !code || !newPassword) {
+    return res.status(400).json({ error: 'Email, verification code, and new password are required.' });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const otpRes = await query(
+    `SELECT id, attempts, code FROM otps 
+     WHERE email = $1 AND used = FALSE AND expires_at > CURRENT_TIMESTAMP
+     ORDER BY id DESC LIMIT 1`,
+    [cleanEmail]
+  );
+
+  if (otpRes.rows.length === 0) {
+    return res.status(400).json({ error: 'Invalid or expired verification code. Please request a new code.' });
+  }
+
+  const otpRow = otpRes.rows[0];
+  if (otpRow.code !== code.toString().trim()) {
+    const updatedAttempts = (otpRow.attempts || 0) + 1;
+    await query('UPDATE otps SET attempts = $1 WHERE id = $2', [updatedAttempts, otpRow.id]);
+    return res.status(400).json({ error: 'Incorrect verification code. Please check and try again.' });
+  }
+
+  // Mark OTP used
+  await query('UPDATE otps SET used = TRUE WHERE id = $1', [otpRow.id]);
+
+  // Update password in DB
+  const newHash = hashPassword(newPassword);
+  const updatedUserRes = await query(
+    `UPDATE users SET password_hash = $1 
+     WHERE email = $2 
+     RETURNING id, name, username, email, role, plan_id, daily_quota, monthly_quota`,
+    [newHash, cleanEmail]
+  );
+
+  if (updatedUserRes.rows.length === 0) {
+    return res.status(404).json({ error: 'User not found.' });
+  }
+
+  const user = updatedUserRes.rows[0];
+
+  // Issue session token
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+  await query('INSERT INTO sessions (token, user_id, expires_at) VALUES ($1, $2, $3)', [token, user.id, expiresAt]);
+
+  return res.json({
+    success: true,
+    message: 'Password reset successfully!',
+    user,
+    token
+  });
+});
+
 // Step 2: Verify OTP -> Create Account with Brute-Force Counter & Issue 90-day Session
 apiRouter.post('/auth/verify-otp', otpVerifyLimiter.middleware(), async (req, res) => {
   const { email, code, name, username, password } = req.body;
