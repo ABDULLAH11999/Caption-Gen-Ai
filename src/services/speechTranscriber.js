@@ -22,15 +22,12 @@ class SpeechTranscriberService {
       decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
     } catch (err) {
       console.error('Failed to decode audio data:', err);
+      if (audioCtx.close) audioCtx.close().catch(() => {});
       throw new Error('Unable to decode video audio track.');
-    } finally {
-      if (audioCtx.close) {
-        audioCtx.close().catch(() => {});
-      }
     }
 
-    const duration = decodedBuffer.duration;
-    const targetSampleRate = 16000; // Strict standard for Whisper speech AI
+    const duration = decodedBuffer.duration || 10;
+    const targetSampleRate = 16000; // Standard for Whisper speech AI
     const targetLength = Math.max(1, Math.ceil(duration * targetSampleRate));
 
     // High-fidelity hardware-accelerated 16kHz mono resampling via OfflineAudioContext
@@ -47,6 +44,11 @@ class SpeechTranscriberService {
 
     const resampledBuffer = await offlineCtx.startRendering();
     const rawPcm = resampledBuffer.getChannelData(0);
+
+    // Close audio context after offline rendering completes
+    if (audioCtx.close) {
+      audioCtx.close().catch(() => {});
+    }
 
     return { 
       audioBuffer: resampledBuffer, 
@@ -142,7 +144,7 @@ class SpeechTranscriberService {
       // Attempt Whisper via Transformers.js
       if (!this.pipeline) {
         onProgress({ status: 'loading_model', message: 'Initializing Whisper AI speech model...', percent: 50 });
-        this.pipeline = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny', {
+        this.pipeline = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
           progress_callback: (prog) => {
             if (prog && prog.progress) {
               onProgress({
@@ -155,14 +157,14 @@ class SpeechTranscriberService {
         });
       }
 
-      onProgress({ status: 'transcribing', message: 'Transcribing & translating speech to English...', percent: 78 });
+      onProgress({ status: 'transcribing', message: 'Transcribing spoken words...', percent: 78 });
 
-      // Run transcription with Whisper translate task (translates Hindi, Urdu, Spanish, etc. into English)
+      // Transcribe the words first. Non-English lines are translated after timestamps are built.
       const result = await this.pipeline(rawPcm, {
         return_timestamps: 'word',
         chunk_length_s: 30,
         stride_length_s: 5,
-        task: 'translate'
+        task: 'transcribe'
       });
 
       if (result && result.text && result.text.trim()) {
@@ -185,16 +187,29 @@ class SpeechTranscriberService {
       console.warn('Whisper model in-browser inference fallback:', err);
     }
 
-    // Fallback: If Whisper takes too long or fails on memory-constrained device,
-    // construct aligned sentences based on the detected speech segments so user can customize/edit.
+    // If recognition fails, do not invent spoken words.
     return this.createVoiceAlignedSentences(speechSegments, duration);
+  }
+
+  normalizeTranscriptText(text) {
+    return (text || '')
+      .replace(/\bZ[\s.\-]*N[\s.\-]*A[\s.\-]*I\b/gi, 'Zen AI')
+      .replace(/\bZ[\s.\-]*N[\s.\-]*I\b/gi, 'Zen AI')
+      .replace(/\bZen\s+A\.?I\.?\b/gi, 'Zen AI')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  tokenizeChunkText(text) {
+    const normalized = this.normalizeTranscriptText(text);
+    return normalized.split(/\s+/).filter(Boolean);
   }
 
   /**
    * Formats Whisper output (with chunks/timestamps) into structured sentences
    */
   formatWhisperResultToSentences(whisperResult, totalDuration, speechSegments) {
-    const rawText = whisperResult.text.trim();
+    const rawText = this.normalizeTranscriptText(whisperResult.text);
     const chunks = whisperResult.chunks || [];
 
     if (chunks.length > 0) {
@@ -205,24 +220,39 @@ class SpeechTranscriberService {
       let sentenceIdx = 1;
 
       chunks.forEach((c, idx) => {
-        const wordText = (c.text || '').trim();
-        if (!wordText) return;
+        const tokens = this.tokenizeChunkText(c.text || '');
+        if (tokens.length === 0) return;
 
-        const wStart = c.timestamp ? (c.timestamp[0] ?? 0) : idx * 0.5;
-        const wEnd = c.timestamp ? (c.timestamp[1] ?? wStart + 0.4) : wStart + 0.4;
+        let chunkStart = c.timestamp ? Number(c.timestamp[0] ?? 0) : idx * 0.5;
+        let chunkEnd = c.timestamp ? Number(c.timestamp[1] ?? chunkStart + 0.4) : chunkStart + 0.4;
 
-        if (currentSentenceWords.length === 0) {
-          sentenceStart = wStart;
-        }
+        if (!Number.isFinite(chunkStart)) chunkStart = idx * 0.5;
+        if (!Number.isFinite(chunkEnd) || chunkEnd <= chunkStart) chunkEnd = chunkStart + 0.4;
 
-        currentSentenceWords.push({
-          word: wordText,
-          start: parseFloat(wStart.toFixed(2)),
-          end: parseFloat(wEnd.toFixed(2))
+        chunkStart = Math.max(0, Math.min(chunkStart, totalDuration));
+        chunkEnd = Math.max(chunkStart + 0.05, Math.min(chunkEnd, totalDuration));
+        if (chunkStart >= totalDuration) return;
+
+        const tokenStep = (chunkEnd - chunkStart) / tokens.length;
+
+        tokens.forEach((wordText, tokenIdx) => {
+          const wStart = chunkStart + tokenIdx * tokenStep;
+          const wEnd = tokenIdx === tokens.length - 1 ? chunkEnd : chunkStart + (tokenIdx + 1) * tokenStep;
+
+          if (currentSentenceWords.length === 0) {
+            sentenceStart = wStart;
+          }
+
+          currentSentenceWords.push({
+            word: wordText,
+            start: parseFloat(wStart.toFixed(2)),
+            end: parseFloat(wEnd.toFixed(2))
+          });
         });
 
-        const isPunctuationBreak = /[.!?]$/.test(wordText);
-        const isLengthBreak = currentSentenceWords.length >= 6;
+        const lastToken = tokens[tokens.length - 1];
+        const isPunctuationBreak = /[.!?]$/.test(lastToken);
+        const isLengthBreak = currentSentenceWords.length >= 7;
 
         if (isPunctuationBreak || isLengthBreak || idx === chunks.length - 1) {
           const sentenceEnd = currentSentenceWords[currentSentenceWords.length - 1].end;
@@ -251,7 +281,7 @@ class SpeechTranscriberService {
    * Splits text and aligns with actual speech pauses
    */
   splitTextIntoTimedSentences(fullText, totalDuration, speechSegments = []) {
-    const words = fullText.trim().split(/\s+/).filter(Boolean);
+    const words = this.normalizeTranscriptText(fullText).split(/\s+/).filter(Boolean);
     if (words.length === 0) return [];
 
     const numSegments = Math.max(1, speechSegments.length);
@@ -287,34 +317,10 @@ class SpeechTranscriberService {
   }
 
   /**
-   * Creates initial speech-cadence aligned tokens so user has exact timings matching their voice
+   * Recognition failed. Return no captions rather than fake spoken words.
    */
   createVoiceAlignedSentences(speechSegments, duration) {
-    return speechSegments.map((seg, idx) => {
-      const segDuration = Math.max(0.6, seg.end - seg.start);
-      // Create 3-5 word placeholder tokens aligned to exact audio peaks
-      const wordCount = Math.min(6, Math.max(3, Math.round(segDuration * 2.2)));
-      const step = segDuration / wordCount;
-      const words = [];
-
-      for (let i = 0; i < wordCount; i++) {
-        const start = parseFloat((seg.start + i * step).toFixed(2));
-        const end = parseFloat((seg.start + (i + 1) * step).toFixed(2));
-        words.push({
-          word: `[Speech ${i + 1}]`,
-          start,
-          end
-        });
-      }
-
-      return {
-        id: `sentence_${idx + 1}`,
-        startTime: seg.start,
-        endTime: seg.end,
-        text: words.map(w => w.word).join(' '),
-        words
-      };
-    });
+    return [];
   }
 }
 

@@ -1,8 +1,9 @@
-// Screen 3: Tool Style Studio Modal with Center Holographic Tool Animation
+// Screen 3: Tool Style Studio Modal with Ready-Made Templates & Granular Customizer
 import { 
   FONTS, 
   CAPTION_POSITIONS, 
   CAPTION_ANIMATIONS, 
+  CAPTION_TEMPLATES,
   DEFAULT_LANDSCAPE_CONFIG, 
   DEFAULT_PORTRAIT_CONFIG 
 } from '../config.js';
@@ -28,17 +29,19 @@ export class ToolStudioModal {
     ];
     this.phraseIdx = 0;
     this.activeFontTarget = 'normal'; // 'normal' | 'prominent'
+    this.activeModalTab = 'templates'; // 'templates' | 'customize'
+    this.selectedTemplateId = 'viral-reel';
+    this.templateFilterCategory = 'all';
   }
 
   async initConfigs() {
-    const v3Migrated = await storage.getSetting('config_defaults_v3');
-    if (!v3Migrated) {
-      // Set new system defaults: Auto AI Mode, Playfair Display, Middle-Left safe zone
+    const v4Migrated = await storage.getSetting('config_templates_v4');
+    if (!v4Migrated) {
       this.landscapeConfig = { ...DEFAULT_LANDSCAPE_CONFIG };
       this.portraitConfig = { ...DEFAULT_PORTRAIT_CONFIG };
       await storage.saveSetting('config_landscape', this.landscapeConfig);
       await storage.saveSetting('config_portrait', this.portraitConfig);
-      await storage.saveSetting('config_defaults_v3', true);
+      await storage.saveSetting('config_templates_v4', true);
     } else {
       const savedLandscape = await storage.getSetting('config_landscape');
       const savedPortrait = await storage.getSetting('config_portrait');
@@ -46,8 +49,9 @@ export class ToolStudioModal {
       if (savedPortrait) this.portraitConfig = { ...this.portraitConfig, ...savedPortrait };
     }
 
-    if (!this.landscapeConfig.styleMode) this.landscapeConfig.styleMode = 'auto';
-    if (!this.portraitConfig.styleMode) this.portraitConfig.styleMode = 'auto';
+    if (!this.landscapeConfig.templateId) this.landscapeConfig.templateId = 'viral-reel';
+    if (!this.portraitConfig.templateId) this.portraitConfig.templateId = 'viral-reel';
+    this.selectedTemplateId = this.getActiveConfig().templateId || 'viral-reel';
   }
 
   getActiveConfig() {
@@ -86,9 +90,6 @@ export class ToolStudioModal {
     this.container.className = 'tool-modal-backdrop';
     this.container.id = 'tool-modal-backdrop';
 
-    const curConfig = this.getActiveConfig();
-    const isAuto = curConfig.styleMode !== 'custom';
-
     this.container.innerHTML = `
       <div class="tool-studio-modal" id="tool-studio-modal">
         <!-- Header -->
@@ -102,7 +103,7 @@ export class ToolStudioModal {
             </div>
             <div>
               <h2>CAPTION STYLE ENGINE</h2>
-              <p>VIRAL REELS AUTO TYPOGRAPHY & GRANULAR STUDIO CONTROLS</p>
+              <p>16 READY-MADE TEMPLATES & DEEP GRANULAR STUDIO CUSTOMIZER</p>
             </div>
           </div>
 
@@ -125,138 +126,124 @@ export class ToolStudioModal {
 
         <!-- Body Grid -->
         <div class="tool-modal-body">
-          <!-- Left Column: Controls -->
+          <!-- Left Column: Controls & Views -->
           <div class="tool-config-column">
 
-            <!-- Style Engine Mode Switcher Card -->
-            <div class="config-mode-card">
-              <div class="config-mode-header">
-                <div>
-                  <span class="config-mode-title">ENGINE MODE</span>
-                  <p class="config-mode-desc">Auto AI analyzes each sentence dynamically; Custom lets you control every pixel.</p>
+            <!-- Navigation Switcher: Top customize tab hidden as requested -->
+            <div class="studio-view-nav" style="display: none;">
+              <button type="button" class="view-nav-tab ${this.activeModalTab === 'templates' ? 'active' : ''}" id="tab-nav-templates">
+                <span class="nav-tab-icon">🎨</span>
+                <span>Ready-Made Templates (16)</span>
+              </button>
+              <button type="button" class="view-nav-tab ${this.activeModalTab === 'customize' ? 'active' : ''}" id="tab-nav-customize" style="display: none;">
+                <span class="nav-tab-icon">⚙️</span>
+                <span>Customize Template</span>
+              </button>
+            </div>
+
+            <!-- VIEW 1: Ready-Made Templates Gallery -->
+            <div class="templates-gallery-container" id="view-templates-gallery" style="display: ${this.activeModalTab === 'templates' ? 'flex' : 'none'};">
+              <div class="templates-gallery-header">
+                <div class="templates-gallery-title">
+                  <h3>✨ 16 Professional Caption Templates</h3>
+                  <p>Choose a pre-designed aesthetic crafted for your video's niche, or customize any template.</p>
                 </div>
-                <span class="badge ${isAuto ? 'badge-cyan' : 'badge-purple'}" id="badge-active-mode">${isAuto ? 'AUTO AI' : 'CUSTOM'}</span>
               </div>
-              <div class="style-mode-switcher-pills">
-                <button type="button" class="style-mode-btn ${isAuto ? 'active' : ''}" id="btn-mode-auto" data-mode="auto">
-                  <span class="mode-icon">⚡</span>
-                  <div class="mode-text-wrap">
-                    <strong class="mode-text-title">Auto AI Mode</strong>
-                    <span class="mode-text-sub">Viral Reels & TikTok typography (Middle-Left)</span>
-                  </div>
+
+              <!-- Category Filter Pills -->
+              <div class="template-category-pills" id="template-category-pills">
+                <button type="button" class="template-cat-pill active" data-cat="all">All (16)</button>
+                <button type="button" class="template-cat-pill" data-cat="viral">🔥 Viral Reels</button>
+                <button type="button" class="template-cat-pill" data-cat="luxury">✨ Luxury Vogue</button>
+                <button type="button" class="template-cat-pill" data-cat="tech">⚡ Cyber & Tech</button>
+                <button type="button" class="template-cat-pill" data-cat="cinema">🎬 Cinema</button>
+                <button type="button" class="template-cat-pill" data-cat="business">📈 Finance</button>
+                <button type="button" class="template-cat-pill" data-cat="entertainment">💥 Entertainment</button>
+                <button type="button" class="template-cat-pill" data-cat="music">🎤 Music / Studio</button>
+              </div>
+
+              <!-- 16 Templates Cards Grid -->
+              <div class="templates-cards-grid" id="templates-gallery-grid">
+                <!-- Dynamically populated via renderTemplatesGallery() -->
+              </div>
+
+              <!-- Bottom Action Bar -->
+              <div class="gallery-bottom-action-bar">
+                <div class="gallery-action-info">
+                  <span class="info-title" id="gallery-selected-name">Active: Viral Reel (Hormozi / Ref)</span>
+                  <span class="info-sub">Selected style is active on your video. Click Customize to tweak fonts & colors.</span>
+                </div>
+                <div class="gallery-action-buttons">
+                  <button type="button" class="btn-primary-customize" id="btn-gallery-customize">
+                    <span>⚙️ Customize Template</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- VIEW 2: Customize Template Studio -->
+            <div id="view-customize-studio" style="display: ${this.activeModalTab === 'customize' ? 'flex' : 'none'}; flex-direction: column; gap: 20px;">
+              <!-- Customize View Header Banner -->
+              <div class="customize-studio-banner">
+                <button type="button" class="btn-back-to-templates" id="btn-back-to-templates">
+                  <span>← Back to Templates Gallery</span>
                 </button>
-                <button type="button" class="style-mode-btn ${!isAuto ? 'active' : ''}" id="btn-mode-custom" data-mode="custom">
-                  <span class="mode-icon">⚙️</span>
-                  <div class="mode-text-wrap">
-                    <strong class="mode-text-title">Custom Studio</strong>
-                    <span class="mode-text-sub">Manual font, colors, position & animations</span>
-                  </div>
+                <div class="customizing-badge-wrap">
+                  <span class="customizing-label">Customizing:</span>
+                  <span class="customizing-template-badge" id="customizing-template-badge">Viral Reel (Hormozi / Ref)</span>
+                </div>
+                <button type="button" class="btn-reset-template-preset" id="btn-reset-template-preset" title="Reset this template to default preset">
+                  ↺ Reset Template
                 </button>
               </div>
-            </div>
 
-            <!-- Auto AI Mode Info Showcase Card (Visible in Auto Mode) -->
-            <div class="auto-mode-info-card" id="auto-mode-info-card" style="display: ${isAuto ? 'flex' : 'none'};">
-              <div class="auto-info-header">
-                <div class="auto-ai-chip">
-                  <span class="pulse-dot">●</span> AUTO SMART TYPOGRAPHY ACTIVE
-                </div>
-                <div class="auto-pos-badge" id="auto-pos-badge">📍 Customizable 9-Point Grid & Sizing</div>
-              </div>
-              
-              <div class="auto-feature-grid">
-                <div class="auto-feature-item">
-                  <div class="feature-icon">✨</div>
-                  <div class="feature-content">
-                    <strong>Dynamic Hierarchy</strong>
-                    <p>Subtle connector words ("this is", "for") paired with massive punchy display keywords for maximum viral retention.</p>
-                  </div>
-                </div>
-                <div class="auto-feature-item">
-                  <div class="feature-icon">🔍</div>
-                  <div class="feature-content">
-                    <strong>Deep Entity Recognition</strong>
-                    <p>Names (e.g. Emily), Months/Dates (e.g. September), Places (e.g. California) and Key Items get auto-accented.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div class="auto-examples-preview">
-                <div class="auto-example-label">LIVE REEL EXAMPLES:</div>
-                <div class="auto-example-chips">
-                  <div class="example-chip chip-emily">
-                    <span class="chip-p">this is</span>
-                    <span class="chip-h">Emily</span>
-                    <span class="chip-tag">Luxury Serif</span>
-                  </div>
-                  <div class="example-chip chip-september">
-                    <span class="chip-p">for</span>
-                    <span class="chip-h">September</span>
-                    <span class="chip-tag">Neon Pink</span>
-                  </div>
-                  <div class="example-chip chip-california">
-                    <span class="chip-p">welcome to</span>
-                    <span class="chip-h">California</span>
-                    <span class="chip-tag">Cyan Glow</span>
-                  </div>
-                </div>
-              </div>
-              <div class="auto-switch-hint">
-                💡 <strong>Auto Smart Typography</strong> applies dynamic prominence, contrast, and font styling automatically. You can freely adjust the <strong>Position</strong> and <strong>Font Size</strong> below!
-              </div>
-            </div>
-
-            <!-- Universal Controls (Available in BOTH Auto Mode & Custom Mode) -->
-            <!-- 1. Caption Position (9 Locations) -->
-            <div class="config-section-card">
-              <div class="config-section-title">
-                <span>📍 Caption Position (9 Locations)</span>
-                <span class="badge badge-purple" id="selected-pos-name">Middle Left</span>
-              </div>
-              <div class="position-grid-7" id="position-grid-7">
-                <!-- Row 1: Top Left, Top, Top Right -->
-                <button class="pos-btn" data-pos="top-left">Top Left</button>
-                <button class="pos-btn" data-pos="top">Top</button>
-                <button class="pos-btn" data-pos="top-right">Top Right</button>
-
-                <!-- Row 2: Middle Left, Middle, Middle Right -->
-                <button class="pos-btn" data-pos="middle-left">Mid Left</button>
-                <button class="pos-btn" data-pos="middle">Middle</button>
-                <button class="pos-btn" data-pos="middle-right">Mid Right</button>
-
-                <!-- Row 3: Bottom Left, Bottom, Bottom Right -->
-                <button class="pos-btn" data-pos="bottom-left">Bottom Left</button>
-                <button class="pos-btn" data-pos="bottom">Bottom</button>
-                <button class="pos-btn" data-pos="bottom-right">Bottom Right</button>
-              </div>
-            </div>
-
-            <!-- 2. Caption Size (1 - 100, default 30) -->
-            <div class="config-section-card">
-              <div class="config-section-title">
-                <span>🔤 Caption Size (Scale 1 - 100)</span>
-                <span class="slider-value-tag" id="caption-size-value">30</span>
-              </div>
-              <div class="slider-control-group">
-                <div class="slider-label-row">
-                  <span>Small (1)</span>
-                  <span>Default (30)</span>
-                  <span>Huge (100)</span>
-                </div>
-                <input type="range" min="1" max="100" value="30" class="custom-range-slider" id="caption-size-slider">
-              </div>
-            </div>
-            
-            <!-- Custom Sections Wrapper (Hidden in Auto Mode) -->
-            <div id="custom-sections-wrapper" class="custom-sections-wrapper" style="display: ${!isAuto ? 'flex' : 'none'}; flex-direction: column; gap: 22px;">
-
-              <!-- 1. Dual Font Family Selection -->
+              <!-- 1. Caption Position (9 Locations) -->
               <div class="config-section-card">
                 <div class="config-section-title">
-                  <span>1. Caption Fonts</span>
+                  <span>📍 Caption Position (9 Locations)</span>
+                  <span class="badge badge-purple" id="selected-pos-name">Middle Left</span>
+                </div>
+                <div class="position-grid-7" id="position-grid-7">
+                  <!-- Row 1: Top Left, Top, Top Right -->
+                  <button class="pos-btn" data-pos="top-left">Top Left</button>
+                  <button class="pos-btn" data-pos="top">Top</button>
+                  <button class="pos-btn" data-pos="top-right">Top Right</button>
+
+                  <!-- Row 2: Middle Left, Middle, Middle Right -->
+                  <button class="pos-btn" data-pos="middle-left">Mid Left</button>
+                  <button class="pos-btn" data-pos="middle">Middle</button>
+                  <button class="pos-btn" data-pos="middle-right">Mid Right</button>
+
+                  <!-- Row 3: Bottom Left, Bottom, Bottom Right -->
+                  <button class="pos-btn" data-pos="bottom-left">Bottom Left</button>
+                  <button class="pos-btn" data-pos="bottom">Bottom</button>
+                  <button class="pos-btn" data-pos="bottom-right">Bottom Right</button>
+                </div>
+              </div>
+
+              <!-- 2. Caption Size (1 - 100, default 30) -->
+              <div class="config-section-card">
+                <div class="config-section-title">
+                  <span>🔤 Caption Size (Scale 1 - 100)</span>
+                  <span class="slider-value-tag" id="caption-size-value">30</span>
+                </div>
+                <div class="slider-control-group">
+                  <div class="slider-label-row">
+                    <span>Small (1)</span>
+                    <span>Default (30)</span>
+                    <span>Huge (100)</span>
+                  </div>
+                  <input type="range" min="1" max="100" value="30" class="custom-range-slider" id="caption-size-slider">
+                </div>
+              </div>
+
+              <!-- 3. Dual Font Family Selection -->
+              <div class="config-section-card">
+                <div class="config-section-title">
+                  <span>3. Caption Fonts</span>
                   <div style="display:flex; gap:6px; flex-wrap:wrap;">
                     <span class="badge badge-cyan" id="selected-normal-font-name">Normal: Inter</span>
-                    <span class="badge badge-purple" id="selected-prominent-font-name">Prominent: Playfair</span>
+                    <span class="badge badge-purple" id="selected-prominent-font-name">Prominent: Syne</span>
                   </div>
                 </div>
                 
@@ -268,165 +255,182 @@ export class ToolStudioModal {
                     Prominent Words Font (Hero/Accent)
                   </button>
                 </div>
-                
-                <div class="font-picker-grid" id="font-picker-grid"></div>
+
+                <div class="font-picker-grid" id="font-picker-grid">
+                  <!-- Injected via renderFontGrid() -->
+                </div>
               </div>
 
-              <!-- 2. Text & Outline Colors + Time Intervals (Enterprise Redesign) -->
+              <!-- 4. Modern Dual Color & Stroke Pro Grid -->
               <div class="config-section-card">
                 <div class="config-section-title">
-                  <span>2. Colors & Stroke Styling</span>
-                  <span class="badge badge-cyan">DUAL-COLOR PRO</span>
+                  <span>4. Colors & Stroke Styling</span>
+                  <span class="badge badge-cyan">Pro Dual Typography</span>
                 </div>
 
-                <div class="dual-styling-grid">
-                  <!-- Card A: Normal Words Styling -->
-                  <div class="sub-config-card">
-                    <div class="sub-card-header">
-                      <span class="sub-card-title">⚪ Normal Words</span>
+                <div class="dual-color-pro-grid">
+                  <!-- Left Card: Normal Words -->
+                  <div class="color-pro-subcard subcard-normal">
+                    <div class="subcard-header">
+                      <div class="subcard-title-wrap">
+                        <span class="subcard-indicator normal-dot"></span>
+                        <strong class="subcard-title">Normal Words Text</strong>
+                      </div>
                       <span class="badge badge-cyan" id="badge-normal-color">#FFFFFF</span>
                     </div>
-
-                    <div style="font-size: 0.78rem; color: var(--text-muted);">Text Color Palette:</div>
-                    <div class="color-swatches-row" id="normal-color-palette-row">
-                      <button class="normal-color-swatch-btn selected" data-color="#FFFFFF" style="background: #FFFFFF;" title="Pure White"></button>
-                      <button class="normal-color-swatch-btn" data-color="#FFE600" style="background: #FFE600;" title="Electric Yellow"></button>
-                      <button class="normal-color-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;" title="Cyber Cyan"></button>
-                      <button class="normal-color-swatch-btn" data-color="#FF4DA6" style="background: #FF4DA6;" title="Neon Pink"></button>
-                      <button class="normal-color-swatch-btn" data-color="#10B981" style="background: #10B981;" title="Emerald"></button>
-                      <button class="normal-color-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;" title="Vibrant Orange"></button>
-                      <input type="color" id="custom-normal-color-input" class="color-input-native" value="#FFFFFF" title="Custom Normal Color">
+                    
+                    <div class="control-subblock">
+                      <span class="subblock-label">Text Color:</span>
+                      <div class="color-swatches-grid">
+                        <button class="normal-color-swatch-btn selected" data-color="#FFFFFF" style="background: #FFFFFF;" title="Pure White"></button>
+                        <button class="normal-color-swatch-btn" data-color="#F3F4F6" style="background: #F3F4F6;" title="Cool White"></button>
+                        <button class="normal-color-swatch-btn" data-color="#E2E8F0" style="background: #E2E8F0;" title="Slate White"></button>
+                        <button class="normal-color-swatch-btn" data-color="#FFE600" style="background: #FFE600;" title="Yellow"></button>
+                        <button class="normal-color-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;" title="Cyan"></button>
+                        <button class="normal-color-swatch-btn" data-color="#10B981" style="background: #10B981;" title="Emerald"></button>
+                        <input type="color" value="#FFFFFF" class="color-picker-custom" id="custom-normal-color-input" title="Custom Hex Color">
+                      </div>
                     </div>
 
-                    <!-- Stroke controls -->
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-                      <span style="font-size: 0.78rem; color: var(--text-muted);">Outline Stroke Width:</span>
-                      <span id="normal-outline-width-val" style="font-size: 0.8rem; font-weight:700;">2px</span>
+                    <div class="control-subblock">
+                      <div class="subblock-header-row">
+                        <span class="subblock-label">Stroke Outline Width:</span>
+                        <span class="slider-value-tag" id="normal-outline-width-val">2px</span>
+                      </div>
+                      <input type="range" min="0" max="14" step="0.5" value="2" class="custom-range-slider" id="normal-outline-slider">
                     </div>
-                    <input type="range" min="0" max="14" value="2" class="custom-range-slider" id="normal-outline-slider">
 
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
-                      <span style="font-size: 0.78rem; color: var(--text-muted);">Stroke Color:</span>
-                      <div style="display:flex; align-items:center; gap:8px;">
-                        <button class="outline-color-btn active" data-target="normal" data-color="#000000" style="width:20px;height:20px;border-radius:50%;background:#000000;border:1px solid #fff;"></button>
-                        <button class="outline-color-btn" data-target="normal" data-color="#FFFFFF" style="width:20px;height:20px;border-radius:50%;background:#FFFFFF;border:1px solid #000;"></button>
-                        <input type="color" id="custom-normal-outline-color" class="color-input-native" value="#000000" style="width:22px;height:22px;" title="Custom Stroke Color">
+                    <div class="control-subblock">
+                      <span class="subblock-label">Stroke Outline Color:</span>
+                      <div class="outline-color-btns">
+                        <button class="outline-color-btn active" data-target="normal" data-color="#000000">Solid Black</button>
+                        <button class="outline-color-btn" data-target="normal" data-color="#1e293b">Dark Slate</button>
+                        <button class="outline-color-btn" data-target="normal" data-color="#581c87">Purple</button>
+                        <input type="color" value="#000000" class="color-picker-custom" id="custom-normal-outline-color" title="Custom Hex Stroke">
                       </div>
                     </div>
                   </div>
 
-                  <!-- Card B: Prominent Words Styling (Hero / Accent / Dates / Names) -->
-                  <div class="sub-config-card" style="border-color: rgba(255, 77, 166, 0.35);">
-                    <div class="sub-card-header">
-                      <span class="sub-card-title" style="color: #FF4DA6;">✨ Prominent Words</span>
-                      <span class="badge badge-purple" id="badge-prominent-color">#FF4DA6</span>
+                  <!-- Right Card: Prominent Words -->
+                  <div class="color-pro-subcard subcard-prominent">
+                    <div class="subcard-header">
+                      <div class="subcard-title-wrap">
+                        <span class="subcard-indicator prominent-dot"></span>
+                        <strong class="subcard-title">Prominent Words (Hero Accent)</strong>
+                      </div>
+                      <span class="badge badge-purple" id="badge-prominent-color">#FFE600</span>
                     </div>
 
-                    <div style="font-size: 0.78rem; color: var(--text-muted);">Accent Color Palette:</div>
-                    <div class="color-swatches-row" id="prominent-color-palette-row">
-                      <button class="prominent-color-swatch-btn selected" data-color="#FF4DA6" style="background: #FF4DA6;" title="Neon Pink (Ref Image 2)"></button>
-                      <button class="prominent-color-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;" title="Vibrant Orange"></button>
-                      <button class="prominent-color-swatch-btn" data-color="#FFFFFF" style="background: #FFFFFF;" title="Pure White (Ref Image 1)"></button>
-                      <button class="prominent-color-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;" title="Cyber Cyan"></button>
-                      <button class="prominent-color-swatch-btn" data-color="#FFE600" style="background: #FFE600;" title="Electric Yellow"></button>
-                      <button class="prominent-color-swatch-btn" data-color="#10B981" style="background: #10B981;" title="Emerald"></button>
-                      <input type="color" id="custom-prominent-color-input" class="color-input-native" value="#FF4DA6" title="Custom Prominent Color">
+                    <div class="control-subblock">
+                      <span class="subblock-label">Accent Hero Color:</span>
+                      <div class="color-swatches-grid">
+                        <button class="prominent-color-swatch-btn selected" data-color="#FFE600" style="background: #FFE600;" title="Electric Yellow"></button>
+                        <button class="prominent-color-swatch-btn" data-color="#FF4DA6" style="background: #FF4DA6;" title="Neon Pink"></button>
+                        <button class="prominent-color-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;" title="Vibrant Orange"></button>
+                        <button class="prominent-color-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;" title="Cyber Cyan"></button>
+                        <button class="prominent-color-swatch-btn" data-color="#10B981" style="background: #10B981;" title="Emerald"></button>
+                        <button class="prominent-color-swatch-btn" data-color="#FFFFFF" style="background: #FFFFFF;" title="Pure White"></button>
+                        <input type="color" value="#FFE600" class="color-picker-custom" id="custom-prominent-color-input" title="Custom Hex Color">
+                      </div>
                     </div>
 
-                    <!-- Stroke controls -->
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-                      <span style="font-size: 0.78rem; color: var(--text-muted);">Outline Stroke Width:</span>
-                      <span id="prominent-outline-width-val" style="font-size: 0.8rem; font-weight:700;">3px</span>
+                    <div class="control-subblock">
+                      <div class="subblock-header-row">
+                        <span class="subblock-label">Stroke Outline Width:</span>
+                        <span class="slider-value-tag" id="prominent-outline-width-val">3px</span>
+                      </div>
+                      <input type="range" min="0" max="14" step="0.5" value="3" class="custom-range-slider" id="prominent-outline-slider">
                     </div>
-                    <input type="range" min="0" max="14" value="3" class="custom-range-slider" id="prominent-outline-slider">
 
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
-                      <span style="font-size: 0.78rem; color: var(--text-muted);">Stroke Color:</span>
-                      <div style="display:flex; align-items:center; gap:8px;">
-                        <button class="outline-color-btn active" data-target="prominent" data-color="#000000" style="width:20px;height:20px;border-radius:50%;background:#000000;border:1px solid #fff;"></button>
-                        <button class="outline-color-btn" data-target="prominent" data-color="#FFFFFF" style="width:20px;height:20px;border-radius:50%;background:#FFFFFF;border:1px solid #000;"></button>
-                        <input type="color" id="custom-prominent-outline-color" class="color-input-native" value="#000000" style="width:22px;height:22px;" title="Custom Stroke Color">
+                    <div class="control-subblock">
+                      <span class="subblock-label">Stroke Outline Color:</span>
+                      <div class="outline-color-btns">
+                        <button class="outline-color-btn active" data-target="prominent" data-color="#000000">Solid Black</button>
+                        <button class="outline-color-btn" data-target="prominent" data-color="#0284c7">Cyan Border</button>
+                        <button class="outline-color-btn" data-target="prominent" data-color="#e11d48">Pink Border</button>
+                        <input type="color" value="#000000" class="color-picker-custom" id="custom-prominent-outline-color" title="Custom Hex Stroke">
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <!-- Collapsible Advanced: Time-Interval Colors & Last Word Accent -->
-                <details style="margin-top: 14px; background: rgba(9, 13, 22, 0.4); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-sm); padding: 10px 12px;">
-                  <summary style="font-size: 0.8rem; font-weight: 700; color: var(--cyan-primary); cursor: pointer;">
-                    ⏱️ Time-Interval Colors & Last Word Options
-                  </summary>
-                  <div style="margin-top: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                      <span style="font-size: 0.78rem; font-weight: 700; color: var(--yellow-accent);">Time Interval Colors:</span>
-                      <button id="btn-add-interval" style="font-size: 0.74rem; padding: 3px 8px; background: rgba(255,230,0,0.15); color: var(--yellow-accent); border: 1px solid var(--yellow-accent); border-radius: var(--radius-full);">
-                        + Add Interval
-                      </button>
-                    </div>
-                    <div class="interval-list-container" id="interval-list-container"></div>
-
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; margin-bottom: 6px;">
-                      <span style="font-size: 0.78rem; font-weight: 700;">Last Word of Line Highlight:</span>
-                      <label style="display: flex; align-items: center; gap: 6px; font-size: 0.74rem; cursor: pointer;">
-                        <input type="checkbox" id="enable-last-word-toggle" style="accent-color: var(--cyan-primary);">
-                        <span>Enable</span>
-                      </label>
-                    </div>
-                    <div class="color-swatches-row" id="last-word-palette-row">
-                      <button class="last-word-swatch-btn" data-color="#FF4DA6" style="background: #FF4DA6;"></button>
-                      <button class="last-word-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;"></button>
-                      <button class="last-word-swatch-btn" data-color="#FFE600" style="background: #FFE600;"></button>
-                      <button class="last-word-swatch-btn" data-color="#10B981" style="background: #10B981;"></button>
-                      <button class="last-word-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;"></button>
-                      <button class="last-word-swatch-btn" data-color="#FFFFFF" style="background: #FFFFFF;"></button>
-                      <input type="color" id="custom-last-word-input" class="color-input-native" value="#FF4DA6" title="Choose Custom Last Word Color">
-                    </div>
+                <!-- Last Word Accent Option -->
+                <div class="last-word-accent-block" style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+                  <div class="accent-toggle-row" style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="font-size: 0.85rem; font-weight: 600; color: #FFFFFF; display:flex; align-items:center; gap:8px;">
+                      <input type="checkbox" id="enable-last-word-toggle" checked style="accent-color: var(--cyan-primary);">
+                      Accent Last Spoken Word of Each Line
+                    </label>
                   </div>
-                </details>
+                  <div class="color-swatches-grid" style="margin-top: 8px;">
+                    <button class="last-word-swatch-btn selected" data-color="#FFE600" style="background: #FFE600;"></button>
+                    <button class="last-word-swatch-btn" data-color="#FF4DA6" style="background: #FF4DA6;"></button>
+                    <button class="last-word-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;"></button>
+                    <button class="last-word-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;"></button>
+                    <input type="color" value="#FFE600" class="color-picker-custom" id="custom-last-word-input" title="Custom Last Word Color">
+                  </div>
+                </div>
               </div>
 
-              <!-- 5. Caption Animation (22+ Styles) -->
+              <!-- 5. Caption Animations (22 styles) -->
               <div class="config-section-card">
                 <div class="config-section-title">
-                  <span>5. Caption Animation (22 Styles)</span>
-                  <span class="badge badge-purple" id="selected-anim-name">Smooth Fade</span>
+                  <span>5. Caption Animations (22 Styles)</span>
+                  <span class="badge badge-purple" id="selected-anim-name">Pop & Bounce</span>
                 </div>
-                <p style="font-size: 0.78rem; color: var(--text-muted); margin: -4px 0 14px 0; line-height: 1.4;">
-                  Hover or click any animation style to watch it play live in the preview screen right beside.
-                </p>
-                <div class="animation-cards-grid" id="animation-cards-grid"></div>
+                <div class="animation-cards-grid" id="animation-cards-grid">
+                  <!-- Injected via populateControls() -->
+                </div>
               </div>
 
+              <!-- 6. Advanced Time Interval Coloring -->
+              <div class="config-section-card">
+                <div class="config-section-title">
+                  <span>6. Dynamic Time-Interval Color Changes</span>
+                  <button class="btn-add-interval" id="btn-add-interval">+ Add Phase</button>
+                </div>
+                <div class="interval-list-container" id="interval-list-container">
+                  <!-- Injected via renderIntervalsList() -->
+                </div>
+              </div>
             </div>
 
           </div>
 
-          <!-- Right Column: Live Synchronized Preview (Sticky) -->
+          <!-- Right Column: Interactive Phone Preview Mockup -->
           <div class="tool-preview-column">
-            <div class="config-section-title">
-              <span id="preview-col-mode-title">LIVE PREVIEW (${this.currentMode.toUpperCase()})</span>
-              <span class="badge badge-green anim-live-indicator">● LIVE ANIMATION</span>
+            <div class="preview-header-bar">
+              <span class="preview-col-title" id="preview-col-mode-title">LIVE PREVIEW</span>
+              <span class="preview-profile-badge" id="preview-profile-badge">16:9 Landscape</span>
             </div>
 
             <div class="preview-screen-box preview-${this.currentMode}" id="preview-screen-box">
+              <div class="preview-phone-notch"></div>
+              
+              <!-- Video Simulation Background -->
+              <div class="preview-video-mockup">
+                <div class="preview-mockup-light-glow"></div>
+                <div class="preview-grid-lines"></div>
+              </div>
+
+              <!-- Live Caption Overlay Preview -->
               <div class="preview-caption-text" id="preview-caption-text">
-                this is Emily
+                <!-- Injected live -->
               </div>
             </div>
 
-            <div style="background: rgba(9, 13, 22, 0.7); padding: 14px; border-radius: var(--radius-md); font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; border: 1px solid rgba(255, 255, 255, 0.06);">
-              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 4px;">
-                <strong style="color: var(--cyan-primary);">Active Profile:</strong>
-                <span class="badge badge-cyan" id="preview-profile-badge">${this.currentMode === 'landscape' ? '16:9 Landscape' : '9:16 Portrait'}</span>
-              </div>
-              Captions render inside safe video margins. Changes are applied live to your studio video.
+            <!-- Preview Controls Bar -->
+            <div class="preview-footer-controls">
+              <button class="btn-preview-step" id="btn-prev-phrase" title="Previous Test Line">◀ Prev Line</button>
+              <span class="phrase-indicator" id="preview-phrase-num">Sample 1/4</span>
+              <button class="btn-preview-step" id="btn-next-phrase" title="Next Test Line">Next Line ▶</button>
             </div>
           </div>
         </div>
 
-        <!-- Footer -->
+        <!-- Footer Actions Bar -->
         <div class="tool-modal-footer">
-          <button class="btn-reset-defaults" id="btn-reset-defaults">Reset To Defaults</button>
+          <button class="btn-reset-defaults" id="btn-reset-defaults">RESTORE SYSTEM DEFAULTS</button>
           <button class="btn-apply-settings" id="btn-apply-tool-modal">APPLY & RETURN TO STUDIO</button>
         </div>
       </div>
@@ -438,48 +442,134 @@ export class ToolStudioModal {
   }
 
   populateControls() {
-    const config = this.getActiveConfig();
-    const isAuto = config.styleMode !== 'custom';
-
-    // 0. Update Engine Mode Buttons & Sections visibility
-    const autoBtn = this.container.querySelector('#btn-mode-auto');
-    const customBtn = this.container.querySelector('#btn-mode-custom');
-    const badgeMode = this.container.querySelector('#badge-active-mode');
-    const autoInfoCard = this.container.querySelector('#auto-mode-info-card');
-    const customWrapper = this.container.querySelector('#custom-sections-wrapper');
-
-    if (autoBtn && customBtn) {
-      if (isAuto) {
-        autoBtn.classList.add('active');
-        customBtn.classList.remove('active');
-        if (badgeMode) {
-          badgeMode.textContent = 'AUTO AI';
-          badgeMode.className = 'badge badge-cyan';
-        }
-        if (autoInfoCard) autoInfoCard.style.display = 'flex';
-        if (customWrapper) customWrapper.style.display = 'none';
-      } else {
-        customBtn.classList.add('active');
-        autoBtn.classList.remove('active');
-        if (badgeMode) {
-          badgeMode.textContent = 'CUSTOM';
-          badgeMode.className = 'badge badge-purple';
-        }
-        if (autoInfoCard) autoInfoCard.style.display = 'none';
-        if (customWrapper) customWrapper.style.display = 'flex';
-      }
-    }
-
-    // 1. Populate Fonts
+    this.renderTemplatesGallery();
     this.renderFontGrid();
+    this.populateCustomizeControls();
+    this.updatePreview();
+  }
 
-    // 2. Set Size Slider
-    const sizeSlider = this.container.querySelector('#caption-size-slider');
-    const sizeVal = this.container.querySelector('#caption-size-value');
-    if (sizeSlider) sizeSlider.value = config.fontSize || 30;
-    if (sizeVal) sizeVal.textContent = config.fontSize || 30;
+  renderTemplatesGallery() {
+    const grid = this.container?.querySelector('#templates-gallery-grid');
+    if (!grid) return;
 
-    // 3. Set Position Grid
+    const filtered = this.templateFilterCategory === 'all'
+      ? CAPTION_TEMPLATES
+      : CAPTION_TEMPLATES.filter(t => t.category === this.templateFilterCategory || (this.templateFilterCategory === 'music' && (t.category === 'music' || t.category === 'podcast')));
+
+    grid.innerHTML = filtered.map(tmpl => {
+      const isSelected = tmpl.id === this.selectedTemplateId;
+      const c = tmpl.config;
+      const normalStroke = Math.min(1.4, Math.max(0.6, (c.normalOutlineWidth || 2) * 0.45));
+      const prominentStroke = Math.min(2.0, Math.max(1.0, (c.prominentOutlineWidth || 3.5) * 0.45));
+      const sampleNormal = tmpl.sampleNormal || 'result of';
+      const sampleProminent = tmpl.sampleProminent || 'Zen AI';
+
+      return `
+        <div class="template-card ${isSelected ? 'active' : ''}" data-template-id="${tmpl.id}">
+          <div class="template-card-header">
+            <div class="template-card-title-wrap">
+              <span class="template-card-icon">${tmpl.icon}</span>
+              <span class="template-card-name">${tmpl.name}</span>
+            </div>
+            <span class="template-card-badge badge ${isSelected ? 'badge-cyan' : 'badge-purple'}">${tmpl.badge}</span>
+          </div>
+
+          <!-- Large High-Definition Typography Preview Box -->
+          <div class="template-card-preview-box" style="background: ${tmpl.previewBg};">
+            <span class="template-preview-normal" style="
+              color: ${c.textColor || '#FFFFFF'};
+              font-family: ${this.getFontFamily(c.normalFontFamily)};
+              -webkit-text-stroke: ${normalStroke}px ${c.normalOutlineColor || '#000000'};
+              paint-order: stroke fill;
+              -webkit-paint-order: stroke fill;
+              text-shadow: 0 2px 6px rgba(0,0,0,0.85);
+            ">${sampleNormal}</span>
+            <span class="template-preview-prominent" style="
+              color: ${c.prominentColor || '#FFE600'};
+              font-family: ${this.getFontFamily(c.prominentFontFamily)};
+              -webkit-text-stroke: ${prominentStroke}px ${c.prominentOutlineColor || '#000000'};
+              paint-order: stroke fill;
+              -webkit-paint-order: stroke fill;
+              text-shadow: 0 0 16px ${c.prominentColor}aa, 0 2px 6px rgba(0,0,0,0.95);
+            ">${sampleProminent}</span>
+          </div>
+
+          <p class="template-card-scope">${tmpl.scope}</p>
+
+          <div class="template-card-actions">
+            ${isSelected ? `
+              <span class="template-active-indicator">
+                <span class="dot"></span> ACTIVE ON VIDEO
+              </span>
+            ` : `
+              <span style="font-size: 0.74rem; color: var(--text-muted);">Click to apply</span>
+            `}
+            <button type="button" class="btn-card-customize" data-customize-id="${tmpl.id}">
+              <span>⚙️ Customize</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Update bottom action bar info
+    const activeTmpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
+    const nameEl = this.container.querySelector('#gallery-selected-name');
+    if (nameEl) nameEl.textContent = `Active: ${activeTmpl.name}`;
+  }
+
+  getFontFamily(fontId) {
+    const f = FONTS.find(item => item.id === fontId);
+    return f ? f.family : "'Inter', sans-serif";
+  }
+
+  selectTemplate(templateId) {
+    const tmpl = CAPTION_TEMPLATES.find(t => t.id === templateId) || CAPTION_TEMPLATES[0];
+    this.selectedTemplateId = tmpl.id;
+
+    const current = this.getActiveConfig();
+    const updated = {
+      ...current,
+      ...tmpl.config,
+      templateId: tmpl.id
+    };
+
+    this.setActiveConfig(updated);
+    this.renderTemplatesGallery();
+    this.populateCustomizeControls();
+    this.updatePreview();
+  }
+
+  switchModalTab(tab) {
+    this.activeModalTab = tab;
+    const galleryView = this.container.querySelector('#view-templates-gallery');
+    const customView = this.container.querySelector('#view-customize-studio');
+    const tabTemplates = this.container.querySelector('#tab-nav-templates');
+    const tabCustomize = this.container.querySelector('#tab-nav-customize');
+
+    if (tab === 'templates') {
+      if (galleryView) galleryView.style.display = 'flex';
+      if (customView) customView.style.display = 'none';
+      if (tabTemplates) tabTemplates.classList.add('active');
+      if (tabCustomize) tabCustomize.classList.remove('active');
+    } else {
+      if (galleryView) galleryView.style.display = 'none';
+      if (customView) customView.style.display = 'flex';
+      if (tabTemplates) tabTemplates.classList.remove('active');
+      if (tabCustomize) tabCustomize.classList.add('active');
+      this.populateCustomizeControls();
+    }
+  }
+
+  populateCustomizeControls() {
+    const config = this.getActiveConfig();
+    const activeTmpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
+
+    // Header badge
+    const badge = this.container.querySelector('#customizing-template-badge');
+    if (badge) badge.textContent = activeTmpl.name;
+
+    // Position Grid
     this.container.querySelectorAll('.pos-btn[data-pos]').forEach(btn => {
       if (btn.getAttribute('data-pos') === config.position) {
         btn.classList.add('selected');
@@ -488,91 +578,72 @@ export class ToolStudioModal {
       }
     });
     const posName = this.container.querySelector('#selected-pos-name');
-    if (posName) posName.textContent = config.position?.toUpperCase() || 'MIDDLE LEFT';
+    if (posName) posName.textContent = (config.position || 'middle-left').toUpperCase();
 
-    // 4. Populate Normal Words Controls
+    // Size Slider
+    const sizeSlider = this.container.querySelector('#caption-size-slider');
+    const sizeVal = this.container.querySelector('#caption-size-value');
+    if (sizeSlider) sizeSlider.value = config.fontSize || 30;
+    if (sizeVal) sizeVal.textContent = config.fontSize || 30;
+
+    // Fonts
+    this.renderFontGrid();
+
+    // Normal Color
     const normalColor = config.textColor || '#FFFFFF';
     const badgeNormal = this.container.querySelector('#badge-normal-color');
     if (badgeNormal) badgeNormal.textContent = normalColor;
-
     this.container.querySelectorAll('.normal-color-swatch-btn').forEach(b => {
-      if (b.getAttribute('data-color').toLowerCase() === normalColor.toLowerCase()) {
-        b.classList.add('selected');
-      } else {
-        b.classList.remove('selected');
-      }
+      b.classList.toggle('selected', b.getAttribute('data-color').toLowerCase() === normalColor.toLowerCase());
     });
-    const normalColorInput = this.container.querySelector('#custom-normal-color-input');
-    if (normalColorInput) normalColorInput.value = normalColor;
+    const normalInput = this.container.querySelector('#custom-normal-color-input');
+    if (normalInput) normalInput.value = normalColor;
 
+    // Normal Outline
+    const normalOutWidth = config.normalOutlineWidth !== undefined ? config.normalOutlineWidth : 2;
     const normalOutSlider = this.container.querySelector('#normal-outline-slider');
     const normalOutVal = this.container.querySelector('#normal-outline-width-val');
-    const normalOutWidth = config.normalOutlineWidth !== undefined ? config.normalOutlineWidth : (config.outlineWidth || 2);
     if (normalOutSlider) normalOutSlider.value = normalOutWidth;
     if (normalOutVal) normalOutVal.textContent = `${normalOutWidth}px`;
 
-    const normalOutColor = config.normalOutlineColor || config.outlineColor || '#000000';
+    const normalOutColor = config.normalOutlineColor || '#000000';
     this.container.querySelectorAll('.outline-color-btn[data-target="normal"]').forEach(btn => {
-      if (btn.getAttribute('data-color').toLowerCase() === normalOutColor.toLowerCase()) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
+      btn.classList.toggle('active', btn.getAttribute('data-color').toLowerCase() === normalOutColor.toLowerCase());
     });
-    const normalOutColorInput = this.container.querySelector('#custom-normal-outline-color');
-    if (normalOutColorInput) normalOutColorInput.value = normalOutColor;
+    const normalOutInput = this.container.querySelector('#custom-normal-outline-color');
+    if (normalOutInput) normalOutInput.value = normalOutColor;
 
-    // 4B. Populate Prominent Words Controls
-    const prominentColor = config.prominentColor || '#FF4DA6';
+    // Prominent Color
+    const prominentColor = config.prominentColor || '#FFE600';
     const badgeProminent = this.container.querySelector('#badge-prominent-color');
     if (badgeProminent) badgeProminent.textContent = prominentColor;
-
     this.container.querySelectorAll('.prominent-color-swatch-btn').forEach(b => {
-      if (b.getAttribute('data-color').toLowerCase() === prominentColor.toLowerCase()) {
-        b.classList.add('selected');
-      } else {
-        b.classList.remove('selected');
-      }
+      b.classList.toggle('selected', b.getAttribute('data-color').toLowerCase() === prominentColor.toLowerCase());
     });
-    const prominentColorInput = this.container.querySelector('#custom-prominent-color-input');
-    if (prominentColorInput) prominentColorInput.value = prominentColor;
+    const prominentInput = this.container.querySelector('#custom-prominent-color-input');
+    if (prominentInput) prominentInput.value = prominentColor;
 
+    // Prominent Outline
+    const prominentOutWidth = config.prominentOutlineWidth !== undefined ? config.prominentOutlineWidth : 3;
     const prominentOutSlider = this.container.querySelector('#prominent-outline-slider');
     const prominentOutVal = this.container.querySelector('#prominent-outline-width-val');
-    const prominentOutWidth = config.prominentOutlineWidth !== undefined ? config.prominentOutlineWidth : 3;
     if (prominentOutSlider) prominentOutSlider.value = prominentOutWidth;
     if (prominentOutVal) prominentOutVal.textContent = `${prominentOutWidth}px`;
 
     const prominentOutColor = config.prominentOutlineColor || '#000000';
     this.container.querySelectorAll('.outline-color-btn[data-target="prominent"]').forEach(btn => {
-      if (btn.getAttribute('data-color').toLowerCase() === prominentOutColor.toLowerCase()) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
+      btn.classList.toggle('active', btn.getAttribute('data-color').toLowerCase() === prominentOutColor.toLowerCase());
     });
-    const prominentOutColorInput = this.container.querySelector('#custom-prominent-outline-color');
-    if (prominentOutColorInput) prominentOutColorInput.value = prominentOutColor;
+    const prominentOutInput = this.container.querySelector('#custom-prominent-outline-color');
+    if (prominentOutInput) prominentOutInput.value = prominentOutColor;
 
-    // 4C. Populate Last Word Accent Color
+    // Last Word Accent
     const lwToggle = this.container.querySelector('#enable-last-word-toggle');
     if (lwToggle) lwToggle.checked = config.enableLastWordColor !== false;
-
     const lwInput = this.container.querySelector('#custom-last-word-input');
-    if (lwInput) lwInput.value = config.lastWordColor || '#FF4DA6';
+    if (lwInput) lwInput.value = config.lastWordColor || '#FFE600';
 
-    this.container.querySelectorAll('.last-word-swatch-btn').forEach(b => {
-      if (b.getAttribute('data-color') === config.lastWordColor) {
-        b.classList.add('selected');
-      } else {
-        b.classList.remove('selected');
-      }
-    });
-
-    // 5. Populate Interval Colors
-    this.renderIntervalsList();
-
-    // 6. Populate Animations (22 styles)
+    // Animations (22 styles)
     const animGrid = this.container.querySelector('#animation-cards-grid');
     if (animGrid) {
       animGrid.innerHTML = CAPTION_ANIMATIONS.map(a => `
@@ -586,26 +657,26 @@ export class ToolStudioModal {
         btn.addEventListener('mouseenter', () => {
           const animId = btn.getAttribute('data-anim');
           const animMeta = CAPTION_ANIMATIONS.find(a => a.id === animId);
-          const badge = this.container.querySelector('#selected-anim-name');
-          if (badge && animMeta) badge.textContent = `▶ ${animMeta.name}`;
+          const b = this.container.querySelector('#selected-anim-name');
+          if (b && animMeta) b.textContent = `▶ ${animMeta.name}`;
           this.triggerPreviewAnimation(animId);
         });
 
         btn.addEventListener('mouseleave', () => {
-          const curConfig = this.getActiveConfig();
-          const animMeta = CAPTION_ANIMATIONS.find(a => a.id === curConfig.animation);
-          const badge = this.container.querySelector('#selected-anim-name');
-          if (badge && animMeta) badge.textContent = animMeta.name;
-          this.triggerPreviewAnimation(curConfig.animation);
+          const cur = this.getActiveConfig();
+          const animMeta = CAPTION_ANIMATIONS.find(a => a.id === cur.animation);
+          const b = this.container.querySelector('#selected-anim-name');
+          if (b && animMeta) b.textContent = animMeta.name;
+          this.triggerPreviewAnimation(cur.animation);
         });
       });
     }
 
     const curAnim = CAPTION_ANIMATIONS.find(a => a.id === config.animation);
-    const badge = this.container.querySelector('#selected-anim-name');
-    if (badge && curAnim) badge.textContent = curAnim.name;
+    const badgeAnim = this.container.querySelector('#selected-anim-name');
+    if (badgeAnim && curAnim) badgeAnim.textContent = curAnim.name;
 
-    this.updatePreview();
+    this.renderIntervalsList();
   }
 
   renderFontGrid() {
@@ -616,7 +687,7 @@ export class ToolStudioModal {
     const isNormalTarget = this.activeFontTarget === 'normal';
     const activeFontId = isNormalTarget
       ? (config.normalFontFamily || config.fontFamily || 'Inter')
-      : (config.prominentFontFamily || 'PlayfairDisplay');
+      : (config.prominentFontFamily || 'Syne');
 
     fontGrid.innerHTML = FONTS.map(f => `
       <button class="font-option-btn ${activeFontId === f.id ? 'selected' : ''}" data-font="${f.id}" style="font-family: ${f.family}">
@@ -632,7 +703,7 @@ export class ToolStudioModal {
 
     const prominentBadge = this.container.querySelector('#selected-prominent-font-name');
     if (prominentBadge) {
-      const fObj = FONTS.find(f => f.id === (config.prominentFontFamily || 'PlayfairDisplay')) || FONTS[0];
+      const fObj = FONTS.find(f => f.id === (config.prominentFontFamily || 'Syne')) || FONTS[0];
       prominentBadge.textContent = `Prominent: ${fObj.name.split(' (')[0]}`;
     }
   }
@@ -652,7 +723,6 @@ export class ToolStudioModal {
       </div>
     `).join('');
 
-    // Interval color change
     container.querySelectorAll('.interval-color-picker').forEach(input => {
       input.addEventListener('input', (e) => {
         const idx = Number(input.getAttribute('data-idx'));
@@ -661,7 +731,6 @@ export class ToolStudioModal {
       });
     });
 
-    // Delete interval
     container.querySelectorAll('.btn-del-interval').forEach(btn => {
       btn.addEventListener('click', () => {
         const idx = Number(btn.getAttribute('data-idx'));
@@ -691,14 +760,45 @@ export class ToolStudioModal {
       });
     });
 
-    // Engine Mode Toggle (Auto AI vs Custom)
-    this.container.querySelectorAll('.style-mode-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        soundFx.playKeyBeep(650);
-        const mode = btn.getAttribute('data-mode');
-        this.setActiveConfig({ styleMode: mode });
-        this.populateControls();
-      });
+    // Top View Navigation Tabs (Templates vs Customize)
+    this.container.querySelector('#tab-nav-templates')?.addEventListener('click', () => {
+      soundFx.playKeyBeep(500);
+      this.switchModalTab('templates');
+    });
+
+    this.container.querySelector('#tab-nav-customize')?.addEventListener('click', () => {
+      soundFx.playKeyBeep(550);
+      this.switchModalTab('customize');
+    });
+
+    this.container.querySelector('#btn-gallery-customize')?.addEventListener('click', () => {
+      soundFx.playKeyBeep(600);
+      this.switchModalTab('customize');
+    });
+
+    this.container.querySelector('#btn-back-to-templates')?.addEventListener('click', () => {
+      soundFx.playKeyBeep(450);
+      this.switchModalTab('templates');
+    });
+
+    // Category Filter Pills
+    this.container.querySelector('#template-category-pills')?.addEventListener('click', (e) => {
+      const pill = e.target.closest('.template-cat-pill');
+      if (!pill) return;
+      soundFx.playKeyBeep(600);
+      this.container.querySelectorAll('.template-cat-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      this.templateFilterCategory = pill.getAttribute('data-cat');
+      this.renderTemplatesGallery();
+    });
+
+    // Reset current template to preset defaults
+    this.container.querySelector('#btn-reset-template-preset')?.addEventListener('click', () => {
+      soundFx.playKeyBeep(400);
+      const tmpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
+      this.setActiveConfig({ ...tmpl.config });
+      this.populateCustomizeControls();
+      this.updatePreview();
     });
 
     // Font target tabs (Normal Text Font vs Prominent Words Font)
@@ -718,8 +818,28 @@ export class ToolStudioModal {
       this.renderFontGrid();
     });
 
-    // Clicks on interactive elements
+    // Global Click Listener
     this.container.addEventListener('click', (e) => {
+      // Template Card Click (Selection)
+      const card = e.target.closest('.template-card');
+      const custBtn = e.target.closest('.btn-card-customize');
+
+      if (custBtn) {
+        e.stopPropagation();
+        soundFx.playKeyBeep(650);
+        const tmplId = custBtn.getAttribute('data-customize-id');
+        this.selectTemplate(tmplId);
+        this.switchModalTab('customize');
+        return;
+      }
+
+      if (card) {
+        soundFx.playKeyBeep(620);
+        const tmplId = card.getAttribute('data-template-id');
+        this.selectTemplate(tmplId);
+        return;
+      }
+
       // Font selection
       const fontBtn = e.target.closest('.font-option-btn');
       if (fontBtn) {
@@ -742,39 +862,39 @@ export class ToolStudioModal {
         const posId = posBtn.getAttribute('data-pos');
         this.container.querySelectorAll('.pos-btn[data-pos]').forEach(b => b.classList.remove('selected'));
         posBtn.classList.add('selected');
-        const badge = this.container.querySelector('#selected-pos-name');
-        if (badge) badge.textContent = posId.toUpperCase();
+        const b = this.container.querySelector('#selected-pos-name');
+        if (b) b.textContent = posId.toUpperCase();
         this.setActiveConfig({ position: posId });
         return;
       }
 
-      // Normal Color swatches
+      // Normal Color Swatches
       const normalSwatch = e.target.closest('.normal-color-swatch-btn');
       if (normalSwatch) {
         soundFx.playKeyBeep(650);
         const color = normalSwatch.getAttribute('data-color');
         this.container.querySelectorAll('.normal-color-swatch-btn').forEach(b => b.classList.remove('selected'));
         normalSwatch.classList.add('selected');
-        const badge = this.container.querySelector('#badge-normal-color');
-        if (badge) badge.textContent = color;
+        const b = this.container.querySelector('#badge-normal-color');
+        if (b) b.textContent = color;
         this.setActiveConfig({ textColor: color });
         return;
       }
 
-      // Prominent Color swatches (Pink, Orange, White, Cyan, Yellow, Emerald)
+      // Prominent Color Swatches
       const prominentSwatch = e.target.closest('.prominent-color-swatch-btn');
       if (prominentSwatch) {
         soundFx.playKeyBeep(660);
         const color = prominentSwatch.getAttribute('data-color');
         this.container.querySelectorAll('.prominent-color-swatch-btn').forEach(b => b.classList.remove('selected'));
         prominentSwatch.classList.add('selected');
-        const badge = this.container.querySelector('#badge-prominent-color');
-        if (badge) badge.textContent = color;
+        const b = this.container.querySelector('#badge-prominent-color');
+        if (b) b.textContent = color;
         this.setActiveConfig({ prominentColor: color });
         return;
       }
 
-      // Outline Stroke color buttons (Normal vs Prominent)
+      // Outline Stroke color buttons
       const outlineBtn = e.target.closest('.outline-color-btn');
       if (outlineBtn) {
         soundFx.playKeyBeep(640);
@@ -791,7 +911,7 @@ export class ToolStudioModal {
         return;
       }
 
-      // Last Word Accent Color Swatches
+      // Last Word Swatches
       const lwSwatch = e.target.closest('.last-word-swatch-btn');
       if (lwSwatch) {
         soundFx.playKeyBeep(670);
@@ -810,71 +930,63 @@ export class ToolStudioModal {
         this.container.querySelectorAll('.anim-card-btn').forEach(b => b.classList.remove('selected'));
         animBtn.classList.add('selected');
         const animMeta = CAPTION_ANIMATIONS.find(a => a.id === animId);
-        const badge = this.container.querySelector('#selected-anim-name');
-        if (badge && animMeta) badge.textContent = animMeta.name;
+        const b = this.container.querySelector('#selected-anim-name');
+        if (b && animMeta) b.textContent = animMeta.name;
         this.setActiveConfig({ animation: animId });
         return;
       }
     });
 
-    // Custom Normal Color Picker
+    // Custom Color Pickers
     this.container.querySelector('#custom-normal-color-input')?.addEventListener('input', (e) => {
       const color = e.target.value;
-      const badge = this.container.querySelector('#badge-normal-color');
-      if (badge) badge.textContent = color;
+      const b = this.container.querySelector('#badge-normal-color');
+      if (b) b.textContent = color;
       this.setActiveConfig({ textColor: color });
     });
 
-    // Custom Prominent Color Picker
     this.container.querySelector('#custom-prominent-color-input')?.addEventListener('input', (e) => {
       const color = e.target.value;
-      const badge = this.container.querySelector('#badge-prominent-color');
-      if (badge) badge.textContent = color;
+      const b = this.container.querySelector('#badge-prominent-color');
+      if (b) b.textContent = color;
       this.setActiveConfig({ prominentColor: color });
     });
 
-    // Custom Normal Outline Color Picker
     this.container.querySelector('#custom-normal-outline-color')?.addEventListener('input', (e) => {
       this.setActiveConfig({ normalOutlineColor: e.target.value, outlineColor: e.target.value });
     });
 
-    // Custom Prominent Outline Color Picker
     this.container.querySelector('#custom-prominent-outline-color')?.addEventListener('input', (e) => {
       this.setActiveConfig({ prominentOutlineColor: e.target.value });
     });
 
-    // Normal Outline Width Slider
-    const normalOutSlider = this.container.querySelector('#normal-outline-slider');
-    normalOutSlider?.addEventListener('input', (e) => {
+    // Outline Width Sliders
+    this.container.querySelector('#normal-outline-slider')?.addEventListener('input', (e) => {
       const val = Number(e.target.value);
       this.container.querySelector('#normal-outline-width-val').textContent = `${val}px`;
       this.setActiveConfig({ normalOutlineWidth: val, outlineWidth: val });
     });
 
-    // Prominent Outline Width Slider
-    const prominentOutSlider = this.container.querySelector('#prominent-outline-slider');
-    prominentOutSlider?.addEventListener('input', (e) => {
+    this.container.querySelector('#prominent-outline-slider')?.addEventListener('input', (e) => {
       const val = Number(e.target.value);
       this.container.querySelector('#prominent-outline-width-val').textContent = `${val}px`;
       this.setActiveConfig({ prominentOutlineWidth: val });
     });
 
-    // Custom Last Word Color Picker
-    this.container.querySelector('#custom-last-word-input')?.addEventListener('input', (e) => {
-      this.setActiveConfig({ lastWordColor: e.target.value });
+    // Caption Size Slider
+    this.container.querySelector('#caption-size-slider')?.addEventListener('input', (e) => {
+      const val = Number(e.target.value);
+      this.container.querySelector('#caption-size-value').textContent = val;
+      this.setActiveConfig({ fontSize: val });
     });
 
-    // Enable/Disable Last Word Color Toggle
+    // Last Word Accent Toggle & Picker
     this.container.querySelector('#enable-last-word-toggle')?.addEventListener('change', (e) => {
       this.setActiveConfig({ enableLastWordColor: e.target.checked });
     });
 
-    // Caption Size Slider
-    const sizeSlider = this.container.querySelector('#caption-size-slider');
-    sizeSlider?.addEventListener('input', (e) => {
-      const val = Number(e.target.value);
-      this.container.querySelector('#caption-size-value').textContent = val;
-      this.setActiveConfig({ fontSize: val });
+    this.container.querySelector('#custom-last-word-input')?.addEventListener('input', (e) => {
+      this.setActiveConfig({ lastWordColor: e.target.value });
     });
 
     // Add Interval button
@@ -897,6 +1009,23 @@ export class ToolStudioModal {
       this.renderIntervalsList();
     });
 
+    // Preview Step buttons
+    this.container.querySelector('#btn-prev-phrase')?.addEventListener('click', () => {
+      soundFx.playKeyBeep(520);
+      this.phraseIdx = (this.phraseIdx - 1 + this.previewPhrases.length) % this.previewPhrases.length;
+      this.updatePreview();
+      const pNum = this.container.querySelector('#preview-phrase-num');
+      if (pNum) pNum.textContent = `Sample ${this.phraseIdx + 1}/${this.previewPhrases.length}`;
+    });
+
+    this.container.querySelector('#btn-next-phrase')?.addEventListener('click', () => {
+      soundFx.playKeyBeep(520);
+      this.phraseIdx = (this.phraseIdx + 1) % this.previewPhrases.length;
+      this.updatePreview();
+      const pNum = this.container.querySelector('#preview-phrase-num');
+      if (pNum) pNum.textContent = `Sample ${this.phraseIdx + 1}/${this.previewPhrases.length}`;
+    });
+
     // Reset Defaults
     this.container.querySelector('#btn-reset-defaults')?.addEventListener('click', () => {
       soundFx.playKeyBeep(350);
@@ -905,6 +1034,7 @@ export class ToolStudioModal {
       } else {
         this.portraitConfig = { ...DEFAULT_PORTRAIT_CONFIG };
       }
+      this.selectedTemplateId = 'viral-reel';
       this.populateControls();
       this.setActiveConfig(this.getActiveConfig());
     });
@@ -925,10 +1055,8 @@ export class ToolStudioModal {
     const profileBadge = this.container.querySelector('#preview-profile-badge');
     if (profileBadge) profileBadge.textContent = this.currentMode === 'landscape' ? '16:9 Landscape' : '9:16 Portrait';
 
-    const isAuto = config.styleMode !== 'custom';
-
-    // Position preview text based on user selected position (defaults to middle-left for Auto, bottom-center for Custom)
-    const positionId = config.position || (isAuto ? 'middle-left' : 'bottom-center');
+    // Position preview text based on user selected position
+    const positionId = config.position || 'middle-left';
     const pos = CAPTION_POSITIONS.find(p => p.id === positionId) || CAPTION_POSITIONS[3];
     previewText.style.top = pos.y;
     previewText.style.left = pos.x;
@@ -936,14 +1064,6 @@ export class ToolStudioModal {
     previewText.style.textAlign = pos.align;
     previewText.style.webkitTextStroke = 'none';
     previewText.style.textShadow = 'none';
-
-    // Update auto-pos-badge in header
-    const autoBadge = this.container?.querySelector('#auto-pos-badge');
-    if (autoBadge && isAuto) {
-      const posName = pos.name || 'Middle Left';
-      const sizeVal = config.fontSize !== undefined ? config.fontSize : 30;
-      autoBadge.textContent = `📍 ${posName} • Size ${sizeVal}`;
-    }
 
     // Render phrase with dual normal & prominent styling
     this.renderPreviewPhrase(this.previewPhrases[this.phraseIdx]);
@@ -994,17 +1114,12 @@ export class ToolStudioModal {
     if (!previewText) return;
 
     const config = this.getActiveConfig();
-    const activeAnimId = animOverride || config.animation || 'anim-fade';
+    const activeAnimId = animOverride || config.animation || 'anim-pop';
     const animMeta = CAPTION_ANIMATIONS.find(a => a.id === activeAnimId);
-    const cssClass = animMeta ? animMeta.cssClass : 'anim-fade';
+    const cssClass = animMeta ? animMeta.cssClass : 'anim-pop';
 
-    // Remove all animation classes
     CAPTION_ANIMATIONS.forEach(a => previewText.classList.remove(a.cssClass));
-
-    // Force DOM reflow to restart CSS keyframe cleanly
     void previewText.offsetWidth;
-
-    // Add selected animation class
     previewText.classList.add(cssClass);
   }
 
@@ -1018,6 +1133,8 @@ export class ToolStudioModal {
       this.phraseIdx = (this.phraseIdx + 1) % this.previewPhrases.length;
       this.renderPreviewPhrase(this.previewPhrases[this.phraseIdx]);
       this.triggerPreviewAnimation();
+      const pNum = this.container.querySelector('#preview-phrase-num');
+      if (pNum) pNum.textContent = `Sample ${this.phraseIdx + 1}/${this.previewPhrases.length}`;
     }, 2400);
   }
 
@@ -1028,19 +1145,14 @@ export class ToolStudioModal {
     }
   }
 
-  // Open with center holographic tool animation
   open(orientationMode = 'landscape') {
     if (this.isOpen) return;
     this.isOpen = true;
     this.currentMode = orientationMode;
 
-    // 1. Play holographic whoosh sound
     soundFx.playToolWhoosh();
-
-    // 2. Play 3D tool animation in center of web page
     this.introAnimElement.classList.add('animating');
 
-    // 3. After animation apex, morph into full studio modal
     setTimeout(() => {
       this.introAnimElement.classList.remove('animating');
       this.container.classList.add('active');
