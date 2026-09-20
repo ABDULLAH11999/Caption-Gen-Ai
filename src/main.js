@@ -260,6 +260,74 @@ class ZenSaaSApp {
     this.renderRoute(route, params);
   }
 
+  updateRouteMeta(route, params, targetUrl) {
+    const metaConfig = {
+      home: {
+        title: 'Zen Caption AI - 100% Free AI Video Caption Generator & Subtitle Maker Online',
+        desc: 'Free caption tool and free video subtitle generator online. Automatically generate, transcribe and add viral dual-font captions, Hormozi-style subtitles, and kinetic animations to TikTok, Instagram Reels, YouTube Shorts, and videos for free with zero watermarks. Fast, accurate Whisper AI speech to text.',
+        keywords: 'free caption tool, free caption video, free video subtitle generator, auto caption generator free, add captions to video free, no watermark caption generator, free subtitles generator for video, AI caption generator free, free auto subtitles, Hormozi captions free, viral reels captions free, tiktok subtitles generator free, instagram reels captions generator, youtube shorts auto subtitle, speech to text video subtitle, automatic subtitle generator online free, free closed caption tool, video subtitle maker free, transcribe video free, online video captioner, whisper ai captions free, dynamic word highlight captions, dual font video subtitles, client side video captioning, 60 fps subtitle export, caption video online free no watermark'
+      },
+      app: {
+        title: 'Free Video Caption Tool & Subtitle Studio - Zen Caption AI',
+        desc: '100% Free caption tool and video subtitle generator online. Upload up to 100MB video, transcribe speech accurately with Whisper AI, customize animated fonts, and export 60 FPS lossless video with no watermark.',
+        keywords: 'free caption tool, free caption video, free video subtitle generator, online subtitle maker, free auto captions, client side video editor, no watermark subtitles, generate captions online, caption studio, free subtitle tool'
+      },
+      blog: {
+        title: 'Creator Guides & Viral Caption Tips - Zen Caption AI Free Caption Tool',
+        desc: 'Learn how to add viral captions, boost video retention by 80%, master Hormozi subtitle styles, and rank higher on TikTok & Reels with our free caption tool guides.',
+        keywords: 'free caption tool, caption video tips, video retention subtitles, tiktok seo captions, viral reels font guide, subtitle generator tutorials, how to caption video free'
+      },
+      about: {
+        title: 'About Us - Free Client-Side Video Caption Tool | Zen Caption AI',
+        desc: 'Learn about Zen Caption AI: a fast, private, 100% free video caption generator that runs modern Whisper AI speech-to-text models directly in your web browser with zero server lag.',
+        keywords: 'free caption tool, about zen caption ai, private video subtitle generator, browser ai captions, client side captioning'
+      },
+      contact: {
+        title: 'Contact Support - Zen Caption AI Free Caption Tool',
+        desc: 'Have questions about our free video caption tool or need creator support? Get in touch with the Zen Caption AI team.',
+        keywords: 'free caption tool, contact support, zen caption ai contact, video subtitle help'
+      },
+      terms: {
+        title: 'Terms of Service - Zen Caption AI Free Caption Tool',
+        desc: 'Terms of service and acceptable usage policies for the Zen Caption AI free video caption generator.',
+        keywords: 'free caption tool, terms of service, legal terms'
+      },
+      cookies: {
+        title: 'Cookie Policy - Zen Caption AI',
+        desc: 'Cookie and privacy policy for Zen Caption AI.',
+        keywords: 'free caption tool, cookie policy, privacy policy'
+      },
+      admin: {
+        title: 'Admin Dashboard - Zen Caption AI',
+        desc: 'Administrative control panel for Zen Caption AI.',
+        keywords: 'admin dashboard'
+      }
+    };
+
+    if (route !== 'blog-detail') {
+      const cfg = metaConfig[route] || metaConfig.home;
+      document.title = cfg.title;
+
+      const descEl = document.querySelector('meta[name="description"]');
+      if (descEl) descEl.content = cfg.desc;
+      const ogDescEl = document.querySelector('meta[property="og:description"]');
+      if (ogDescEl) ogDescEl.content = cfg.desc;
+      const twDescEl = document.querySelector('meta[name="twitter:description"]');
+      if (twDescEl) twDescEl.content = cfg.desc;
+
+      const kwEl = document.querySelector('meta[name="keywords"]');
+      if (kwEl) kwEl.content = cfg.keywords;
+
+      const ogTitleEl = document.querySelector('meta[property="og:title"]');
+      if (ogTitleEl) ogTitleEl.content = cfg.title;
+      const twTitleEl = document.querySelector('meta[name="twitter:title"]');
+      if (twTitleEl) twTitleEl.content = cfg.title;
+
+      const canonicalEl = document.querySelector('link[rel="canonical"]');
+      if (canonicalEl) canonicalEl.href = `https://zencaption.online${targetUrl === '/' ? '' : targetUrl}`;
+    }
+  }
+
   renderRoute(route, params = {}) {
     if (!this.mainContainer) return;
     this.mainContainer.innerHTML = '';

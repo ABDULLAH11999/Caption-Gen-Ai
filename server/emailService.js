@@ -4,7 +4,30 @@ import { query } from './db.js';
 
 dotenv.config();
 
-// Create transporter if SMTP settings are provided, otherwise fallback to mock logger
+// Resend Email Service Configuration (Render-friendly HTTP API)
+export function getResendApiKey() {
+  return (
+    process.env.RESEND_API_KEY ||
+    process.env.RESEND_KEY ||
+    process.env.RESEND_APIKEY ||
+    process.env.RESEND_TOKEN ||
+    ''
+  ).trim();
+}
+
+export function getResendFromAddress() {
+  if (process.env.RESEND_FROM && process.env.RESEND_FROM.trim()) {
+    return process.env.RESEND_FROM.trim();
+  }
+  const smtpFrom = (process.env.SMTP_FROM || '').trim();
+  // Resend requires either a verified domain or onboarding@resend.dev. Free webmail like @gmail.com is rejected by Resend.
+  if (smtpFrom && !smtpFrom.toLowerCase().includes('@gmail.com') && smtpFrom.includes('@')) {
+    return smtpFrom;
+  }
+  return 'Zen Caption AI <onboarding@resend.dev>';
+}
+
+// Optional SMTP Fallback transporter (if Resend is not configured)
 let transporter = null;
 const smtpHost = process.env.SMTP_HOST || (process.env.SMTP_USER?.includes('@gmail.com') ? 'smtp.gmail.com' : null);
 const smtpUser = process.env.SMTP_USER;
@@ -21,7 +44,14 @@ if (smtpHost && smtpUser && smtpPass) {
       pass: smtpPass
     }
   });
-  console.log(`[EmailService] SMTP transporter active for ${smtpUser} on ${smtpHost}:${isPort465 ? '465 (SSL)' : '587 (TLS)'}`);
+  console.log(`[EmailService] SMTP transporter initialized as fallback for ${smtpUser}`);
+}
+
+const activeResendKey = getResendApiKey();
+if (activeResendKey) {
+  console.log(`[EmailService] ✓ Resend HTTP API active as primary email provider (Sender: ${getResendFromAddress()})`);
+} else {
+  console.log(`[EmailService] Resend API key not detected in env yet; using SMTP fallback if needed.`);
 }
 
 /**
@@ -286,28 +316,70 @@ ${message}
 }
 
 /**
- * Dispatch an email to recipient
+ * Dispatch an email to recipient via Resend API (Primary) with fallback to SMTP
  */
 export async function sendEmail({ to, subject, html }) {
-  console.log(`[EmailService] Preparing to send email to ${to}: "${subject}"`);
+  console.log(`[EmailService] Preparing to dispatch email to ${to}: "${subject}"`);
 
+  const resendApiKey = getResendApiKey();
+  const recipients = Array.isArray(to) ? to : [to];
+
+  // 1. PRIMARY: Resend REST API (Render-compatible over standard HTTPS port 443)
+  if (resendApiKey) {
+    try {
+      const fromAddress = getResendFromAddress();
+      console.log(`[EmailService] Dispatching via Resend API (From: "${fromAddress}") to: ${recipients.join(', ')}...`);
+
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: fromAddress,
+          to: recipients,
+          subject,
+          html
+        })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.id) {
+        console.log(`[EmailService] ✓ Resend email successfully delivered to ${recipients.join(', ')} (Message ID: ${data.id})`);
+        return { success: true, messageId: data.id, provider: 'resend' };
+      }
+
+      console.error(`[EmailService] ✕ Resend API error (${res.status}):`, data);
+      if (data.message && data.message.includes('domain')) {
+        console.warn(`[EmailService Tip] To send from custom domain in Resend, verify DNS records or set RESEND_FROM="Zen Caption AI <onboarding@resend.dev>"`);
+      }
+    } catch (resendErr) {
+      console.error(`[EmailService] ✕ Resend HTTP request failed:`, resendErr.message);
+    }
+  } else {
+    console.warn(`[EmailService] RESEND_API_KEY not found in environment. Checking SMTP fallback...`);
+  }
+
+  // 2. SECONDARY FALLBACK: SMTP Transporter (if configured and unblocked)
   if (transporter) {
     try {
+      console.log(`[EmailService] Attempting SMTP delivery for ${recipients.join(', ')}...`);
       const info = await transporter.sendMail({
-        from: process.env.SMTP_FROM || '"Zen Caption AI" <support@zencaption.ai>',
-        to,
+        from: process.env.SMTP_FROM || '"Zen Caption AI" <support@zencaption.online>',
+        to: recipients.join(', '),
         subject,
         html
       });
-      console.log(`[EmailService] SMTP email sent successfully to ${to}: ${info.messageId}`);
-      return { success: true, messageId: info.messageId };
-    } catch (err) {
-      console.error(`[EmailService] SMTP delivery failed:`, err);
-      // Fall through to record mock delivery
+      console.log(`[EmailService] ✓ SMTP email sent successfully to ${recipients.join(', ')}: ${info.messageId}`);
+      return { success: true, messageId: info.messageId, provider: 'smtp' };
+    } catch (smtpErr) {
+      console.error(`[EmailService] ✕ SMTP delivery failed:`, smtpErr.message);
     }
   }
 
-  // Fallback / Development: Record delivery in database or console
-  console.log(`[EmailService Mock] Delivered to "${to}" with subject "${subject}" (transporter not configured).`);
+  // 3. Simulated Mock fallback for dev
+  console.log(`[EmailService Mock] Simulated delivery to "${recipients.join(', ')}" with subject "${subject}".`);
   return { success: true, mock: true };
 }

@@ -272,25 +272,36 @@ export async function initDb() {
   // Seed default site settings
   const defaultSettings = [
     { key: 'site_name', value: 'Zen Caption AI' },
-    { key: 'site_title', value: 'Zen Caption AI - Auto Captions & Viral Subtitle Studio' },
+    { key: 'site_title', value: 'Zen Caption AI - 100% Free AI Video Caption Generator & Subtitle Maker Online' },
     { key: 'site_logo', value: '' },
     { key: 'site_favicon', value: '' },
-    { key: 'meta_desc', value: 'Generate viral dual-font captions for TikTok, Shorts & Reels with Whisper AI speech recognition and 60 FPS lossless export.' },
-    { key: 'meta_keywords', value: 'caption generator, auto subtitles, tiktok captions, reels captions, hormozi subtitles, ai video editor' },
-    { key: 'og_image', value: '' },
-    { key: 'og_title', value: 'Zen Caption AI - Viral Subtitle & Caption Studio' },
-    { key: 'og_desc', value: 'Transform your videos with viral dual-font captions in seconds. 16+ styles, Whisper AI, zero server lag.' },
+    { key: 'meta_desc', value: 'Free caption tool and free video subtitle generator online. Automatically generate, transcribe and add viral dual-font captions, Hormozi-style subtitles, and animated text to TikTok, Instagram Reels, YouTube Shorts, and videos for free with zero watermarks. Fast, accurate Whisper AI speech to text.' },
+    { key: 'meta_keywords', value: 'free caption tool, free caption video, free video subtitle generator, auto caption generator free, add captions to video free, no watermark caption generator, free subtitles generator for video, AI caption generator free, free auto subtitles, Hormozi captions free, viral reels captions free, tiktok subtitles generator free, instagram reels captions generator, youtube shorts auto subtitle, speech to text video subtitle, automatic subtitle generator online free, free closed caption tool, video subtitle maker free, transcribe video free, online video captioner, whisper ai captions free, dynamic word highlight captions, dual font video subtitles, client side video captioning, 60 fps subtitle export, caption video online free no watermark' },
+    { key: 'og_image', value: 'https://zencaption.online/default-blog-cover.jpg' },
+    { key: 'og_title', value: 'Zen Caption AI - 100% Free AI Video Caption Generator & Subtitle Maker' },
+    { key: 'og_desc', value: 'Free caption tool and free video subtitle generator online. Generate viral dual-font captions for TikTok, Shorts & Reels with Whisper AI speech recognition and 60 FPS lossless export. 100% Free, no watermark.' },
     { key: 'json_ld', value: JSON.stringify({
       '@context': 'https://schema.org',
-      '@type': 'SoftwareApplication',
+      '@type': 'WebApplication',
       'name': 'Zen Caption AI',
+      'url': 'https://zencaption.online',
       'applicationCategory': 'MultimediaApplication',
       'operatingSystem': 'All',
+      'description': '100% Free AI video caption tool and subtitle generator online. Create animated viral dual-font captions for TikTok, Instagram Reels, and YouTube Shorts with no watermark.',
       'offers': {
         '@type': 'Offer',
         'price': '0',
         'priceCurrency': 'USD'
-      }
+      },
+      'featureList': [
+        'Free Caption Tool',
+        'Free Video Subtitle Generator',
+        'Auto Speech to Text Transcription',
+        'No Watermark Export',
+        'Hormozi Dual-Font Caption Styles',
+        'Client-Side Private Processing',
+        '60 FPS Lossless Video Export'
+      ]
     }, null, 2) },
     { key: 'header_scripts', value: '' },
     { key: 'footer_scripts', value: '' }
@@ -298,7 +309,8 @@ export async function initDb() {
 
   for (const s of defaultSettings) {
     await query(
-      `INSERT INTO site_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`,
+      `INSERT INTO site_settings (key, value) VALUES ($1, $2)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
       [s.key, s.value]
     );
   }

@@ -12,7 +12,18 @@ export class BlogDetailPage {
       const res = await api.getBlogBySlug(slug);
       this.blog = res.blog;
       if (this.blog?.title) {
-        document.title = `${this.blog.title} - Zen Caption AI`;
+        document.title = `${this.blog.title} - Zen Caption AI Free Caption Tool`;
+      }
+      const desc = this.blog?.meta_desc || this.blog?.excerpt;
+      if (desc) {
+        const descEl = document.querySelector('meta[name="description"]');
+        if (descEl) descEl.content = desc;
+        const ogDesc = document.querySelector('meta[property="og:description"]');
+        if (ogDesc) ogDesc.content = desc;
+      }
+      const kwEl = document.querySelector('meta[name="keywords"]');
+      if (kwEl) {
+        kwEl.content = `free caption tool, free caption video, ${this.blog?.keywords || 'video subtitles, auto caption'}`;
       }
       this.renderContent();
     } catch (err) {
