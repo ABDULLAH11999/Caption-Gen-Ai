@@ -42,7 +42,11 @@ if (smtpHost && smtpUser && smtpPass) {
     auth: {
       user: smtpUser,
       pass: smtpPass
-    }
+    },
+    // Fast timeouts so blocked cloud ports fail fast in 3s rather than hanging for 60s
+    connectionTimeout: 3000,
+    greetingTimeout: 3000,
+    socketTimeout: 3000
   });
   console.log(`[EmailService] SMTP transporter initialized as fallback for ${smtpUser}`);
 }
