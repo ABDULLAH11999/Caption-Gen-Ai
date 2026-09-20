@@ -452,8 +452,12 @@ export class ToolStudioModal {
               </div>
 
               <!-- Live Caption Overlay Preview -->
-              <div class="preview-caption-text" id="preview-caption-text">
-                <!-- Injected live -->
+              <div class="preview-caption-anchor preview-caption-text" id="preview-caption-anchor">
+                <div class="preview-caption-anim-wrapper" id="preview-caption-anim-wrapper">
+                  <div class="preview-caption-flow" id="preview-caption-flow">
+                    <!-- Injected live -->
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1127,8 +1131,8 @@ export class ToolStudioModal {
 
   updatePreview() {
     const config = this.getActiveConfig();
-    const previewText = this.container.querySelector('#preview-caption-text');
-    if (!previewText) return;
+    const anchor = this.container.querySelector('#preview-caption-anchor') || this.container.querySelector('#preview-caption-text');
+    if (!anchor) return;
 
     // Apply Mode Title and Profile Badge
     const titleSpan = this.container.querySelector('#preview-col-mode-title');
@@ -1142,34 +1146,68 @@ export class ToolStudioModal {
       previewBox.classList.toggle('video-enhanced', !!config.enhanceQuality);
     }
 
-    // Position preview text based on user selected position
+    // Position preview anchor based on user selected position
     const positionId = config.position || 'middle-left';
     const pos = CAPTION_POSITIONS.find(p => p.id === positionId) || CAPTION_POSITIONS[3];
-    previewText.style.top = pos.y;
-    previewText.style.left = pos.x;
-    previewText.style.transform = pos.transform;
-    previewText.style.textAlign = pos.align;
-    previewText.style.webkitTextStroke = 'none';
-    previewText.style.textShadow = 'none';
+    
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    let posX = pos.x;
+    let posY = pos.y;
+    let transformStr = pos.transform;
+
+    // On mobile viewports, apply safe margins so captions don't touch or clip preview boundaries
+    if (isMobile) {
+      if (pos.id.includes('top')) posY = '18%';
+      else if (pos.id.includes('bottom')) posY = '80%';
+      if (pos.id.includes('left')) posX = '8%';
+      else if (pos.id.includes('right')) posX = '92%';
+    }
+
+    anchor.style.top = posY;
+    anchor.style.left = posX;
+    anchor.style.transform = transformStr;
+    anchor.style.textAlign = pos.align;
+    anchor.style.webkitTextStroke = 'none';
+    anchor.style.textShadow = 'none';
 
     // Render phrase with dual normal & prominent styling
     this.renderPreviewPhrase(this.previewPhrases[this.phraseIdx]);
 
-    // Trigger Live Animation
+    // Trigger Live Animation on the inner animation wrapper (so anchor transform is preserved)
     this.triggerPreviewAnimation(config.animation);
   }
 
   renderPreviewPhrase(phrase) {
-    const previewText = this.container?.querySelector('#preview-caption-text');
-    if (!previewText) return;
+    const flowContainer = this.container?.querySelector('#preview-caption-flow');
+    const legacyTarget = this.container?.querySelector('#preview-caption-text');
+    if (!flowContainer && !legacyTarget) return;
+
     const config = this.getActiveConfig();
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    const isPortrait = this.currentMode === 'portrait';
+
+    // Proportional preview scaling factor based on orientation and mobile view
+    let scaleMultiplier = 0.88;
+    if (isPortrait) {
+      scaleMultiplier = isMobile ? 0.44 : 0.60;
+    } else if (isMobile) {
+      scaleMultiplier = 0.64;
+    }
+
+    const rawFontSize = config.fontSize || 30;
+    let baseFontSize = Math.max(12, Math.round(rawFontSize * scaleMultiplier));
+    if (isMobile) {
+      baseFontSize = Math.min(baseFontSize, isPortrait ? 16 : 22);
+    }
 
     // Analyze phrase using dual word-importance logic & config
     const analysis = autoTypographyEngine.analyzeSentence({ text: phrase }, false, config);
-    const baseFontSize = Math.max(16, Math.round((config.fontSize || 30) * 0.95));
+    const positionId = config.position || 'middle-left';
+    const pos = CAPTION_POSITIONS.find(p => p.id === positionId) || CAPTION_POSITIONS[3];
+    const justifyAlign = pos.align === 'left' ? 'flex-start' : (pos.align === 'right' ? 'flex-end' : 'center');
 
     const wordsHtml = analysis.words.map((w) => {
-      const fontSizePx = Math.round(baseFontSize * (w.fontSizeMultiplier || 1.0));
+      const fontSizePx = Math.max(10, Math.round(baseFontSize * (w.fontSizeMultiplier || 1.0)));
       return `
         <span class="caption-word-token ${w.isProminent ? 'prominent-word' : 'normal-word'}" style="
           color: ${w.color};
@@ -1182,40 +1220,48 @@ export class ToolStudioModal {
           -webkit-text-stroke: ${w.stroke};
           paint-order: stroke fill;
           display: inline-block;
-          margin: 0 3px;
+          margin: 0 2px;
+          word-break: break-word;
+          line-height: 1.15;
         ">
           ${w.word}
         </span>
       `;
     }).join(' ');
 
-    previewText.innerHTML = `
-      <div class="preview-caption-flow" style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; line-height: 1.15;">
-        ${wordsHtml}
-      </div>
-    `;
+    if (flowContainer) {
+      flowContainer.style.justifyContent = justifyAlign;
+      flowContainer.style.textAlign = pos.align;
+      flowContainer.innerHTML = wordsHtml;
+    } else if (legacyTarget) {
+      legacyTarget.innerHTML = `
+        <div class="preview-caption-flow" style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 6px; line-height: 1.15; justify-content: ${justifyAlign}; text-align: ${pos.align};">
+          ${wordsHtml}
+        </div>
+      `;
+    }
   }
 
   triggerPreviewAnimation(animOverride = null) {
-    const previewText = this.container?.querySelector('#preview-caption-text');
-    if (!previewText) return;
+    const animTarget = this.container?.querySelector('#preview-caption-anim-wrapper') || this.container?.querySelector('#preview-caption-text');
+    if (!animTarget) return;
 
     const config = this.getActiveConfig();
     const activeAnimId = animOverride || config.animation || 'anim-pop';
     const animMeta = CAPTION_ANIMATIONS.find(a => a.id === activeAnimId);
     const cssClass = animMeta ? animMeta.cssClass : 'anim-pop';
 
-    CAPTION_ANIMATIONS.forEach(a => previewText.classList.remove(a.cssClass));
-    void previewText.offsetWidth;
-    previewText.classList.add(cssClass);
+    CAPTION_ANIMATIONS.forEach(a => animTarget.classList.remove(a.cssClass));
+    void animTarget.offsetWidth;
+    animTarget.classList.add(cssClass);
   }
 
   startAnimationLoop() {
     this.stopAnimationLoop();
     this.animLoopTimer = setInterval(() => {
       if (!this.isOpen) return;
-      const previewText = this.container?.querySelector('#preview-caption-text');
-      if (!previewText) return;
+      const anchor = this.container?.querySelector('#preview-caption-anchor') || this.container?.querySelector('#preview-caption-text');
+      if (!anchor) return;
 
       this.phraseIdx = (this.phraseIdx + 1) % this.previewPhrases.length;
       this.renderPreviewPhrase(this.previewPhrases[this.phraseIdx]);

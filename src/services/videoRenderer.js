@@ -401,8 +401,16 @@ export class VideoRenderer {
       const originalPaused = videoElement.paused;
       videoElement.pause();
 
-      const width = videoElement.videoWidth || 1280;
-      const height = videoElement.videoHeight || 720;
+      const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      let width = videoElement.videoWidth || 1280;
+      let height = videoElement.videoHeight || 720;
+      // Clamp canvas resolution on mobile to prevent GPU texture exhaustion on large 100MB videos
+      if (isMobile && (width > 1920 || height > 1920)) {
+        const scale = 1920 / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
       const duration = videoElement.duration || 60;
 
       // Create offscreen high-res render canvas
@@ -413,6 +421,9 @@ export class VideoRenderer {
 
       // Setup audio graph
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') {
+        try { await audioCtx.resume(); } catch (e) {}
+      }
       const dest = audioCtx.createMediaStreamDestination();
       let source;
       try {
@@ -423,13 +434,14 @@ export class VideoRenderer {
         // Audio element may already be connected
       }
 
-      // Canvas capture stream supporting full native high-FPS (up to 60 FPS)
-      const canvasStream = offscreenCanvas.captureStream(60);
-      const videoTrack = canvasStream.getVideoTracks()[0];
+      // Canvas capture stream supporting 60 FPS on desktop and 30-60 FPS on mobile
+      const targetFps = isMobile ? 30 : 60;
+      const canvasStream = offscreenCanvas.captureStream ? offscreenCanvas.captureStream(targetFps) : offscreenCanvas;
+      const videoTrack = canvasStream.getVideoTracks ? canvasStream.getVideoTracks()[0] : null;
 
       // Combine canvas video track + destination audio track
-      const combinedTracks = [...canvasStream.getVideoTracks()];
-      if (dest.stream.getAudioTracks().length > 0) {
+      const combinedTracks = canvasStream.getVideoTracks ? [...canvasStream.getVideoTracks()] : [];
+      if (dest.stream && dest.stream.getAudioTracks().length > 0) {
         combinedTracks.push(...dest.stream.getAudioTracks());
       }
 
@@ -451,10 +463,11 @@ export class VideoRenderer {
         mimeType = 'video/webm';
       }
 
-      // 10 Mbps video + 192 kbps audio: broadcast-grade high bitrate, buttery smooth 30-60 FPS
+      // 6-10 Mbps video + 192 kbps audio: broadcast-grade high bitrate, buttery smooth FPS
+      const videoBits = isMobile ? 6000000 : 10000000;
       const recorder = new MediaRecorder(combinedStream, {
         mimeType,
-        videoBitsPerSecond: 10000000,
+        videoBitsPerSecond: videoBits,
         audioBitsPerSecond: 192000
       });
 
@@ -560,6 +573,74 @@ export class VideoRenderer {
       this.isRendering = false;
       console.error('Export error:', err);
       throw err;
+    }
+  }
+
+  /**
+   * Adapter for UserDashboard: burns captions to video and triggers file download
+   */
+  async burnCaptionsToVideoLossless(videoBlob, sentences, config, onProgress, enhanceQuality = false) {
+    const video = document.createElement('video');
+    video.playsInline = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+    video.crossOrigin = 'anonymous';
+    const videoUrl = URL.createObjectURL(videoBlob);
+    video.src = videoUrl;
+
+    await new Promise((resolve) => {
+      video.onloadedmetadata = () => resolve();
+      video.onerror = () => resolve();
+      setTimeout(resolve, 3500);
+    });
+
+    const captionEngineInstance = {
+      sentences: sentences || [],
+      getActiveCaptionState(curTime, cfg) {
+        if (!this.sentences || this.sentences.length === 0) return { visibleWords: [] };
+        const curSentence = this.sentences.find(s => curTime >= (s.start ?? s.startTime ?? 0) && curTime <= (s.end ?? s.endTime ?? 0));
+        if (curSentence && curSentence.words) {
+          const visibleWords = curSentence.words.map(w => ({
+            word: w.word,
+            isPastOrActive: curTime >= (w.start ?? 0),
+            isProminent: false
+          }));
+          return { visibleWords };
+        }
+        return { visibleWords: [] };
+      }
+    };
+
+    const effectiveConfig = {
+      ...config,
+      enhanceQuality: !!enhanceQuality,
+      enhanceVideoQuality: !!enhanceQuality
+    };
+
+    try {
+      const exportedBlob = await this.exportVideo(video, captionEngineInstance, effectiveConfig, (percent) => {
+        if (typeof onProgress === 'function') {
+          onProgress(percent / 100);
+        }
+      });
+
+      // Auto-trigger browser download
+      const isMp4 = exportedBlob.type.includes('mp4');
+      const ext = isMp4 ? 'mp4' : 'webm';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(exportedBlob);
+      a.download = `Zen_Captioned_Video_60FPS.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        URL.revokeObjectURL(a.href);
+        a.remove();
+      }, 1500);
+
+      return exportedBlob;
+    } finally {
+      URL.revokeObjectURL(videoUrl);
+      video.remove();
     }
   }
 

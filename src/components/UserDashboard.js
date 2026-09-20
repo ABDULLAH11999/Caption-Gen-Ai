@@ -535,7 +535,7 @@ export class UserDashboard {
         </div>
 
         <div class="upload-card" id="user-drop-zone" style="max-width: 800px; margin: 20px auto; background: #ffffff; border: 2px dashed #cbd5e1; border-radius: var(--radius-xl); padding: 48px 32px; text-align: center;">
-          <input type="file" id="user-file-input" accept="video/mp4,video/webm,video/ogg,video/quicktime" style="display: none;">
+          <input type="file" id="user-file-input" accept="video/*,video/mp4,video/quicktime,video/webm" style="display: none;">
           
           <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--primary-coral-light); color: var(--primary-coral); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto;">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -777,6 +777,13 @@ export class UserDashboard {
 
   async handleVideoFile(file) {
     if (!file) return;
+
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > APP_CONFIG.MAX_FILE_SIZE_MB) {
+      this.showToast(`Video size (${fileSizeMB.toFixed(1)} MB) exceeds maximum allowed ${APP_CONFIG.MAX_FILE_SIZE_MB} MB limit.`, 'error');
+      return;
+    }
+
     this.isProcessing = true;
     this.processingCancelled = false;
     this.processingProgress = 20;
@@ -909,6 +916,9 @@ export class UserDashboard {
     if (!this.videoElement || !this.videoBlob) return;
 
     const url = URL.createObjectURL(this.videoBlob);
+    this.videoElement.playsInline = true;
+    this.videoElement.setAttribute('playsinline', '');
+    this.videoElement.setAttribute('webkit-playsinline', '');
     this.videoElement.src = url;
 
     const scrubber = wrap.querySelector('#user-timeline-scrubber');
