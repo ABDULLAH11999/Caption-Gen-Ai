@@ -25,8 +25,8 @@ export class AuthModal {
         </div>
 
         <div class="auth-tabs" id="auth-tab-bar">
-          <button class="auth-tab-btn active" data-tab="signin" id="tab-signin">Sign In</button>
-          <button class="auth-tab-btn" data-tab="signup" id="tab-signup">Sign Up</button>
+          <button type="button" class="auth-tab-btn active" data-tab="signin" id="tab-signin">Sign In</button>
+          <button type="button" class="auth-tab-btn" data-tab="signup" id="tab-signup">Sign Up</button>
         </div>
 
         <!-- 1. SIGN IN FORM -->
@@ -40,9 +40,7 @@ export class AuthModal {
               <input type="text" class="form-control" id="signin-id" placeholder="e.g. alex or alex@example.com" required autocomplete="username">
             </div>
             <div class="form-group">
-              <div style="display: flex; justify-content: space-between;">
-                <label class="form-label" for="signin-pass">Password</label>
-              </div>
+              <label class="form-label" for="signin-pass">Password</label>
               <input type="password" class="form-control" id="signin-pass" placeholder="Enter your password" required autocomplete="current-password">
             </div>
             <div id="signin-error" class="auth-error-box" style="display: none;"></div>
@@ -53,7 +51,7 @@ export class AuthModal {
 
           <div class="auth-footer-prompt">
             <span>Don't have an account?</span>
-            <button class="btn-link" id="link-goto-signup">Create one in 10 seconds</button>
+            <button type="button" class="btn-link" id="link-goto-signup">Create one in 10 seconds</button>
           </div>
         </div>
 
@@ -69,13 +67,13 @@ export class AuthModal {
             </div>
 
             <div class="form-group">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <label class="form-label" for="signup-username">Username</label>
-                <span class="username-status-badge" id="username-status">Checking...</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" for="signup-username" style="margin-bottom: 0;">Username</label>
+                <span class="username-status-badge" id="username-status" style="display: none;"></span>
               </div>
               <input type="text" class="form-control" id="signup-username" placeholder="Choose a username" required autocomplete="username">
               
-              <div class="suggested-usernames-box" id="suggested-usernames-box">
+              <div class="suggested-usernames-box" id="suggested-usernames-box" style="display: none;">
                 <span class="suggest-label">Suggested:</span>
                 <div class="suggest-pills" id="suggest-pills-list"></div>
               </div>
@@ -100,7 +98,7 @@ export class AuthModal {
 
           <div class="auth-footer-prompt">
             <span>Already registered?</span>
-            <button class="btn-link" id="link-goto-signin">Sign in</button>
+            <button type="button" class="btn-link" id="link-goto-signin">Sign in</button>
           </div>
         </div>
 
@@ -169,11 +167,16 @@ export class AuthModal {
   async loadSuggestedUsernames(name) {
     try {
       const res = await api.getSuggestedUsernames(name);
+      const suggestions = res.suggestedUsernames || res.suggestions || [];
       const pillsContainer = this.container.querySelector('#suggest-pills-list');
-      if (pillsContainer && res.suggestions) {
-        pillsContainer.innerHTML = res.suggestions.map(s => `
+      const box = this.container.querySelector('#suggested-usernames-box');
+
+      if (pillsContainer && suggestions.length > 0) {
+        pillsContainer.innerHTML = suggestions.map(s => `
           <button type="button" class="username-pill-btn" data-username="${s}">${s}</button>
         `).join('');
+
+        if (box) box.style.display = 'flex';
 
         pillsContainer.querySelectorAll('.username-pill-btn').forEach(btn => {
           btn.addEventListener('click', () => {
@@ -185,12 +188,14 @@ export class AuthModal {
           });
         });
 
-        // Pre-fill first suggestion if empty
+        // Pre-fill first suggestion if input is currently blank
         const uInput = this.container.querySelector('#signup-username');
-        if (uInput && !uInput.value && res.suggestions[0]) {
-          uInput.value = res.suggestions[0];
-          this.checkUsername(res.suggestions[0]);
+        if (uInput && !uInput.value && suggestions[0]) {
+          uInput.value = suggestions[0];
+          this.checkUsername(suggestions[0]);
         }
+      } else if (box) {
+        box.style.display = 'none';
       }
     } catch (e) {}
   }
@@ -199,7 +204,14 @@ export class AuthModal {
     const statusEl = this.container.querySelector('#username-status');
     if (!statusEl) return;
 
-    if (!username || username.length < 3) {
+    if (!username) {
+      statusEl.style.display = 'none';
+      return;
+    }
+
+    statusEl.style.display = 'inline-block';
+
+    if (username.length < 3) {
       statusEl.textContent = 'Too short';
       statusEl.className = 'username-status-badge invalid';
       return;

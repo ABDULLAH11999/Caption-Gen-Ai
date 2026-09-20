@@ -6,17 +6,22 @@ dotenv.config();
 
 // Create transporter if SMTP settings are provided, otherwise fallback to mock logger
 let transporter = null;
+const smtpHost = process.env.SMTP_HOST || (process.env.SMTP_USER?.includes('@gmail.com') ? 'smtp.gmail.com' : null);
+const smtpUser = process.env.SMTP_USER;
+const smtpPass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
 
-if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+if (smtpHost && smtpUser && smtpPass) {
+  const isPort465 = process.env.SMTP_PORT === '465' || process.env.SMTP_SECURE === 'true';
   transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_SECURE === 'true',
+    host: smtpHost,
+    port: parseInt(process.env.SMTP_PORT || (isPort465 ? '465' : '587')),
+    secure: isPort465,
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
+      user: smtpUser,
+      pass: smtpPass
     }
   });
+  console.log(`[EmailService] SMTP transporter active for ${smtpUser} on ${smtpHost}:${isPort465 ? '465 (SSL)' : '587 (TLS)'}`);
 }
 
 /**

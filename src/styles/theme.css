@@ -330,3 +330,234 @@ textarea.form-control {
   background: #e2e8f0;
   color: #0f172a;
 }
+
+/* ==========================================================================
+   AUTH MODAL STYLES (Clean SaaS Aesthetics)
+   ========================================================================== */
+.auth-modal-dialog {
+  max-width: 440px;
+  padding: 28px 32px 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.16);
+}
+
+.auth-brand-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-brand-text {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0c0c0e;
+  letter-spacing: -0.2px;
+}
+
+/* Segmented Tabs (Sign In / Sign Up) */
+.auth-tabs {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  gap: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.auth-tab-btn {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748b;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  outline: none;
+}
+
+.auth-tab-btn:hover {
+  color: #0c0c0e;
+}
+
+.auth-tab-btn.active {
+  background: #ffffff;
+  color: #0c0c0e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  font-weight: 800;
+}
+
+/* Headings */
+.auth-heading {
+  font-size: 22px;
+  font-weight: 900;
+  color: #0c0c0e;
+  letter-spacing: -0.4px;
+  margin: 0 0 6px 0;
+  line-height: 1.25;
+}
+
+.auth-subheading {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 18px 0;
+  line-height: 1.4;
+}
+
+/* Compact Forms */
+.auth-form .form-group {
+  margin-bottom: 14px;
+}
+
+.auth-form .form-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.auth-form .form-control {
+  padding: 10px 14px;
+  font-size: 13.5px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+}
+
+.auth-form .form-control:focus {
+  border-color: var(--primary-coral);
+  box-shadow: 0 0 0 3px rgba(255, 85, 51, 0.12);
+}
+
+/* Footer Prompt & Borderless Link Buttons */
+.auth-footer-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 5px;
+  color: var(--primary-coral);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.btn-link:hover {
+  color: #e04422;
+  text-decoration: underline;
+}
+
+/* Username Status Badge & Suggested Box */
+.username-status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.username-status-badge.available {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.username-status-badge.taken {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.suggested-usernames-box {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.suggest-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.suggest-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.suggest-pill {
+  background: #f4f6fa;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.suggest-pill:hover {
+  background: var(--primary-coral-light);
+  color: var(--primary-coral);
+  border-color: var(--primary-coral-border);
+}
+
+/* Auth Error Box */
+.auth-error-box {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+/* OTP Screen */
+.otp-badge-icon {
+  font-size: 32px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.otp-input-field {
+  font-size: 28px !important;
+  font-weight: 900 !important;
+  letter-spacing: 12px !important;
+  text-align: center !important;
+  padding: 14px !important;
+  border: 2px solid #cbd5e1 !important;
+  border-radius: 14px !important;
+}
+
+.otp-input-field:focus {
+  border-color: var(--primary-coral) !important;
+  box-shadow: 0 0 0 4px rgba(255, 85, 51, 0.15) !important;
+}
+
+.otp-hint-text {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 8px;
+}

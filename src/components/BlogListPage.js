@@ -68,7 +68,7 @@ export class BlogListPage {
 
       return `
         <article class="card blog-card" data-slug="${b.slug}" style="cursor: pointer; padding: 0; overflow: hidden; display: flex; flex-direction: column;">
-          <div style="height: 190px; background: url('${b.featured_image || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&q=80'}') center/cover no-repeat; border-bottom: 1px solid var(--border-color);"></div>
+          <div style="height: 190px; background: #ffffff url('${b.featured_image || '/default-blog-cover.jpg'}') center/cover no-repeat; border-bottom: 1px solid var(--border-color);"></div>
           
           <div style="padding: 24px; display: flex; flex-direction: column; flex: 1;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 12px; color: #94a3b8; font-weight: 700;">

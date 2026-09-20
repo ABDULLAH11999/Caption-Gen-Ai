@@ -159,15 +159,14 @@ class ZenSaaSApp {
     if (ogImg && s.og_image) ogImg.content = s.og_image;
 
     // Favicon
-    if (s.favicon_url) {
-      let link = document.querySelector("link[rel*='icon']");
-      if (!link) {
-        link = document.createElement('link');
-        link.rel = 'icon';
-        document.head.appendChild(link);
-      }
-      link.href = s.favicon_url;
+    const favicon = s.favicon_url || s.site_favicon || '/favicon.svg';
+    let link = document.querySelector("link[rel*='icon']");
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
     }
+    link.href = favicon;
 
     // JSON-LD Schema
     if (s.json_ld_schema) {
