@@ -121,8 +121,9 @@ export class AuthModal {
             </button>
           </form>
 
-          <div class="auth-footer-prompt">
-            <button class="btn-link" id="link-back-to-signup">&larr; Change Email</button>
+          <div class="auth-footer-prompt" style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px;">
+            <button type="button" class="btn-link" id="link-back-to-signup">&larr; Change Email</button>
+            <button type="button" class="btn-link" id="btn-resend-otp" style="color: var(--primary-coral); font-weight: 700;">Resend Code</button>
           </div>
         </div>
       </div>
@@ -305,18 +306,50 @@ export class AuthModal {
       submitBtn.innerHTML = '<span>Sending code...</span>';
 
       try {
-        await api.signup({ name, username, email, password });
+        const res = await api.signup({ name, username, email, password });
         this.signupData = { name, username, email, password };
         const subheading = this.container.querySelector('#otp-subheading');
         if (subheading) subheading.textContent = `We sent a 6-digit security code to ${email}`;
         this.switchView('otp');
-        this.showToast('Verification code sent to your email!', 'info');
+        if (res && res.devCode) {
+          const otpInput = this.container.querySelector('#otp-code-input');
+          if (otpInput) otpInput.value = res.devCode;
+          this.showToast(`Verification code ready! (Code: ${res.devCode})`, 'success');
+        } else {
+          this.showToast('Verification code sent to your email!', 'info');
+        }
       } catch (err) {
         errorBox.textContent = err.message;
         errorBox.style.display = 'block';
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<span>Continue &amp; Get Code</span>';
+      }
+    });
+
+    // Resend OTP handler
+    this.container.querySelector('#btn-resend-otp')?.addEventListener('click', async () => {
+      if (!this.signupData?.email) return;
+      const resendBtn = this.container.querySelector('#btn-resend-otp');
+      resendBtn.disabled = true;
+      resendBtn.textContent = 'Resending...';
+      try {
+        const res = await api.request('/auth/resend-otp', {
+          method: 'POST',
+          body: { email: this.signupData.email, name: this.signupData.name }
+        });
+        if (res && res.devCode) {
+          const otpInput = this.container.querySelector('#otp-code-input');
+          if (otpInput) otpInput.value = res.devCode;
+          this.showToast(`New code ready! (Code: ${res.devCode})`, 'success');
+        } else {
+          this.showToast('New verification code sent to your email!', 'info');
+        }
+      } catch (err) {
+        this.showToast(err.message, 'error');
+      } finally {
+        resendBtn.disabled = false;
+        resendBtn.textContent = 'Resend Code';
       }
     });
 

@@ -269,7 +269,8 @@ apiRouter.post('/auth/signup', signupLimiter.middleware(), async (req, res) => {
   res.json({
     success: true,
     message: `Verification code sent to ${cleanEmail}`,
-    email: cleanEmail
+    email: cleanEmail,
+    devCode: otpCode
   });
 });
 
@@ -299,7 +300,8 @@ apiRouter.post('/auth/resend-otp', signupLimiter.middleware(), async (req, res) 
   return res.json({
     success: true,
     message: `A new verification code has been sent to ${cleanEmail}`,
-    email: cleanEmail
+    email: cleanEmail,
+    devCode: otpCode
   });
 });
 

@@ -1192,12 +1192,19 @@ export class UserDashboard {
         ? `0 0 16px ${color}, 0 2px 8px rgba(0,0,0,0.98), 0 0 3px #000000`
         : `0 2px 6px rgba(0,0,0,0.95), 0 0 2px #000000`;
 
+      const strokeWidth = isProminent
+        ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.5)
+        : (cfg.normalOutlineWidth !== undefined ? cfg.normalOutlineWidth : 1.5);
+      const strokeColor = isProminent
+        ? (cfg.prominentOutlineColor || '#000000')
+        : (cfg.normalOutlineColor || '#000000');
+
       return `
         <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''}" style="
           display: inline-block !important;
           vertical-align: baseline !important;
-          margin: 1px 3px !important;
-          padding: 0 2px !important;
+          margin: 1px 2px !important;
+          padding: 0 1px !important;
           box-sizing: border-box !important;
           font-family: '${font}', sans-serif;
           color: ${color} !important;
@@ -1205,9 +1212,12 @@ export class UserDashboard {
           font-weight: ${fontWeight};
           opacity: 1 !important;
           visibility: visible !important;
-          line-height: 1.15;
+          line-height: 1.05;
           letter-spacing: 0.2px;
           text-shadow: ${textShadow};
+          -webkit-text-stroke: ${strokeWidth}px ${strokeColor};
+          paint-order: stroke fill;
+          -webkit-paint-order: stroke fill;
           transform: none !important;
           white-space: nowrap !important;
           transition: font-size 0.12s cubic-bezier(0.16, 1, 0.3, 1), color 0.12s ease, text-shadow 0.12s ease;
@@ -1247,13 +1257,18 @@ export class UserDashboard {
       // Re-create segment with configured entrance animation and tight natural word spacing (no overflow clipping!)
       overlay.innerHTML = `
         <div class="caption-segment-anchor" style="position: absolute; top: ${posY}; left: ${posX}; transform: ${posTransform}; width: auto; max-width: 88%; text-align: ${textAlign}; pointer-events: none; z-index: 20;">
-          <div class="caption-anim-segment-wrapper ${animClass}" style="display: inline-flex; flex-wrap: wrap; justify-content: ${justifyAlign}; align-items: baseline; gap: 3px 6px; width: auto; max-width: 100%; text-transform: uppercase;">
+          <div class="caption-anim-segment-wrapper ${animClass}" style="display: inline-flex; flex-wrap: wrap; justify-content: ${justifyAlign}; align-items: baseline; gap: 2px 4px; width: auto; max-width: 100%; text-transform: uppercase; line-height: 1.05;">
             ${wordsHtml}
           </div>
         </div>
       `;
     } else {
-      // Same segment: update word sizes and colors without restarting entrance animation
+      // Continuously enforce latest position & alignment coordinates even when paused
+      anchor.style.top = posY;
+      anchor.style.left = posX;
+      anchor.style.transform = posTransform;
+      anchor.style.textAlign = textAlign;
+      animWrapper.style.justifyContent = justifyAlign;
       animWrapper.innerHTML = wordsHtml;
     }
   }
@@ -1316,9 +1331,9 @@ export class UserDashboard {
     if (progBox) progBox.style.display = 'block';
 
     try {
-      const tpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
-      const customConfig = this.userCustomTemplates[tpl.id];
-      const cfg = customConfig ? { ...tpl.config, ...customConfig } : tpl.config;
+      const customConfig = this.userCustomTemplates[tpl.id] || {};
+      const studioConfig = (this.activeConfig && (!this.activeConfig.templateId || this.activeConfig.templateId === tpl.id)) ? this.activeConfig : {};
+      const cfg = { ...tpl.config, ...customConfig, ...studioConfig };
 
       await videoRenderer.burnCaptionsToVideoLossless(this.videoBlob, captionEngine.sentences, cfg, (p) => {
         const percentVal = Math.round(p * 100);

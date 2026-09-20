@@ -241,12 +241,12 @@ export class VideoRenderer {
     }
 
     // 3. Custom Mode: Compute caption position coordinates (from 9 position presets)
-    const positionId = config.position || 'bottom';
-    const posMeta = CAPTION_POSITIONS.find(p => p.id === positionId) || CAPTION_POSITIONS[1];
+    const positionId = config.position || 'middle-left';
+    const posMeta = CAPTION_POSITIONS.find(p => p.id === positionId) || CAPTION_POSITIONS[3];
 
-    let posX = canvasWidth * 0.5;
-    let posY = canvasHeight * 0.82;
-    let textAlign = 'center';
+    let posX = canvasWidth * 0.06;
+    let posY = canvasHeight * 0.50;
+    let textAlign = 'left';
 
     switch (posMeta.id) {
       case 'top':
