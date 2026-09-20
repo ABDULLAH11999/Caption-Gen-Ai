@@ -32,11 +32,11 @@ export class LandingPage {
         </div>
 
         <h1 class="hero-title">
-          Zen Caption Tool - Generate Viral Captions for Reels &amp; TikToks in <span class="gradient-text">Seconds</span>.
+          Free Caption Generator Video Tool - Auto Subtitles in <span class="gradient-text">Seconds</span>.
         </h1>
 
         <p class="hero-subtitle">
-          Zen Caption Tool is the 100% free AI video caption generator and subtitle maker online. Transform ordinary videos into high-retention short-form hits with automated Whisper AI speech recognition, Hormozi-style prominent words, and 16+ viral presets with zero watermarks.
+          Zen Caption is the #1 100% free caption generator video tool and auto subtitle maker online. Transform ordinary videos into high-retention short-form hits with automated Whisper AI speech recognition, Hormozi-style prominent words, and 16+ viral presets with zero watermarks.
         </p>
 
         <div class="hero-cta-row">
