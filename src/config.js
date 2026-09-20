@@ -83,7 +83,7 @@ export const CAPTION_TEMPLATES = [
       templateId: 'september-pop',
       normalFontFamily: 'Outfit',
       prominentFontFamily: 'Righteous',
-      fontSize: 32,
+      fontSize: 28,
       position: 'middle-left',
       textColor: '#FFFFFF',
       prominentColor: '#FF4DA6',

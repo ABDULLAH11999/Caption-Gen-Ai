@@ -404,7 +404,7 @@
 }
 
 .caption-word-token.current {
-  transform: scale(1.12);
+  transform: none !important;
 }
 
 /* Controls Toolbar */

@@ -139,8 +139,69 @@ export class CaptionEngine {
     return sentences;
   }
 
+  /**
+   * Splits long sentences so line segments NEVER create a 3rd row.
+   * Keeps segments compact (max 5 words), breaking longer sentences into
+   * 2 balanced line segments with precise proportional timestamps.
+   */
+  splitLongSegments(sentences, maxWords = 5) {
+    const result = [];
+    (sentences || []).forEach((s, sIdx) => {
+      let words = s.words;
+      const sStart = Number(s.start ?? s.startTime ?? 0);
+      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+
+      if (!words || words.length === 0) {
+        words = this.createWordLevelTimestamps(s.text || '', sStart, sEnd, s.language || 'en');
+      }
+
+      if (words.length <= maxWords) {
+        result.push({
+          ...s,
+          start: parseFloat(sStart.toFixed(2)),
+          end: parseFloat(sEnd.toFixed(2)),
+          startTime: parseFloat(sStart.toFixed(2)),
+          endTime: parseFloat(sEnd.toFixed(2)),
+          text: (s.text || words.map(w => w.word).join(' ')).trim(),
+          words
+        });
+        return;
+      }
+
+      // Break into 2 (or more) balanced segments so neither exceeds maxWords
+      const numChunks = Math.ceil(words.length / maxWords);
+      const chunkSize = Math.ceil(words.length / numChunks);
+
+      for (let i = 0; i < words.length; i += chunkSize) {
+        const chunkWords = words.slice(i, i + chunkSize);
+        if (chunkWords.length === 0) continue;
+
+        const cStart = Number(chunkWords[0].start ?? chunkWords[0].startTime ?? sStart);
+        const cEnd = Number(chunkWords[chunkWords.length - 1].end ?? chunkWords[chunkWords.length - 1].endTime ?? sEnd);
+        const cText = chunkWords.map(w => w.word).join(' ');
+
+        result.push({
+          id: `${s.id || 'seg'}_sub_${result.length + 1}`,
+          language: s.language || 'en',
+          start: parseFloat(cStart.toFixed(2)),
+          end: parseFloat(cEnd.toFixed(2)),
+          startTime: parseFloat(cStart.toFixed(2)),
+          endTime: parseFloat(cEnd.toFixed(2)),
+          text: cText,
+          words: chunkWords
+        });
+      }
+    });
+
+    result.forEach((item, idx) => {
+      item.id = `sentence_${idx + 1}`;
+    });
+
+    return result;
+  }
+
   setSentences(sentences) {
-    this.sentences = (sentences || []).map((s, idx) => {
+    const normalized = (sentences || []).map((s, idx) => {
       let start = s.start !== undefined ? Number(s.start) : (s.startTime !== undefined ? Number(s.startTime) : idx * 3);
       let end = s.end !== undefined ? Number(s.end) : (s.endTime !== undefined ? Number(s.endTime) : start + 3);
       if (end <= start) {
@@ -171,6 +232,9 @@ export class CaptionEngine {
         words
       };
     });
+
+    // Automatically break long segments so no segment ever creates a 3rd row (max 5 words / 2 rows)
+    this.sentences = this.splitLongSegments(normalized, 5);
     this.sentences.sort((a, b) => a.start - b.start);
   }
 

@@ -61,6 +61,7 @@ export class UserDashboard {
     };
 
     this.container = null;
+    this.lastRenderedSentenceKey = null;
   }
 
   async init() {
@@ -409,6 +410,7 @@ export class UserDashboard {
 
   selectTemplate(tplId) {
     this.selectedTemplateId = tplId;
+    this.lastRenderedSentenceKey = null; // Re-trigger entrance animation
     soundFx.playTemplateSelect();
     const tpl = CAPTION_TEMPLATES.find(t => t.id === tplId);
     if (tpl) {
@@ -422,6 +424,7 @@ export class UserDashboard {
       this.container.querySelectorAll('.user-tpl-card').forEach(c => {
         c.classList.toggle('selected', c.dataset.tplId === tplId);
       });
+      this.updateCaptionOverlay();
     }
   }
 
@@ -445,6 +448,7 @@ export class UserDashboard {
       }
       this.activeConfig = cfg;
       this.userCustomTemplates[tplId] = cfg;
+      this.lastRenderedSentenceKey = null; // Re-trigger entrance animation with newly chosen anim
       if (api.token) {
         try {
           await api.saveUserTemplate(tplId, cfg);
@@ -984,6 +988,7 @@ export class UserDashboard {
 
     scrubber?.addEventListener('input', (e) => {
       this.videoElement.currentTime = Number(e.target.value);
+      this.lastRenderedSentenceKey = null;
       this.updateTimeDisplay();
       this.updateCaptionOverlay();
       soundFx.playSeek();
@@ -992,6 +997,7 @@ export class UserDashboard {
     wrap.querySelector('#user-btn-rw')?.addEventListener('click', () => {
       soundFx.playSkip();
       this.videoElement.currentTime = Math.max(0, this.videoElement.currentTime - 5);
+      this.lastRenderedSentenceKey = null;
       this.updateTimeDisplay();
       this.updateCaptionOverlay();
     });
@@ -999,6 +1005,7 @@ export class UserDashboard {
     wrap.querySelector('#user-btn-ff')?.addEventListener('click', () => {
       soundFx.playSkip();
       this.videoElement.currentTime = Math.min(this.videoDuration, this.videoElement.currentTime + 5);
+      this.lastRenderedSentenceKey = null;
       this.updateTimeDisplay();
       this.updateCaptionOverlay();
     });
@@ -1094,14 +1101,17 @@ export class UserDashboard {
 
     if (!currentSentence) {
       overlay.innerHTML = '';
+      this.lastRenderedSentenceKey = null;
       return;
     }
 
+    // 3. Resolve active template and user custom/studio configurations
     const tpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
-    const customConfig = this.userCustomTemplates[tpl.id];
-    const cfg = customConfig ? { ...tpl.config, ...customConfig } : tpl.config;
+    const customConfig = this.userCustomTemplates[tpl.id] || {};
+    const studioConfig = (this.activeConfig && (!this.activeConfig.templateId || this.activeConfig.templateId === tpl.id)) ? this.activeConfig : {};
+    const cfg = { ...tpl.config, ...customConfig, ...studioConfig };
 
-    // Ensure words array exists with valid timings
+    // 4. Ensure words array exists with valid timings
     let words = currentSentence.words;
     if (!words || words.length === 0) {
       const sStart = currentSentence.start ?? currentSentence.startTime ?? 0;
@@ -1109,36 +1119,144 @@ export class UserDashboard {
       words = captionEngine.createWordLevelTimestamps(currentSentence.text || '', sStart, sEnd);
     }
 
-    // Build styled words
-    const wordsHtml = words.map((w, idx) => {
-      const wStart = w.start ?? w.startTime ?? 0;
-      const isPastOrActive = time >= wStart;
-      const isLastWord = idx === words.length - 1;
-      const isProminent = isLastWord || (idx % 3 === 2);
+    // Guard: ensure line segment NEVER exceeds 2 rows (clamp to max 5 words)
+    if (words.length > 5) {
+      words = words.slice(0, 5);
+    }
 
-      let color = cfg.textColor || '#ffffff';
-      let font = cfg.normalFontFamily || 'Inter';
+    // 5. Determine the current speaking single word index
+    let speakingWordIdx = words.findIndex(w => {
+      const ws = Number(w.start ?? w.startTime ?? 0);
+      const we = Number(w.end ?? w.endTime ?? (ws + 0.35));
+      return time >= ws && time < we;
+    });
+
+    if (speakingWordIdx === -1) {
+      for (let i = words.length - 1; i >= 0; i--) {
+        const ws = Number(words[i].start ?? words[i].startTime ?? 0);
+        if (time >= ws) {
+          speakingWordIdx = i;
+          break;
+        }
+      }
+      if (speakingWordIdx === -1) speakingWordIdx = 0;
+    }
+
+    // 6. Font sizes: Standard other words 28px, speaking single word 32px (+4px size)
+    const baseFontSize = (cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28;
+    const speakingFontSize = baseFontSize + 4; // Exactly 32px when base is 28px
+
+    // 7. Typography settings from config
+    const normalFont = cfg.normalFontFamily || 'Inter';
+    const prominentFont = cfg.prominentFontFamily || 'Syne';
+
+    const defaultTextColor = cfg.textColor || '#FFFFFF';
+    const prominentColor = cfg.prominentColor || '#FFE600';
+    const hasLastWordColor = cfg.enableLastWordColor !== false && !!cfg.lastWordColor;
+    const lastWordColor = hasLastWordColor ? cfg.lastWordColor : prominentColor;
+    const speakingHighlightColor = cfg.karaokeHighlightColor || prominentColor;
+
+    // 8. Build styled words: 100% OPAQUE (coming words never transparent), colorful, zero overlap
+    const wordsHtml = words.map((w, idx) => {
+      const isSpeaking = (idx === speakingWordIdx);
+      const isLastWord = (idx === words.length - 1);
+      // Dual-font prominence: last word, or alternating hero word if segment has >= 3 words
+      const isProminent = isLastWord || (words.length >= 3 && idx % 2 === 1);
+
+      let font = normalFont;
+      let color = defaultTextColor;
 
       if (isProminent) {
-        color = cfg.prominentColor || '#FFE600';
-        font = cfg.prominentFontFamily || 'Syne';
+        font = prominentFont;
+        color = prominentColor;
       }
 
-      const opacity = isPastOrActive ? 1.0 : 0.45;
-      const transform = isPastOrActive ? 'scale(1.08)' : 'scale(1.0)';
+      if (isLastWord && hasLastWordColor) {
+        font = prominentFont;
+        color = lastWordColor;
+      }
+
+      if (isSpeaking) {
+        color = speakingHighlightColor;
+      }
+
+      const wordFontSize = isSpeaking ? speakingFontSize : baseFontSize;
+      const fontWeight = isSpeaking ? 900 : (isProminent ? 800 : 700);
+      const textShadow = isSpeaking
+        ? `0 0 18px ${color}, 0 2px 10px rgba(0,0,0,0.98), 0 0 4px #000000`
+        : `0 2px 8px rgba(0,0,0,0.95), 0 0 3px #000000`;
 
       return `
-        <span style="display: inline-block; margin: 0 4px; font-family: '${font}', sans-serif; color: ${color}; opacity: ${opacity}; transform: ${transform}; transition: all 0.1s ease; text-shadow: 0 2px 8px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,1);">
+        <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''}" style="
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          vertical-align: middle !important;
+          margin: 2px 5px !important;
+          padding: 2px 6px !important;
+          box-sizing: border-box !important;
+          font-family: '${font}', sans-serif;
+          color: ${color} !important;
+          font-size: ${wordFontSize}px !important;
+          font-weight: ${fontWeight};
+          opacity: 1 !important;
+          visibility: visible !important;
+          line-height: 1.35;
+          letter-spacing: 0.3px;
+          text-shadow: ${textShadow};
+          transform: none !important;
+          white-space: nowrap !important;
+          transition: font-size 0.12s cubic-bezier(0.16, 1, 0.3, 1), color 0.12s ease, text-shadow 0.12s ease;
+        ">
           ${w.word}
         </span>
       `;
     }).join('');
 
-    overlay.innerHTML = `
-      <div style="position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%); width: 92%; max-height: 75%; overflow: hidden; text-align: center; font-size: clamp(16px, 4vw, ${cfg.fontSize || 30}px); font-weight: 900; line-height: 1.3; pointer-events: none; text-transform: uppercase;">
-        ${wordsHtml}
-      </div>
-    `;
+    // 9. Detect new line segment transition to trigger configured entrance animation
+    const sStart = Number(currentSentence.start ?? currentSentence.startTime ?? 0);
+    const sEnd = Number(currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5));
+    const sText = (currentSentence.text || '').trim();
+    const sKey = `seg_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}_${sText}`}`;
+
+    const isNewSegment = this.lastRenderedSentenceKey !== sKey;
+    this.lastRenderedSentenceKey = sKey;
+
+    // 10. Retrieve animation class from config
+    const animId = cfg.animation || 'anim-pop';
+    const animMeta = CAPTION_ANIMATIONS.find(a => a.id === animId || a.cssClass === animId);
+    const animClass = animMeta ? animMeta.cssClass : (animId.startsWith('anim-') ? animId : 'anim-pop');
+
+    // 11. Position setup
+    let bottomPos = '12%';
+    let topPos = 'auto';
+    let transformPos = 'translateX(-50%)';
+    if (cfg.position === 'top' || cfg.position === 'top-left' || cfg.position === 'top-right') {
+      topPos = '12%';
+      bottomPos = 'auto';
+    } else if (cfg.position === 'middle') {
+      topPos = '50%';
+      bottomPos = 'auto';
+      transformPos = 'translate(-50%, -50%)';
+    }
+
+    let anchor = overlay.querySelector('.caption-segment-anchor');
+    let animWrapper = overlay.querySelector('.caption-anim-segment-wrapper');
+
+    if (!anchor || !animWrapper || isNewSegment) {
+      // Re-create segment with configured entrance animation.
+      // row-gap: 14px and column-gap: 8px completely prevent overlapping between words & lines!
+      overlay.innerHTML = `
+        <div class="caption-segment-anchor" style="position: absolute; top: ${topPos}; bottom: ${bottomPos}; left: 50%; transform: ${transformPos}; width: 92%; max-height: 75%; text-align: center; pointer-events: none; z-index: 20;">
+          <div class="caption-anim-segment-wrapper ${animClass}" style="display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: center; row-gap: 14px; column-gap: 8px; width: 100%; max-width: 96%; max-height: 4.8em; overflow: hidden; text-transform: uppercase;">
+            ${wordsHtml}
+          </div>
+        </div>
+      `;
+    } else {
+      // Same segment: update word sizes and colors without restarting entrance animation
+      animWrapper.innerHTML = wordsHtml;
+    }
   }
 
   renderMiniSegmentsList() {
@@ -1167,6 +1285,7 @@ export class UserDashboard {
         if (this.videoElement) {
           soundFx.playSeek();
           this.videoElement.currentTime = sStart;
+          this.lastRenderedSentenceKey = null;
           this.updateCaptionOverlay();
         }
       });

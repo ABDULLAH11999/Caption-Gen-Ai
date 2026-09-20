@@ -32,11 +32,11 @@ export class LandingPage {
         </div>
 
         <h1 class="hero-title">
-          Generate Viral Captions for Reels &amp; TikToks in <span class="gradient-text">Seconds</span>.
+          Zen Caption Tool - Generate Viral Captions for Reels &amp; TikToks in <span class="gradient-text">Seconds</span>.
         </h1>
 
         <p class="hero-subtitle">
-          Transform ordinary videos into high-retention short-form hits. Automated 16kHz speech recognition, Hormozi-style prominent words, and 16+ viral presets. 100% in your browser.
+          Zen Caption Tool is the 100% free AI video caption generator and subtitle maker online. Transform ordinary videos into high-retention short-form hits with automated Whisper AI speech recognition, Hormozi-style prominent words, and 16+ viral presets with zero watermarks.
         </p>
 
         <div class="hero-cta-row">
@@ -173,6 +173,37 @@ export class LandingPage {
           <!-- Populated by renderPlans() -->
         </div>
       </section>
+ 
+       <!-- 5. FREQUENTLY ASKED QUESTIONS (FAQ) SECTION -->
+       <section class="section-wrap" id="faq">
+         <div class="section-header-center">
+           <span class="badge badge-coral" style="margin-bottom: 12px;">Frequently Asked Questions</span>
+           <h2 class="section-heading">Everything About Zen Caption Tool</h2>
+           <p class="section-subheading">Common questions about the 100% free AI video caption generator and subtitle maker.</p>
+         </div>
+ 
+         <div class="faq-grid" style="max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px;">
+           <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
+             <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">What is Zen Caption Tool?</h3>
+             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Zen Caption Tool is a 100% free web-based AI video caption generator and subtitle maker. It transcribes spoken video audio using local Whisper AI models and automatically burns viral dual-font kinetic captions (Hormozi, MrBeast, TikTok style) with zero watermarks directly in your browser.</p>
+           </div>
+ 
+           <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
+             <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Is Zen Caption Tool completely free?</h3>
+             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Yes! Zen Caption Tool provides 100% free video captioning with no watermarks, no mandatory credit card, and smooth 60 FPS lossless video export.</p>
+           </div>
+ 
+           <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
+             <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Does Zen Caption Tool upload my video to a remote server?</h3>
+             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">No. Zen Caption Tool operates 100% client-side inside your web browser using WebAssembly and WebGPU. Your video files, transcripts, and exports remain private on your device.</p>
+           </div>
+ 
+           <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
+             <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Which caption animations and presets does Zen Caption Tool support?</h3>
+             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Zen Caption Tool includes 16+ production-ready creator presets (September Pop, Viral Reel Hormozi, Cyberpunk Neon, Beast Mode, Luxury Vogue) and 22+ kinetic animations including TikTok Pop, Bounce Drop, 3D Tilt, Neon Shimmer, and Karaoke Highlights.</p>
+           </div>
+         </div>
+       </section>
 
       <!-- PURCHASE REQUEST MODAL DIALOG -->
       <div class="saas-modal-backdrop" id="purchase-modal-backdrop">
