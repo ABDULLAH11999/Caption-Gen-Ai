@@ -259,6 +259,9 @@ export class UserDashboard {
   }
 
   switchTab(tab) {
+    if (this.activeTab !== tab) {
+      soundFx.playTabSwitch();
+    }
     this.activeTab = tab;
     if (tab === 'templates') {
       document.title = 'Templates & Styles - Zen Caption AI';
@@ -406,6 +409,7 @@ export class UserDashboard {
 
   selectTemplate(tplId) {
     this.selectedTemplateId = tplId;
+    soundFx.playTemplateSelect();
     const tpl = CAPTION_TEMPLATES.find(t => t.id === tplId);
     if (tpl) {
       const customConfig = this.userCustomTemplates[tplId];
@@ -608,6 +612,7 @@ export class UserDashboard {
       if (enhanceChk) {
         enhanceChk.addEventListener('change', (e) => {
           this.enhanceVideoQuality = e.target.checked;
+          soundFx.playEnhanceToggle(this.enhanceVideoQuality);
         });
       }
 
@@ -753,6 +758,7 @@ export class UserDashboard {
   // PROCESSING & TRANSCRIBING FLOW (20% to 100% Loader with Cancel)
   // ==========================================================================
   async handleDemoVideoLoad() {
+    soundFx.playProcessStart();
     this.isProcessing = true;
     this.processingCancelled = false;
     this.processingProgress = 20;
@@ -789,6 +795,7 @@ export class UserDashboard {
       return;
     }
 
+    soundFx.playProcessStart();
     this.isProcessing = true;
     this.processingCancelled = false;
     this.processingProgress = 20;
@@ -905,6 +912,7 @@ export class UserDashboard {
 
       this.isProcessing = false;
       this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
+      soundFx.playOutputReady();
       this.showToast('Video processed successfully!', 'success');
     } catch (err) {
       if (!this.processingCancelled) {
@@ -966,9 +974,11 @@ export class UserDashboard {
       if (this.videoElement.paused) {
         this.videoElement.play();
         playBtn.textContent = '⏸';
+        soundFx.playVideoPlay();
       } else {
         this.videoElement.pause();
         playBtn.textContent = '▶';
+        soundFx.playVideoPause();
       }
     });
 
@@ -976,15 +986,18 @@ export class UserDashboard {
       this.videoElement.currentTime = Number(e.target.value);
       this.updateTimeDisplay();
       this.updateCaptionOverlay();
+      soundFx.playSeek();
     });
 
     wrap.querySelector('#user-btn-rw')?.addEventListener('click', () => {
+      soundFx.playSkip();
       this.videoElement.currentTime = Math.max(0, this.videoElement.currentTime - 5);
       this.updateTimeDisplay();
       this.updateCaptionOverlay();
     });
 
     wrap.querySelector('#user-btn-ff')?.addEventListener('click', () => {
+      soundFx.playSkip();
       this.videoElement.currentTime = Math.min(this.videoDuration, this.videoElement.currentTime + 5);
       this.updateTimeDisplay();
       this.updateCaptionOverlay();
@@ -993,6 +1006,7 @@ export class UserDashboard {
     wrap.querySelector('#user-btn-mute')?.addEventListener('click', (e) => {
       this.videoElement.muted = !this.videoElement.muted;
       e.target.textContent = this.videoElement.muted ? '🔇' : '🔊';
+      soundFx.playMuteToggle(this.videoElement.muted);
     });
 
     const enhanceToggle = wrap.querySelector('#user-player-enhance');
@@ -1001,11 +1015,13 @@ export class UserDashboard {
       enhanceToggle.addEventListener('change', (e) => {
         this.enhanceVideoQuality = e.target.checked;
         this.videoElement.classList.toggle('video-enhanced', this.enhanceVideoQuality);
+        soundFx.playEnhanceToggle(this.enhanceVideoQuality);
         this.showToast(this.enhanceVideoQuality ? '✨ Video Enhancement Enabled (+30% Vibrance & Contrast)' : 'Video Enhancement Disabled', 'info');
       });
     }
 
     wrap.querySelector('#btn-reselect-video')?.addEventListener('click', () => {
+      soundFx.playTabSwitch();
       this.videoBlob = null;
       this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
     });
@@ -1016,17 +1032,20 @@ export class UserDashboard {
 
     // SRT / VTT Exports
     wrap.querySelector('#user-btn-srt')?.addEventListener('click', () => {
+      soundFx.playSaveSuccess();
       captionEngine.downloadSrt();
       this.showToast('Downloaded .SRT file', 'success');
     });
 
     wrap.querySelector('#user-btn-vtt')?.addEventListener('click', () => {
+      soundFx.playSaveSuccess();
       captionEngine.downloadVtt();
       this.showToast('Downloaded .VTT file', 'success');
     });
 
     // 60 FPS GPU Lossless Burn Captions
     wrap.querySelector('#user-btn-burn')?.addEventListener('click', async () => {
+      soundFx.playKeyBeep(640);
       await this.burnVideoCaptions();
     });
 
@@ -1146,6 +1165,7 @@ export class UserDashboard {
 
       item.addEventListener('click', () => {
         if (this.videoElement) {
+          soundFx.playSeek();
           this.videoElement.currentTime = sStart;
           this.updateCaptionOverlay();
         }
@@ -1188,6 +1208,7 @@ export class UserDashboard {
         if (pct) pct.textContent = `${percentVal}%`;
       }, this.enhanceVideoQuality);
 
+      soundFx.playExportComplete();
       this.showToast('Export Complete! Downloaded 60 FPS video.', 'success');
       setTimeout(() => {
         if (progBox) progBox.style.display = 'none';
@@ -1202,47 +1223,71 @@ export class UserDashboard {
   // EDIT LINE SEGMENTS MODAL (Add, Remove, Edit Timings & Text)
   // ==========================================================================
   openLineSegmentsModal() {
-    const host = this.container.querySelector('#segment-modal-host');
+    const host = this.container.querySelector('#segment-modal-host') || document.body;
     if (!host) return;
+
+    soundFx.playDrawerOpen();
 
     // Clone sentences for safe editing
     const tempSegments = JSON.parse(JSON.stringify(captionEngine.sentences));
 
-    const modal = document.createElement('div');
-    modal.className = 'modal-backdrop active';
-    modal.innerHTML = `
-      <div class="modal-dialog segment-manager-dialog" style="max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
-        <div class="modal-header">
+    const drawer = document.createElement('div');
+    drawer.className = 'edit-segments-drawer-overlay';
+    drawer.innerHTML = `
+      <div class="edit-segments-sidebar">
+        <div class="edit-sidebar-header">
           <div>
-            <h2 class="modal-title">Manage Caption Line Segments</h2>
-            <p style="color: #64748b; font-size: 13px; margin-top: 2px;">
-              Edit spoken words, fine-tune timestamps, or add/delete lines. Changes will instantly synchronize with your video.
+            <h2 class="edit-sidebar-title">Manage Caption Line Segments</h2>
+            <p class="edit-sidebar-subtitle">
+              Fine-tune timestamps, edit words, or reorder lines. Changes live-sync with your video player.
             </p>
           </div>
-          <button class="modal-close-btn" id="btn-close-segments-modal">✕</button>
+          <button class="edit-sidebar-close-btn" id="btn-close-segments-drawer" title="Close Sidebar">✕</button>
         </div>
 
-        <div style="flex: 1; overflow-y: auto; padding: 20px 24px;">
+        <div class="edit-sidebar-body">
           <div class="segments-list-container" id="segments-editor-list">
             <!-- Dynamically populated rows -->
           </div>
 
-          <button class="btn btn-outline" id="btn-add-new-segment" style="width: 100%; border-style: dashed; border-color: var(--primary-coral); color: var(--primary-coral); padding: 12px; font-weight: 800;">
-            + Add New Caption Line Segment
+          <button class="btn-add-segment-dashed" id="btn-add-new-segment">
+            <span style="font-size: 16px;">+</span> Add New Caption Line Segment
           </button>
         </div>
 
-        <div class="modal-actions" style="border-top: 1px solid #e2e8f0; padding: 16px 24px; background: #fafbfe;">
-          <button class="btn btn-outline" id="btn-cancel-segments">Cancel</button>
-          <button class="btn btn-primary" id="btn-save-segments">Save & Sync Timings</button>
+        <div class="edit-sidebar-footer">
+          <button class="btn btn-outline" id="btn-cancel-segments" style="padding: 10px 20px; font-size: 13px;">Cancel</button>
+          <button class="btn btn-primary" id="btn-save-segments" style="padding: 10px 24px; font-size: 13px;">Save & Sync Timings</button>
         </div>
       </div>
     `;
 
-    host.appendChild(modal);
+    host.appendChild(drawer);
+
+    // Trigger smooth slide-in animation via next frame
+    requestAnimationFrame(() => {
+      drawer.classList.add('active');
+    });
+
+    const closeDrawer = () => {
+      soundFx.playDrawerClose();
+      drawer.classList.remove('active');
+      setTimeout(() => drawer.remove(), 340);
+    };
+
+    // Close on backdrop click
+    drawer.addEventListener('click', (e) => {
+      if (e.target === drawer) {
+        closeDrawer();
+      }
+    });
+
+    drawer.querySelector('#btn-close-segments-drawer')?.addEventListener('click', closeDrawer);
+    drawer.querySelector('#btn-cancel-segments')?.addEventListener('click', closeDrawer);
 
     const renderRows = () => {
-      const listEl = modal.querySelector('#segments-editor-list');
+      const listEl = drawer.querySelector('#segments-editor-list');
+      if (!listEl) return;
       listEl.innerHTML = '';
 
       tempSegments.forEach((seg, idx) => {
@@ -1252,7 +1297,7 @@ export class UserDashboard {
         const row = document.createElement('div');
         row.className = 'segment-item-card';
         row.innerHTML = `
-          <div style="font-weight: 800; font-size: 12px; color: #94a3b8; width: 24px;">
+          <div class="segment-badge-idx">
             #${idx + 1}
           </div>
 
@@ -1288,8 +1333,9 @@ export class UserDashboard {
           });
         });
 
-        // Delete row
+        // Delete row with unique sound
         row.querySelector('.btn-remove-segment')?.addEventListener('click', (e) => {
+          soundFx.playSegmentDelete();
           const i = Number(e.currentTarget.dataset.idx);
           tempSegments.splice(i, 1);
           renderRows();
@@ -1301,8 +1347,9 @@ export class UserDashboard {
 
     renderRows();
 
-    // Add row
-    modal.querySelector('#btn-add-new-segment')?.addEventListener('click', () => {
+    // Add row with unique sound
+    drawer.querySelector('#btn-add-new-segment')?.addEventListener('click', () => {
+      soundFx.playSegmentAdd();
       const last = tempSegments[tempSegments.length - 1];
       const lastEnd = last ? Number(last.end ?? last.endTime ?? 0) : 0.0;
       const start = Number((lastEnd + 0.2).toFixed(1));
@@ -1317,15 +1364,16 @@ export class UserDashboard {
         words: []
       });
       renderRows();
+
+      // Scroll to bottom of list
+      const body = drawer.querySelector('.edit-sidebar-body');
+      if (body) body.scrollTop = body.scrollHeight;
     });
 
-    // Close handlers
-    const closeModal = () => modal.remove();
-    modal.querySelector('#btn-close-segments-modal')?.addEventListener('click', closeModal);
-    modal.querySelector('#btn-cancel-segments')?.addEventListener('click', closeModal);
+    // Save with unique harmonic confirmation chime
+    drawer.querySelector('#btn-save-segments')?.addEventListener('click', () => {
+      soundFx.playSaveSuccess();
 
-    // Save
-    modal.querySelector('#btn-save-segments')?.addEventListener('click', () => {
       // Re-generate word timings from text
       tempSegments.forEach(seg => {
         const segStart = Number(seg.start ?? seg.startTime ?? 0);
@@ -1349,7 +1397,7 @@ export class UserDashboard {
       const countBadge = this.container.querySelector('#user-sentence-count');
       if (countBadge) countBadge.textContent = `${captionEngine.sentences.length} Line Segments`;
       this.showToast('Line segments updated and synchronized!', 'success');
-      closeModal();
+      closeDrawer();
     });
   }
 
