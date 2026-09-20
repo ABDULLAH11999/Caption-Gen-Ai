@@ -12,11 +12,23 @@ services:
         destination: /index.html
     headers:
       - path: /*
-        name: Cross-Origin-Opener-Policy
-        value: same-origin
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains; preload
       - path: /*
-        name: Cross-Origin-Embedder-Policy
-        value: require-corp
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(), microphone=(), geolocation=(), payment=(), usb=(), display-capture=()
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; style-src 'self' 'unsafe-inline' https: https://fonts.googleapis.com; font-src 'self' data: https: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https: wss: blob: data:; worker-src 'self' blob: data:; frame-ancestors 'self';"
     envVars:
       - key: VITE_SITE_PASSCODE
         value: "7940"
