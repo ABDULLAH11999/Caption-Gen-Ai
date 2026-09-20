@@ -285,6 +285,89 @@
   height: 100%;
   object-fit: contain;
   display: block;
+  transition: filter 0.3s ease;
+}
+
+/* Video Quality Enhancement Mode */
+.studio-video-element.video-enhanced {
+  filter: url(#video-enhance-filter) saturate(1.3) contrast(1.1) brightness(0.96) !important;
+}
+
+/* Video Quality Enhancement Control Bar */
+.video-enhancement-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: rgba(10, 16, 30, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 8px 14px;
+  transition: all 0.25s ease;
+}
+
+.video-enhancement-toolbar.active {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.08), rgba(168, 85, 247, 0.12));
+  border-color: rgba(0, 240, 255, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 240, 255, 0.12);
+}
+
+.enhance-quality-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.enhance-quality-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.enhance-custom-checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.enhance-quality-input:checked + .enhance-custom-checkbox {
+  background: var(--cyan-primary);
+  border-color: var(--cyan-primary);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+.enhance-check-icon {
+  display: none;
+  stroke: #000000;
+}
+
+.enhance-quality-input:checked + .enhance-custom-checkbox .enhance-check-icon {
+  display: block;
+}
+
+.enhance-specs-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--cyan-primary);
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 20px;
+  padding: 3px 10px;
+  letter-spacing: 0.3px;
 }
 
 /* Real-Time Live YouTube Caption Overlay */

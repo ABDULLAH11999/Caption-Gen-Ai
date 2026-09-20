@@ -18,7 +18,17 @@ export class VideoRenderer {
     // 1. Draw source video frame at 1:1 pixel perfection
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
+
+    const isEnhanced = config && (config.enhanceQuality || config.enhanceVideoQuality) || (video.classList && video.classList.contains('video-enhanced'));
+    if (isEnhanced) {
+      // Hardware-accelerated +30% Vibrance, +10% Contrast, -10% Shadows, +20% Sharpness
+      ctx.filter = 'url(#video-enhance-filter) saturate(130%) contrast(110%) brightness(96%)';
+    } else {
+      ctx.filter = 'none';
+    }
+
     ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+    ctx.filter = 'none'; // Reset filter before drawing caption layers
 
     // 2. If no captions to draw, return
     if (!captionState || !captionState.visibleWords || captionState.visibleWords.length === 0) {

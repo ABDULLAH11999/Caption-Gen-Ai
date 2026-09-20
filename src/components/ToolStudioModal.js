@@ -531,6 +531,7 @@ export class ToolStudioModal {
     const updated = {
       ...current,
       ...tmpl.config,
+      position: 'middle-left', // Always show left-middle in the config page when selecting any template
       templateId: tmpl.id
     };
 

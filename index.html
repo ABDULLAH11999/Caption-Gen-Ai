@@ -13,6 +13,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Bungee&family=Cinzel:wght@600;700;900&family=Outfit:wght@600;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,600;1,700;1,900&family=Plus+Jakarta+Sans:wght@600;700;800&family=Righteous&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   </head>
   <body>
+    <!-- Hardware-Accelerated Video Quality Enhancement SVG Filter Definition -->
+    <svg id="svg-enhancer-definitions" style="position: absolute; width: 0; height: 0; pointer-events: none; overflow: hidden;" aria-hidden="true">
+      <defs>
+        <filter id="video-enhance-filter" color-interpolation-filters="sRGB">
+          <!-- +20% Sharpness via 3x3 high-pass edge convolution -->
+          <feConvolveMatrix order="3" preserveAlpha="true" kernelMatrix="
+             0   -0.2    0
+           -0.2   1.8  -0.2
+             0   -0.2    0" />
+        </filter>
+      </defs>
+    </svg>
+
     <div id="app" class="app-container"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

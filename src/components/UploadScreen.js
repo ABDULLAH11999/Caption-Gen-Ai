@@ -142,6 +142,20 @@ export class UploadScreen {
               <span class="timestamp-indicator" id="time-display">00:00 / 00:00</span>
             </div>
 
+            <!-- Video Quality Enhancement Bar (Option to Boost Video Quality) -->
+            <div class="video-enhancement-toolbar" id="video-enhancement-toolbar">
+              <label class="enhance-quality-toggle-label" id="enhance-quality-label" title="Boost video quality: +30% Vibrance, +10% Contrast, -10% Shadows, +20% Sharpness">
+                <input type="checkbox" id="chk-enhance-quality" class="enhance-quality-input">
+                <span class="enhance-custom-checkbox">
+                  <svg class="enhance-check-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+                <span>✨ Enhance Video Quality</span>
+              </label>
+              <span class="enhance-specs-badge">+30% Vibrance • +10% Contrast • -10% Shadows • +20% Sharpness</span>
+            </div>
+
             <div class="control-buttons-row">
               <div class="playback-buttons">
                 <button class="btn-ctrl btn-play-pause" id="btn-play-pause">▶</button>
