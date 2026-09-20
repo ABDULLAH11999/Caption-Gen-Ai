@@ -8,7 +8,7 @@ export const SEEDED_BLOGS = [
     keywords: 'alex hormozi captions, viral reels captions, tiktok subtitle style, hormozi text font, yellow cyan captions',
     meta_title: 'How to Add Alex Hormozi Captions to TikTok & Reels (2026 Guide)',
     meta_desc: 'Master the Hormozi-style viral captions. Step-by-step guide to dual-font styling, neon word highlights, and kinetic pop animations.',
-    featured_image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=1200&q=80',
+    featured_image: '/default-blog-cover.jpg',
     content: `# How to Add Hormozi-Style Captions to TikToks and Reels
 
 Alex Hormozi revolutionized short-form content by introducing high-energy, dual-font subtitles with contrasting punchy words. In 2026, this style remains the undisputed king of video retention.
@@ -34,7 +34,7 @@ Adding kinetic Hormozi-style captions can increase your average percentage viewe
     keywords: 'best caption generator, ai subtitle tools, top video caption software, auto subtitle app, caption generator without watermark',
     meta_title: 'Top 10 Video Caption Generators for Viral Social Media Growth (2026)',
     meta_desc: 'Compare the 10 best AI video caption tools. Compare accuracy, 60 FPS rendering, pricing, and custom typography features.',
-    featured_image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
+    featured_image: '/default-blog-cover.jpg',
     content: `# Top 10 Video Caption Generators for Viral Social Media Growth
 
 In 2026, content creators publish tens of millions of short-form videos every single day. Having accurate, beautifully styled captions is no longer optional—it is the baseline for engagement.
@@ -62,7 +62,7 @@ Choose a tool that gives you instant browser processing without uploading your p
     keywords: 'video watch time, sound off video statistics, caption psychology, social media retention rate, short form video engagement',
     meta_title: 'Why Video Captions Increase Watch Time by 80% (Data & Study)',
     meta_desc: 'Data study revealing why over 85% of users browse on mute, and how dual-font kinetic captions increase completion rates by 80%.',
-    featured_image: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80',
+    featured_image: '/default-blog-cover.jpg',
     content: `# Why Video Captions Increase Watch Time by 80%
 
 According to recent analytics from Verizon Media and Publicis Media, **80% of consumers are more likely to watch an entire video when captions are available**.
@@ -83,7 +83,7 @@ Standard white subtitles feel like a movie translation. Kinetic captions that po
     keywords: 'free subtitles no watermark, auto caption desktop mobile, generate subtitles free, online caption generator',
     meta_title: 'Auto-Generate Subtitles on Mobile & Desktop (No Watermark)',
     meta_desc: 'Generate professional subtitles on mobile and desktop without unsightly watermarks. Fast, free, and accurate.',
-    featured_image: 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?auto=format&fit=crop&w=1200&q=80',
+    featured_image: '/default-blog-cover.jpg',
     content: `# How to Auto-Generate Subtitles on Mobile and Desktop Without Watermarks
 
 Nothing ruins a polished Instagram Reel or TikTok faster than an enormous corporate watermark stamped across your content.
@@ -105,7 +105,7 @@ Zen Caption AI solves this by running modern Whisper AI models directly inside y
     keywords: 'dual font captions, font pairing video, social media typography, syne font, outfit font, viral subtitle design',
     meta_title: 'Dual-Font Typography: Secret Behind 10M+ View Reels',
     meta_desc: 'Learn how pairing bold display fonts with clean sans-serifs transforms plain text into high-retention visual hooks.',
-    featured_image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',
+    featured_image: '/default-blog-cover.jpg',
     content: `# Dual-Font Typography: The Secret Weapon Behind 10M+ View Reels
 
 If all words in a sentence look identical, nothing stands out. Top social media agencies know that visual hierarchy is what separates viral videos from forgotten clips.
@@ -126,7 +126,7 @@ If all words in a sentence look identical, nothing stands out. Top social media 
     keywords: 'whisper ai accuracy, speech to text comparison, open ai whisper vs google stt, automatic speech recognition 2026',
     meta_title: 'Whisper AI vs Traditional Speech-to-Text: 2026 Benchmark',
     meta_desc: 'See why OpenAI Whisper AI achieves a Word Error Rate (WER) under 4.2% even in noisy environments and rapid speech cadences.',
-    featured_image: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1200&q=80',
+    featured_image: '/default-blog-cover.jpg',
     content: `# Whisper AI vs Traditional Speech Recognition: Accuracy Comparison
 
 Automatic Speech Recognition (ASR) has undergone a massive leap with transformer-based sequence-to-sequence models trained on over 680,000 hours of multilingual audio.
@@ -148,7 +148,7 @@ Whisper AI uses weak supervision across vast internet audio. It achieves sub-4.5
     keywords: 'luxury aesthetic captions, fashion vlog subtitles, playfair display captions, elegant video text, rose gold subtitles',
     meta_title: 'Luxury Aesthetic Subtitles for Fashion & Perfume Vlogs',
     meta_desc: 'Design high-end, elegant subtitles with classical serif fonts and subtle rose-gold lighting for luxury brands and lifestyle vlogs.',
-    featured_image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=80',
+    featured_image: '/default-blog-cover.jpg',
     content: `# How to Create Luxury Aesthetic Subtitles for Fashion and Perfume Vlogs
 
 Bold neon yellow text looks great on a crypto podcast or gym workout video, but it completely destroys the refined vibe of a high-fashion runway reel or luxury fragrance review.
@@ -168,7 +168,7 @@ Our **Emily Luxury Vogue** template is pre-tuned specifically for this high-tick
     keywords: 'cyberpunk captions, neon subtitles, gaming video captions, twitch clips captions, neon cyan text',
     meta_title: 'Cyberpunk & Neon Caption Styles for Gaming & Tech Videos',
     meta_desc: 'Electrify your gaming clips and AI tutorials with neon cyan glows, synthwave aesthetics, and chromatic light pulses.',
-    featured_image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
+    featured_image: '/default-blog-cover.jpg',
     content: `# Cyberpunk & Neon Caption Styles: Engaging Gen-Z and Gaming Audiences
 
 Gamers and tech enthusiasts are conditioned to respond to vibrant RGB lighting and futuristic HUD interfaces.
@@ -185,7 +185,7 @@ Gamers and tech enthusiasts are conditioned to respond to vibrant RGB lighting a
     keywords: 'audio resampling speech recognition, 16khz audio whisper, pcm audio decoding, speech clarity audio context',
     meta_title: 'Video Audio Resampling & Speech Clarity for AI Transcription',
     meta_desc: 'Learn why 16,000Hz mono resampling is essential for AI speech recognition and how it eliminates audio pitch distortion.',
-    featured_image: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1200&q=80',
+    featured_image: '/default-blog-cover.jpg',
     content: `# The Ultimate Guide to Video Audio Resampling and Speech Clarity
 
 Most smartphones record video audio at 44.1kHz or 48kHz stereo. However, modern speech recognition models like Whisper are trained exclusively on 16kHz mono audio.
@@ -203,7 +203,7 @@ Using browser hardware-accelerated OfflineAudioContext guarantees pristine downs
     keywords: '60 fps video export, smooth video rendering browser, requestVideoFrameCallback, canvas captureStream fps',
     meta_title: 'Exporting 60 FPS Captioned Videos Without Lag or Stutter',
     meta_desc: 'Discover how GPU shader pipelines and presentation frame callbacks eliminate choppy 15 FPS video exports in modern web applications.',
-    featured_image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80',
+    featured_image: '/default-blog-cover.jpg',
     content: `# Exporting 60 FPS Captioned Videos Without Lag or Stutter
 
 A frequent complaint among video creators using web-based tools is that their exported video plays back choppy and laggy, even though the preview looked completely smooth.
