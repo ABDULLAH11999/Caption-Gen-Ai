@@ -334,6 +334,9 @@ export async function sendEmail({ to, subject, html }) {
       const fromAddress = getResendFromAddress();
       console.log(`[EmailService] Dispatching via Resend API (From: "${fromAddress}") to: ${recipients.join(', ')}...`);
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -345,8 +348,11 @@ export async function sendEmail({ to, subject, html }) {
           to: recipients,
           subject,
           html
-        })
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       const data = await res.json().catch(() => ({}));
 
