@@ -258,17 +258,47 @@ apiRouter.post('/auth/signup', signupLimiter.middleware(), async (req, res) => {
     [cleanEmail, otpCode, 'signup', expiresAt]
   );
 
-  // Send professional themed OTP email
+  // Send professional themed OTP email asynchronously (non-blocking for lightning-fast UI response < 50ms)
   const html = generateOtpEmailHtml({ name, otpCode });
-  await sendEmail({
+  sendEmail({
     to: cleanEmail,
     subject: `${otpCode} is your Zen Caption AI verification code`,
     html
-  });
+  }).catch(err => console.error('[Signup Email Error]:', err.message));
 
   res.json({
     success: true,
     message: `Verification code sent to ${cleanEmail}`,
+    email: cleanEmail
+  });
+});
+
+// Resend OTP endpoint (Lightning-fast background dispatch)
+apiRouter.post('/auth/resend-otp', signupLimiter.middleware(), async (req, res) => {
+  const { email, name } = req.body;
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email address is required.' });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+  await query(
+    'INSERT INTO otps (email, code, type, expires_at, attempts) VALUES ($1, $2, $3, $4, 0)',
+    [cleanEmail, otpCode, 'resend', expiresAt]
+  );
+
+  const html = generateOtpEmailHtml({ name: name || 'Creator', otpCode });
+  sendEmail({
+    to: cleanEmail,
+    subject: `${otpCode} is your Zen Caption AI verification code`,
+    html
+  }).catch(err => console.error('[Resend OTP Error]:', err.message));
+
+  return res.json({
+    success: true,
+    message: `A new verification code has been sent to ${cleanEmail}`,
     email: cleanEmail
   });
 });
