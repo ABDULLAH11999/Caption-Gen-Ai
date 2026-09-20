@@ -478,6 +478,11 @@ export class UserDashboard {
   // TAB 2: APPLY CAPTIONS (With 20%-100% Loader & Cancel Button)
   // ==========================================================================
   renderApplyCaptionsTab(parent) {
+    if (!parent) {
+      parent = this.container?.querySelector('#user-workspace-content');
+    }
+    if (!parent) return;
+    parent.innerHTML = '';
     const wrap = document.createElement('div');
     wrap.id = 'apply-captions-workspace-wrap';
 
@@ -1298,6 +1303,11 @@ export class UserDashboard {
   // TAB 3: MY PLAN & QUOTA
   // ==========================================================================
   renderQuotaTab(parent) {
+    if (!parent) {
+      parent = this.container?.querySelector('#user-workspace-content');
+    }
+    if (!parent) return;
+    parent.innerHTML = '';
     const wrap = document.createElement('div');
     const { planName, dailyLimit, dailyUsed, monthlyLimit, monthlyUsed, isGuest } = this.quotaInfo;
 
