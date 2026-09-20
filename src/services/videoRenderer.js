@@ -598,13 +598,19 @@ export class VideoRenderer {
       sentences: sentences || [],
       getActiveCaptionState(curTime, cfg) {
         if (!this.sentences || this.sentences.length === 0) return { visibleWords: [] };
-        const curSentence = this.sentences.find(s => curTime >= (s.start ?? s.startTime ?? 0) && curTime <= (s.end ?? s.endTime ?? 0));
-        if (curSentence && curSentence.words) {
-          const visibleWords = curSentence.words.map(w => ({
-            word: w.word,
-            isPastOrActive: curTime >= (w.start ?? 0),
-            isProminent: false
-          }));
+        let curSentence = this.sentences.find(s => curTime >= (s.start ?? s.startTime ?? 0) && curTime <= (s.end ?? s.endTime ?? 0));
+        if (!curSentence && this.sentences.length > 0) {
+          curSentence = this.sentences.find(s => curTime >= (s.start ?? s.startTime ?? 0) && curTime <= ((s.end ?? s.endTime ?? 0) + 1.2));
+        }
+        if (curSentence && curSentence.words && curSentence.words.length > 0) {
+          const visibleWords = curSentence.words.map((w, idx) => {
+            const isLast = idx === curSentence.words.length - 1;
+            return {
+              word: w.word,
+              isPastOrActive: curTime >= (w.start ?? w.startTime ?? 0),
+              isProminent: isLast || (idx % 3 === 2)
+            };
+          });
           return { visibleWords };
         }
         return { visibleWords: [] };

@@ -449,6 +449,17 @@
   max-height: 480px;
 }
 
+/* Video Quality Enhancement Mode */
+.studio-video-element {
+  transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.studio-video-element.video-enhanced,
+video.video-enhanced {
+  filter: contrast(1.18) saturate(1.28) brightness(1.02) !important;
+  image-rendering: -webkit-optimize-contrast;
+}
+
 .player-enhance-bar {
   display: flex;
   justify-content: space-between;

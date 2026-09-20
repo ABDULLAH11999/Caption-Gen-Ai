@@ -141,28 +141,37 @@ export class CaptionEngine {
 
   setSentences(sentences) {
     this.sentences = (sentences || []).map((s, idx) => {
-      let start = s.startTime !== undefined ? Number(s.startTime) : idx * 3;
-      let end = s.endTime !== undefined ? Number(s.endTime) : start + 3;
+      let start = s.start !== undefined ? Number(s.start) : (s.startTime !== undefined ? Number(s.startTime) : idx * 3);
+      let end = s.end !== undefined ? Number(s.end) : (s.endTime !== undefined ? Number(s.endTime) : start + 3);
       if (end <= start) {
         end = start + Math.max(2.2, ((s.words && s.words.length) || 4) * 0.5);
       }
       const words = (s.words && s.words.length > 0)
         ? s.words.map((w, wIdx) => {
-            let wStart = w.start !== undefined ? Number(w.start) : start + (wIdx * (end - start) / s.words.length);
-            let wEnd = w.end !== undefined ? Number(w.end) : start + ((wIdx + 1) * (end - start) / s.words.length);
+            let wStart = w.start !== undefined ? Number(w.start) : (w.startTime !== undefined ? Number(w.startTime) : start + (wIdx * (end - start) / s.words.length));
+            let wEnd = w.end !== undefined ? Number(w.end) : (w.endTime !== undefined ? Number(w.endTime) : start + ((wIdx + 1) * (end - start) / s.words.length));
             if (wEnd <= wStart) wEnd = wStart + 0.35;
-            return { ...w, start: parseFloat(wStart.toFixed(2)), end: parseFloat(wEnd.toFixed(2)) };
+            return {
+              ...w,
+              start: parseFloat(wStart.toFixed(2)),
+              end: parseFloat(wEnd.toFixed(2)),
+              startTime: parseFloat(wStart.toFixed(2)),
+              endTime: parseFloat(wEnd.toFixed(2))
+            };
           })
         : this.createWordLevelTimestamps(s.text || '', start, end, s.language || 'en');
 
       return {
         ...s,
+        id: s.id || `sentence_${idx + 1}`,
+        start: parseFloat(start.toFixed(2)),
+        end: parseFloat(end.toFixed(2)),
         startTime: parseFloat(start.toFixed(2)),
         endTime: parseFloat(end.toFixed(2)),
         words
       };
     });
-    this.sentences.sort((a, b) => a.startTime - b.startTime);
+    this.sentences.sort((a, b) => a.start - b.start);
   }
 
   updateSentenceText(sentenceId, newText) {

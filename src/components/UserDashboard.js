@@ -854,10 +854,10 @@ export class UserDashboard {
       if (this.processingCancelled) return;
 
       if (transcribeResult && transcribeResult.sentences && transcribeResult.sentences.length > 0) {
-        captionEngine.sentences = transcribeResult.sentences;
+        captionEngine.setSentences(transcribeResult.sentences);
       } else {
         // Fallback demo sentences if audio was silent
-        captionEngine.sentences = [
+        captionEngine.setSentences([
           {
             id: 's-1',
             start: 0.2,
@@ -887,7 +887,7 @@ export class UserDashboard {
               { word: 'export', start: 5.2, end: 5.6 }
             ]
           }
-        ];
+        ]);
       }
 
       this.updateProcessingProgress(100, 'Transcription complete! Loading workspace...');
@@ -926,6 +926,9 @@ export class UserDashboard {
     this.videoElement.setAttribute('webkit-playsinline', '');
     this.videoElement.src = url;
 
+    // Apply video enhancement class immediately if enabled
+    this.videoElement.classList.toggle('video-enhanced', !!this.enhanceVideoQuality);
+
     const scrubber = wrap.querySelector('#user-timeline-scrubber');
     const timeDisplay = wrap.querySelector('#user-time-display');
     const playBtn = wrap.querySelector('#user-btn-play');
@@ -947,6 +950,7 @@ export class UserDashboard {
       if (scrubber) scrubber.max = this.videoDuration;
       this.updateTimeDisplay();
       this.renderMiniSegmentsList();
+      this.updateCaptionOverlay();
     });
 
     this.videoElement.addEventListener('timeupdate', () => {
@@ -976,10 +980,14 @@ export class UserDashboard {
 
     wrap.querySelector('#user-btn-rw')?.addEventListener('click', () => {
       this.videoElement.currentTime = Math.max(0, this.videoElement.currentTime - 5);
+      this.updateTimeDisplay();
+      this.updateCaptionOverlay();
     });
 
     wrap.querySelector('#user-btn-ff')?.addEventListener('click', () => {
       this.videoElement.currentTime = Math.min(this.videoDuration, this.videoElement.currentTime + 5);
+      this.updateTimeDisplay();
+      this.updateCaptionOverlay();
     });
 
     wrap.querySelector('#user-btn-mute')?.addEventListener('click', (e) => {
@@ -987,10 +995,15 @@ export class UserDashboard {
       e.target.textContent = this.videoElement.muted ? '🔇' : '🔊';
     });
 
-    wrap.querySelector('#user-player-enhance')?.addEventListener('change', (e) => {
-      this.enhanceVideoQuality = e.target.checked;
-      this.videoElement.classList.toggle('video-enhanced', this.enhanceVideoQuality);
-    });
+    const enhanceToggle = wrap.querySelector('#user-player-enhance');
+    if (enhanceToggle) {
+      enhanceToggle.checked = !!this.enhanceVideoQuality;
+      enhanceToggle.addEventListener('change', (e) => {
+        this.enhanceVideoQuality = e.target.checked;
+        this.videoElement.classList.toggle('video-enhanced', this.enhanceVideoQuality);
+        this.showToast(this.enhanceVideoQuality ? '✨ Video Enhancement Enabled (+30% Vibrance & Contrast)' : 'Video Enhancement Disabled', 'info');
+      });
+    }
 
     wrap.querySelector('#btn-reselect-video')?.addEventListener('click', () => {
       this.videoBlob = null;
@@ -1042,7 +1055,23 @@ export class UserDashboard {
     if (!overlay || !this.videoElement) return;
 
     const time = this.videoElement.currentTime || 0;
-    const currentSentence = captionEngine.sentences.find(s => time >= s.start && time <= s.end);
+    const sentences = captionEngine.sentences || [];
+
+    // 1. Find active sentence by start/end or startTime/endTime
+    let currentSentence = sentences.find(s => {
+      const sStart = s.start ?? s.startTime ?? 0;
+      const sEnd = s.end ?? s.endTime ?? (sStart + 2.5);
+      return time >= sStart && time <= sEnd;
+    });
+
+    // 2. Micro-gap tolerance: linger previous sentence up to 1.2s so captions don't blink out between speech pauses
+    if (!currentSentence && sentences.length > 0) {
+      currentSentence = sentences.find(s => {
+        const sStart = s.start ?? s.startTime ?? 0;
+        const sEnd = s.end ?? s.endTime ?? (sStart + 2.5);
+        return time >= sStart && time <= (sEnd + 1.2);
+      });
+    }
 
     if (!currentSentence) {
       overlay.innerHTML = '';
@@ -1053,10 +1082,19 @@ export class UserDashboard {
     const customConfig = this.userCustomTemplates[tpl.id];
     const cfg = customConfig ? { ...tpl.config, ...customConfig } : tpl.config;
 
+    // Ensure words array exists with valid timings
+    let words = currentSentence.words;
+    if (!words || words.length === 0) {
+      const sStart = currentSentence.start ?? currentSentence.startTime ?? 0;
+      const sEnd = currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5);
+      words = captionEngine.createWordLevelTimestamps(currentSentence.text || '', sStart, sEnd);
+    }
+
     // Build styled words
-    const wordsHtml = (currentSentence.words || []).map((w, idx) => {
-      const isPastOrActive = time >= w.start;
-      const isLastWord = idx === currentSentence.words.length - 1;
+    const wordsHtml = words.map((w, idx) => {
+      const wStart = w.start ?? w.startTime ?? 0;
+      const isPastOrActive = time >= wStart;
+      const isLastWord = idx === words.length - 1;
       const isProminent = isLastWord || (idx % 3 === 2);
 
       let color = cfg.textColor || '#ffffff';
@@ -1068,17 +1106,17 @@ export class UserDashboard {
       }
 
       const opacity = isPastOrActive ? 1.0 : 0.45;
-      const transform = isPastOrActive ? 'scale(1.05)' : 'scale(1.0)';
+      const transform = isPastOrActive ? 'scale(1.08)' : 'scale(1.0)';
 
       return `
-        <span style="display: inline-block; margin: 0 4px; font-family: ${font}, sans-serif; color: ${color}; opacity: ${opacity}; transform: ${transform}; transition: all 0.1s ease; text-shadow: 0 2px 8px rgba(0,0,0,0.8);">
+        <span style="display: inline-block; margin: 0 4px; font-family: '${font}', sans-serif; color: ${color}; opacity: ${opacity}; transform: ${transform}; transition: all 0.1s ease; text-shadow: 0 2px 8px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,1);">
           ${w.word}
         </span>
       `;
     }).join('');
 
     overlay.innerHTML = `
-      <div style="position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%); width: 92%; max-height: 75%; overflow: hidden; text-align: center; font-size: clamp(14px, 3.8vw, ${cfg.fontSize || 30}px); font-weight: 800; line-height: 1.25; pointer-events: none;">
+      <div style="position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%); width: 92%; max-height: 75%; overflow: hidden; text-align: center; font-size: clamp(16px, 4vw, ${cfg.fontSize || 30}px); font-weight: 900; line-height: 1.3; pointer-events: none; text-transform: uppercase;">
         ${wordsHtml}
       </div>
     `;
@@ -1089,23 +1127,26 @@ export class UserDashboard {
     if (!list) return;
     list.innerHTML = '';
 
-    captionEngine.sentences.forEach((s, idx) => {
+    const sentences = captionEngine.sentences || [];
+    sentences.forEach((s, idx) => {
+      const sStart = Number(s.start ?? s.startTime ?? (idx * 2.5));
+      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
       const item = document.createElement('div');
       item.id = `seg-mini-${idx}`;
       item.style.cssText = 'padding: 8px 10px; background: #fafbfe; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; cursor: pointer; transition: all 0.15s ease;';
       item.innerHTML = `
         <div style="display: flex; justify-content: space-between; color: #64748b; font-size: 11px; margin-bottom: 2px;">
           <span>#${idx + 1}</span>
-          <span>${s.start.toFixed(1)}s - ${s.end.toFixed(1)}s</span>
+          <span>${sStart.toFixed(1)}s - ${sEnd.toFixed(1)}s</span>
         </div>
         <div style="font-weight: 700; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          ${s.text}
+          ${s.text || 'Caption Segment'}
         </div>
       `;
 
       item.addEventListener('click', () => {
         if (this.videoElement) {
-          this.videoElement.currentTime = s.start;
+          this.videoElement.currentTime = sStart;
           this.updateCaptionOverlay();
         }
       });
@@ -1117,10 +1158,13 @@ export class UserDashboard {
   highlightActiveSegment() {
     if (!this.videoElement) return;
     const time = this.videoElement.currentTime || 0;
-    captionEngine.sentences.forEach((s, idx) => {
+    const sentences = captionEngine.sentences || [];
+    sentences.forEach((s, idx) => {
       const el = this.container.querySelector(`#seg-mini-${idx}`);
       if (el) {
-        const isActive = time >= s.start && time <= s.end;
+        const sStart = Number(s.start ?? s.startTime ?? 0);
+        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+        const isActive = time >= sStart && time <= sEnd;
         el.style.borderColor = isActive ? 'var(--primary-coral)' : '#e2e8f0';
         el.style.background = isActive ? 'var(--primary-coral-light)' : '#fafbfe';
       }
@@ -1202,6 +1246,9 @@ export class UserDashboard {
       listEl.innerHTML = '';
 
       tempSegments.forEach((seg, idx) => {
+        const segStart = Number(seg.start ?? seg.startTime ?? 0);
+        const segEnd = Number(seg.end ?? seg.endTime ?? (segStart + 2.5));
+
         const row = document.createElement('div');
         row.className = 'segment-item-card';
         row.innerHTML = `
@@ -1211,13 +1258,13 @@ export class UserDashboard {
 
           <div class="segment-timing-inputs">
             <span>Start</span>
-            <input type="number" step="0.1" min="0" class="segment-time-input" data-field="start" data-idx="${idx}" value="${seg.start.toFixed(1)}">
+            <input type="number" step="0.1" min="0" class="segment-time-input" data-field="start" data-idx="${idx}" value="${segStart.toFixed(1)}">
             <span>s</span>
           </div>
 
           <div class="segment-timing-inputs">
             <span>End</span>
-            <input type="number" step="0.1" min="0" class="segment-time-input" data-field="end" data-idx="${idx}" value="${seg.end.toFixed(1)}">
+            <input type="number" step="0.1" min="0" class="segment-time-input" data-field="end" data-idx="${idx}" value="${segEnd.toFixed(1)}">
             <span>s</span>
           </div>
 
@@ -1257,12 +1304,15 @@ export class UserDashboard {
     // Add row
     modal.querySelector('#btn-add-new-segment')?.addEventListener('click', () => {
       const last = tempSegments[tempSegments.length - 1];
-      const start = last ? Number((last.end + 0.2).toFixed(1)) : 0.0;
+      const lastEnd = last ? Number(last.end ?? last.endTime ?? 0) : 0.0;
+      const start = Number((lastEnd + 0.2).toFixed(1));
       const end = Number((start + 2.5).toFixed(1));
       tempSegments.push({
         id: `s-${Date.now()}`,
         start,
         end,
+        startTime: start,
+        endTime: end,
         text: 'New caption line segment',
         words: []
       });
@@ -1278,18 +1328,22 @@ export class UserDashboard {
     modal.querySelector('#btn-save-segments')?.addEventListener('click', () => {
       // Re-generate word timings from text
       tempSegments.forEach(seg => {
+        const segStart = Number(seg.start ?? seg.startTime ?? 0);
+        const segEnd = Number(seg.end ?? seg.endTime ?? (segStart + 2.5));
         const words = (seg.text || '').trim().split(/\s+/).filter(Boolean);
-        const duration = Math.max(0.5, seg.end - seg.start);
+        const duration = Math.max(0.5, segEnd - segStart);
         const wordDuration = duration / Math.max(1, words.length);
 
         seg.words = words.map((w, wIdx) => ({
           word: w,
-          start: Number((seg.start + wIdx * wordDuration).toFixed(2)),
-          end: Number((seg.start + (wIdx + 1) * wordDuration).toFixed(2))
+          start: Number((segStart + wIdx * wordDuration).toFixed(2)),
+          end: Number((segStart + (wIdx + 1) * wordDuration).toFixed(2)),
+          startTime: Number((segStart + wIdx * wordDuration).toFixed(2)),
+          endTime: Number((segStart + (wIdx + 1) * wordDuration).toFixed(2))
         }));
       });
 
-      captionEngine.sentences = tempSegments;
+      captionEngine.setSentences(tempSegments);
       this.renderMiniSegmentsList();
       this.updateCaptionOverlay();
       const countBadge = this.container.querySelector('#user-sentence-count');
