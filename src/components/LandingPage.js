@@ -230,7 +230,7 @@ export class LandingPage {
 
     grid.innerHTML = CAPTION_TEMPLATES.slice(0, 8).map(tpl => `
       <div class="showcase-tpl-card" data-template-id="${tpl.id}">
-        <div class="showcase-tpl-preview" style="background: ${tpl.previewBg};">
+        <div class="showcase-tpl-preview" style="background: #000000;">
           <span style="color: ${tpl.config.textColor}; font-family: ${tpl.config.normalFontFamily}; margin-right: 6px;">${tpl.sampleNormal}</span>
           <span style="color: ${tpl.config.prominentColor}; font-family: ${tpl.config.prominentFontFamily};">${tpl.sampleProminent}</span>
         </div>

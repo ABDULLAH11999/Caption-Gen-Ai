@@ -483,6 +483,9 @@
   margin-bottom: 16px;
   padding: 12px;
   font-weight: 800;
+  background: #000000 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.7), 0 4px 14px rgba(0, 0, 0, 0.2);
 }
 
 .showcase-tpl-meta {

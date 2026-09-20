@@ -517,7 +517,7 @@ export class ToolStudioModal {
           </div>
 
           <!-- Large High-Definition Typography Preview Box -->
-          <div class="template-card-preview-box" style="background: ${tmpl.previewBg};">
+          <div class="template-card-preview-box" style="background: #000000;">
             <span class="template-preview-normal" style="
               color: ${c.textColor || '#FFFFFF'};
               font-family: ${this.getFontFamily(c.normalFontFamily)};

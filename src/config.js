@@ -76,7 +76,7 @@ export const CAPTION_TEMPLATES = [
     category: 'viral',
     icon: '💖',
     badge: 'DEFAULT / POP',
-    previewBg: 'linear-gradient(135deg, #3b0764 0%, #1e1b4b 100%)',
+    previewBg: '#000000',
     sampleNormal: 'for',
     sampleProminent: 'September',
     config: {
@@ -107,7 +107,7 @@ export const CAPTION_TEMPLATES = [
     category: 'viral',
     icon: '🔥',
     badge: 'HORMOZI VIRAL',
-    previewBg: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)',
+    previewBg: '#000000',
     sampleNormal: 'result of',
     sampleProminent: 'Zen AI',
     config: {
@@ -138,7 +138,7 @@ export const CAPTION_TEMPLATES = [
     category: 'luxury',
     icon: '✨',
     badge: 'LUXURY SERIF',
-    previewBg: 'linear-gradient(135deg, #2a1523 0%, #120b10 100%)',
+    previewBg: '#000000',
     sampleNormal: 'this is',
     sampleProminent: 'Emily',
     config: {
@@ -168,7 +168,7 @@ export const CAPTION_TEMPLATES = [
     category: 'tech',
     icon: '⚡',
     badge: 'CYBER TECH',
-    previewBg: 'linear-gradient(135deg, #082f49 0%, #030712 100%)',
+    previewBg: '#000000',
     sampleNormal: 'neural',
     sampleProminent: 'Cyber 2077',
     config: {
@@ -199,7 +199,7 @@ export const CAPTION_TEMPLATES = [
     category: 'cinema',
     icon: '🎬',
     badge: 'CINEMATIC',
-    previewBg: 'linear-gradient(135deg, #292524 0%, #0c0a09 100%)',
+    previewBg: '#000000',
     sampleNormal: 'cinematic',
     sampleProminent: 'Drama',
     config: {
@@ -229,7 +229,7 @@ export const CAPTION_TEMPLATES = [
     category: 'business',
     icon: '📈',
     badge: 'FINANCE & BIZ',
-    previewBg: 'linear-gradient(135deg, #064e3b 0%, #022c22 100%)',
+    previewBg: '#000000',
     sampleNormal: 'market',
     sampleProminent: 'Alpha 100x',
     config: {
@@ -260,7 +260,7 @@ export const CAPTION_TEMPLATES = [
     category: 'entertainment',
     icon: '💥',
     badge: 'COMIC BOOK',
-    previewBg: 'linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%)',
+    previewBg: '#000000',
     sampleNormal: 'action',
     sampleProminent: 'BOOM!',
     config: {
@@ -291,7 +291,7 @@ export const CAPTION_TEMPLATES = [
     category: 'minimal',
     icon: '🌙',
     badge: 'MINIMALIST',
-    previewBg: 'linear-gradient(135deg, #18181b 0%, #09090b 100%)',
+    previewBg: '#000000',
     sampleNormal: 'pure',
     sampleProminent: 'Minimal',
     config: {
@@ -321,7 +321,7 @@ export const CAPTION_TEMPLATES = [
     category: 'music',
     icon: '🎤',
     badge: 'KARAOKE LIVE',
-    previewBg: 'linear-gradient(135deg, #311042 0%, #170921 100%)',
+    previewBg: '#000000',
     sampleNormal: 'live',
     sampleProminent: 'Spotlight',
     config: {
@@ -352,7 +352,7 @@ export const CAPTION_TEMPLATES = [
     category: 'retro',
     icon: '🌆',
     badge: 'SYNTHWAVE',
-    previewBg: 'linear-gradient(135deg, #4a044e 0%, #1f0426 100%)',
+    previewBg: '#000000',
     sampleNormal: '80s',
     sampleProminent: 'Synthwave',
     config: {
@@ -383,7 +383,7 @@ export const CAPTION_TEMPLATES = [
     category: 'story',
     icon: '⌨️',
     badge: 'TYPEWRITER',
-    previewBg: 'linear-gradient(135deg, #022c22 0%, #051b14 100%)',
+    previewBg: '#000000',
     sampleNormal: 'secret',
     sampleProminent: 'Terminal',
     config: {
@@ -413,7 +413,7 @@ export const CAPTION_TEMPLATES = [
     category: 'fitness',
     icon: '🦾',
     badge: 'HEAVY IMPACT',
-    previewBg: 'linear-gradient(135deg, #431407 0%, #1a0602 100%)',
+    previewBg: '#000000',
     sampleNormal: 'crush your',
     sampleProminent: 'Limits',
     config: {
@@ -444,7 +444,7 @@ export const CAPTION_TEMPLATES = [
     category: 'podcast',
     icon: '🎙️',
     badge: 'STUDIO PODCAST',
-    previewBg: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+    previewBg: '#000000',
     sampleNormal: 'episode',
     sampleProminent: 'Studio Pro',
     config: {
@@ -475,7 +475,7 @@ export const CAPTION_TEMPLATES = [
     category: 'news',
     icon: '🚨',
     badge: 'BREAKING NEWS',
-    previewBg: 'linear-gradient(135deg, #450a0a 0%, #1c0404 100%)',
+    previewBg: '#000000',
     sampleNormal: 'breaking',
     sampleProminent: 'News Alert',
     config: {
@@ -506,7 +506,7 @@ export const CAPTION_TEMPLATES = [
     category: 'creative',
     icon: '🔮',
     badge: 'HOLO CHROMA',
-    previewBg: 'linear-gradient(135deg, #2e1065 0%, #1e1b4b 100%)',
+    previewBg: '#000000',
     sampleNormal: 'future',
     sampleProminent: 'Dreams',
     config: {
@@ -537,7 +537,7 @@ export const CAPTION_TEMPLATES = [
     category: 'street',
     icon: '🛹',
     badge: 'URBAN STREET',
-    previewBg: 'linear-gradient(135deg, #1c1917 0%, #0c0a09 100%)',
+    previewBg: '#000000',
     sampleNormal: 'exclusive',
     sampleProminent: 'Street Drop',
     config: {

@@ -30,43 +30,58 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Mount REST API
 app.use('/api', apiRouter);
 
-// Dynamic sitemap.xml generator for SEO search ranking & indexing
+// Dynamic sitemap.xml generator for Google Search Console & SEO indexing
 app.get('/sitemap.xml', async (req, res) => {
   try {
-    const blogsRes = await query("SELECT slug, published_at FROM blogs WHERE status = 'published'");
-    const baseUrl = process.env.SITE_URL || `https://${req.headers.host}`;
+    const host = req.headers.host || '';
+    const baseUrl = process.env.SITE_URL || (host && !host.includes('localhost') ? `https://${host}` : 'https://zencaption.online');
 
-    const staticRoutes = [
-      { url: '/', priority: '1.0', changefreq: 'daily' },
-      { url: '/templates', priority: '0.9', changefreq: 'weekly' },
-      { url: '/pricing', priority: '0.9', changefreq: 'weekly' },
-      { url: '/blog', priority: '0.8', changefreq: 'daily' },
-      { url: '/about', priority: '0.7', changefreq: 'monthly' },
-      { url: '/contact', priority: '0.7', changefreq: 'monthly' },
-      { url: '/terms', priority: '0.5', changefreq: 'yearly' },
-      { url: '/cookies', priority: '0.5', changefreq: 'yearly' }
-    ];
-
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
-
-    // Static pages
-    for (const route of staticRoutes) {
-      xml += `  <url>\n    <loc>${baseUrl}${route.url}</loc>\n    <changefreq>${route.changefreq}</changefreq>\n    <priority>${route.priority}</priority>\n  </url>\n`;
+    let blogRows = [];
+    try {
+      const blogsRes = await query("SELECT slug, published_at FROM blogs WHERE status = 'published' ORDER BY id ASC");
+      blogRows = blogsRes.rows || [];
+    } catch (dbErr) {
+      console.warn('[Sitemap] Database query failed, serving static sitemap:', dbErr.message);
     }
 
-    // All 30+ SEO Blog Articles
-    for (const blog of blogsRes.rows) {
-      const lastmod = new Date(blog.published_at || Date.now()).toISOString().split('T')[0];
-      xml += `  <url>\n    <loc>${baseUrl}/blog/${blog.slug}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+    // If DB returned rows, build dynamic XML
+    if (blogRows.length > 0) {
+      const staticRoutes = [
+        { url: '/', priority: '1.0', changefreq: 'daily' },
+        { url: '/app', priority: '0.95', changefreq: 'daily' },
+        { url: '/blog', priority: '0.90', changefreq: 'daily' },
+        { url: '/about', priority: '0.70', changefreq: 'monthly' },
+        { url: '/contact', priority: '0.70', changefreq: 'monthly' },
+        { url: '/terms', priority: '0.50', changefreq: 'yearly' },
+        { url: '/cookies', priority: '0.50', changefreq: 'yearly' }
+      ];
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+      for (const route of staticRoutes) {
+        xml += `  <url>\n    <loc>${baseUrl}${route.url}</loc>\n    <changefreq>${route.changefreq}</changefreq>\n    <priority>${route.priority}</priority>\n  </url>\n`;
+      }
+
+      for (const blog of blogRows) {
+        const lastmod = new Date(blog.published_at || Date.now()).toISOString().split('T')[0];
+        xml += `  <url>\n    <loc>${baseUrl}/blog/${blog.slug}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.85</priority>\n  </url>\n`;
+      }
+
+      xml += `</urlset>`;
+
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      return res.send(xml);
     }
 
-    xml += `</urlset>`;
-
-    res.setHeader('Content-Type', 'application/xml');
-    res.send(xml);
+    // Fallback to static sitemap file
+    const staticSitemap = path.join(__dirname, 'public', 'sitemap.xml');
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    return res.sendFile(staticSitemap);
   } catch (err) {
     console.error('Failed to generate sitemap.xml:', err);
-    res.status(500).send('Error generating sitemap');
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    const staticSitemap = path.join(__dirname, 'public', 'sitemap.xml');
+    res.sendFile(staticSitemap);
   }
 });
 

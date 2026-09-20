@@ -347,7 +347,7 @@ export class UserDashboard {
       card.dataset.tplId = tpl.id;
 
       card.innerHTML = `
-        <div class="user-tpl-preview-box" style="background: ${tpl.previewBg || '#080c14'};">
+        <div class="user-tpl-preview-box" style="background: #000000;">
           <div class="user-tpl-preview-text" style="font-family: ${effectiveConfig.normalFontFamily || 'Inter'}, sans-serif; color: ${effectiveConfig.textColor || '#fff'}; font-size: 21px; font-weight: 800; text-align: center; line-height: 1.25; letter-spacing: -0.2px;">
             ${tpl.sampleNormal || 'Viral'} 
             <span style="font-family: ${effectiveConfig.prominentFontFamily || 'Syne'}, sans-serif; color: ${effectiveConfig.prominentColor || '#FFE600'}; font-weight: 900; text-transform: uppercase;">
