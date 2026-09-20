@@ -26,7 +26,11 @@ export class AdminDashboard {
   }
 
   async init() {
-    await this.loadStats();
+    try {
+      this.stats = await api.getAdminStats();
+    } catch (e) {
+      console.warn('[AdminDashboard] init stats error:', e.message);
+    }
   }
 
   render(parentElement) {
@@ -34,46 +38,53 @@ export class AdminDashboard {
     this.container.className = 'admin-layout';
     this.container.innerHTML = `
       <!-- LEFT ADMIN SIDEBAR -->
-      <aside class="admin-sidebar">
+      <aside class="admin-sidebar" id="admin-sidebar-nav">
         <div class="admin-sidebar-header">
-          <span class="brand-rhombus"></span>
-          <span class="admin-brand-title">Admin Console</span>
+          <div class="admin-sidebar-brand-group">
+            <span class="brand-rhombus"></span>
+            <span class="admin-brand-title">Admin Console</span>
+          </div>
+          <button class="admin-sidebar-toggle" id="btn-admin-sidebar-toggle" aria-label="Toggle navigation">
+            <span></span><span></span><span></span>
+          </button>
         </div>
 
-        <ul class="admin-sidebar-menu">
-          <li class="admin-menu-item active" data-tab="overview">
-            <span>📊</span><span>Overview</span>
-          </li>
-          <li class="admin-menu-item" data-tab="users">
-            <span>👥</span><span>Users (${this.users.length || '...'})</span>
-          </li>
-          <li class="admin-menu-item" data-tab="plans">
-            <span>💳</span><span>Plans &amp; Quotas</span>
-          </li>
-          <li class="admin-menu-item" data-tab="contacts">
-            <span>💬</span><span>Contact Requests</span>
-          </li>
-          <li class="admin-menu-item" data-tab="purchases">
-            <span>🛒</span><span>Purchase Orders</span>
-          </li>
-          <li class="admin-menu-item" data-tab="blogs">
-            <span>📝</span><span>SEO Blog Articles</span>
-          </li>
-          <li class="admin-menu-item" data-tab="visitors">
-            <span>🌐</span><span>Visitor Tracking</span>
-          </li>
-          <li class="admin-menu-item" data-tab="settings">
-            <span>⚙️</span><span>Site SEO &amp; Branding</span>
-          </li>
-        </ul>
+        <div class="admin-sidebar-drawer" id="admin-sidebar-drawer">
+          <ul class="admin-sidebar-menu">
+            <li class="admin-menu-item active" data-tab="overview">
+              <span>📊</span><span>Overview</span>
+            </li>
+            <li class="admin-menu-item" data-tab="users">
+              <span>👥</span><span>Users (${this.users.length || '...'})</span>
+            </li>
+            <li class="admin-menu-item" data-tab="plans">
+              <span>💳</span><span>Plans &amp; Quotas</span>
+            </li>
+            <li class="admin-menu-item" data-tab="contacts">
+              <span>💬</span><span>Contact Requests</span>
+            </li>
+            <li class="admin-menu-item" data-tab="purchases">
+              <span>🛒</span><span>Purchase Orders</span>
+            </li>
+            <li class="admin-menu-item" data-tab="blogs">
+              <span>📝</span><span>SEO Blog Articles</span>
+            </li>
+            <li class="admin-menu-item" data-tab="visitors">
+              <span>🌐</span><span>Visitor Tracking</span>
+            </li>
+            <li class="admin-menu-item" data-tab="settings">
+              <span>⚙️</span><span>Site SEO &amp; Branding</span>
+            </li>
+          </ul>
 
-        <div class="admin-sidebar-footer">
-          <button class="btn btn-outline btn-sm btn-block" id="btn-admin-to-app">
-            <span>⚡ Open App Studio</span>
-          </button>
-          <button class="btn btn-dark btn-sm btn-block" id="btn-admin-logout">
-            <span>🚪 Sign Out</span>
-          </button>
+          <div class="admin-sidebar-footer">
+            <button class="btn btn-outline btn-sm btn-block" id="btn-admin-to-app">
+              <span>⚡ Open App Studio</span>
+            </button>
+            <button class="btn btn-dark btn-sm btn-block" id="btn-admin-logout">
+              <span>🚪 Sign Out</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -92,16 +103,36 @@ export class AdminDashboard {
     return this.container;
   }
 
+  closeSidebarDrawer() {
+    const sidebar = this.container?.querySelector('#admin-sidebar-nav');
+    const toggle = this.container?.querySelector('#btn-admin-sidebar-toggle');
+    sidebar?.classList.remove('open');
+    toggle?.classList.remove('active');
+  }
+
   bindEvents() {
+    const toggle = this.container.querySelector('#btn-admin-sidebar-toggle');
+    const sidebar = this.container.querySelector('#admin-sidebar-nav');
+    toggle?.addEventListener('click', () => {
+      const isOpen = sidebar?.classList.toggle('open');
+      toggle.classList.toggle('active', isOpen);
+    });
+
     this.container.querySelectorAll('.admin-menu-item').forEach(item => {
       item.addEventListener('click', () => {
         const tab = item.getAttribute('data-tab');
+        this.closeSidebarDrawer();
         this.switchTab(tab);
       });
     });
 
-    this.container.querySelector('#btn-admin-to-app')?.addEventListener('click', () => this.onNavigate('app'));
+    this.container.querySelector('#btn-admin-to-app')?.addEventListener('click', () => {
+      this.closeSidebarDrawer();
+      this.onNavigate('app');
+    });
+
     this.container.querySelector('#btn-admin-logout')?.addEventListener('click', async () => {
+      this.closeSidebarDrawer();
       await api.logout();
       this.onNavigate('home');
     });

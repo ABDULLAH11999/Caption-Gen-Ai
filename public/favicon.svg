@@ -1,15 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
   <defs>
-    <linearGradient id="coralGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="zenOrangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#ff7755"/>
       <stop offset="100%" stop-color="#ff4422"/>
     </linearGradient>
-    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#ff5533" flood-opacity="0.4"/>
+    <filter id="zenGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#ff4422" flood-opacity="0.45"/>
     </filter>
   </defs>
-  <!-- Centered Vibrant Orange Diamond (Rhombus) with rounded corners -->
-  <g transform="translate(64, 64) rotate(45)" filter="url(#softShadow)">
-    <rect x="-40" y="-40" width="80" height="80" rx="18" fill="url(#coralGrad)" stroke="#ffffff" stroke-width="2.5" stroke-opacity="0.25"/>
+  
+  <!-- Solid Filled Orange Diamond matching header logo .brand-rhombus -->
+  <g transform="translate(64, 64) rotate(45)" filter="url(#zenGlow)">
+    <rect x="-44" y="-44" width="88" height="88" rx="20" fill="url(#zenOrangeGrad)" stroke="#ffffff" stroke-width="2.5" stroke-opacity="0.25"/>
   </g>
 </svg>

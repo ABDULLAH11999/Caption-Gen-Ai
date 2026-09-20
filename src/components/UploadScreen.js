@@ -128,9 +128,6 @@ export class UploadScreen {
           <button class="btn-browse" id="btn-browse-file">
             📁 Browse Video File
           </button>
-          <button class="btn-browse" id="btn-load-test-showcase" style="background: linear-gradient(135deg, rgba(0, 240, 255, 0.2) 0%, rgba(168, 85, 247, 0.28) 100%); border: 1px solid var(--cyan-primary); color: #FFFFFF; font-weight: 800;">
-            🎬 Load Showcase Video (Zen AI Engine)
-          </button>
         </div>
       </section>
 
@@ -144,7 +141,7 @@ export class UploadScreen {
           </svg>
         </div>
         <div style="font-size: 13px; color: #9a3412; line-height: 1.5;">
-          <strong style="color: #7c2d12; font-weight: 800;">Important Notice:</strong> Be aware every video processing happens on Client Side System CPU and GPU and RAM.
+          <strong style="color: #7c2d12; font-weight: 800;">⚠ Processing Notice:</strong> All video processing is performed entirely on your local device using your system's CPU, GPU, and RAM. No video data is uploaded to any server. Processing speed and performance depend on your hardware capabilities.
         </div>
       </div>
 
@@ -309,11 +306,7 @@ export class UploadScreen {
       fileInput.click();
     });
 
-    // Load Showcase Test Video Button
-    this.container.querySelector('#btn-load-test-showcase')?.addEventListener('click', () => {
-      soundFx.playKeyBeep(600);
-      this.loadShowcaseTestVideo();
-    });
+
 
     // File Input change
     fileInput?.addEventListener('change', (e) => {

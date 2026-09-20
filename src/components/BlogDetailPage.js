@@ -11,6 +11,9 @@ export class BlogDetailPage {
     try {
       const res = await api.getBlogBySlug(slug);
       this.blog = res.blog;
+      if (this.blog?.title) {
+        document.title = `${this.blog.title} - Zen Caption AI`;
+      }
       this.renderContent();
     } catch (err) {
       if (this.container) {

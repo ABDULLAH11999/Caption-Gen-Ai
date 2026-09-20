@@ -70,6 +70,13 @@ app.get('/sitemap.xml', async (req, res) => {
   }
 });
 
+// Explicit Favicon routes to guarantee browser loads the Orange Diamond icon
+app.get(['/favicon.ico', '/favicon.svg'], (req, res) => {
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.join(DIST_DIR, 'favicon.svg'));
+});
+
 // Serve compiled static assets from dist
 app.use(express.static(DIST_DIR, {
   maxAge: '1d',

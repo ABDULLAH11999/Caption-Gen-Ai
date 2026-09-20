@@ -70,6 +70,24 @@ export class ToolStudioModal {
     this.updatePreview();
   }
 
+  setOrientation(mode) {
+    if (!mode) return;
+    this.currentMode = mode;
+    if (this.container) {
+      this.container.querySelectorAll('.orient-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-mode') === mode);
+      });
+      const previewBox = this.container.querySelector('#preview-screen-box');
+      if (previewBox) {
+        previewBox.className = `preview-screen-box preview-${this.currentMode}`;
+      }
+      this.populateControls();
+    }
+    if (typeof this.onConfigChanged === 'function') {
+      this.onConfigChanged(this.getActiveConfig(), this.currentMode);
+    }
+  }
+
   render(parentElement) {
     // 1. Center Holographic Tool Animation Element
     this.introAnimElement = document.createElement('div');
@@ -198,12 +216,12 @@ export class ToolStudioModal {
               </div>
 
               <!-- 0. Video Quality Enhancement Option -->
-              <div class="config-section-card" style="background: linear-gradient(135deg, rgba(16, 24, 40, 0.75), rgba(8, 20, 36, 0.85)); border-color: rgba(0, 240, 255, 0.2);">
+              <div class="config-section-card">
                 <div class="config-section-title">
                   <span>✨ Video Quality Enhancement</span>
-                  <span class="badge badge-cyan" id="modal-enhance-badge">OFF</span>
+                  <span class="badge badge-coral" id="modal-enhance-badge">OFF</span>
                 </div>
-                <label class="enhance-quality-toggle-label" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(255, 255, 255, 0.04); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);">
+                <label class="enhance-quality-toggle-label" style="cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #fff5f2; border-radius: 8px; border: 1px solid rgba(255, 85, 51, 0.2);">
                   <div style="display: flex; align-items: center; gap: 10px;">
                     <input type="checkbox" id="chk-modal-enhance-quality" class="enhance-quality-input">
                     <span class="enhance-custom-checkbox">
@@ -211,7 +229,7 @@ export class ToolStudioModal {
                         <polyline points="20 6 9 17 4 12"></polyline>
                       </svg>
                     </span>
-                    <span style="font-size: 0.88rem; font-weight: 700; color: #FFFFFF;">Enhance Video Quality</span>
+                    <span style="font-size: 0.88rem; font-weight: 700; color: var(--primary-coral);">Enhance Video Quality</span>
                   </div>
                 </label>
               </div>
@@ -284,7 +302,7 @@ export class ToolStudioModal {
               <div class="config-section-card">
                 <div class="config-section-title">
                   <span>4. Colors & Stroke Styling</span>
-                  <span class="badge badge-cyan">Pro Dual Typography</span>
+                  <span class="badge badge-coral">Pro Dual Typography</span>
                 </div>
 
                 <div class="dual-color-pro-grid">
@@ -295,19 +313,18 @@ export class ToolStudioModal {
                         <span class="subcard-indicator normal-dot"></span>
                         <strong class="subcard-title">Normal Words Text</strong>
                       </div>
-                      <span class="badge badge-cyan" id="badge-normal-color">#FFFFFF</span>
+                      <span class="badge badge-coral" id="badge-normal-color">#FFFFFF</span>
                     </div>
                     
                     <div class="control-subblock">
-                      <span class="subblock-label">Text Color:</span>
-                      <div class="color-swatches-grid">
-                        <button class="normal-color-swatch-btn selected" data-color="#FFFFFF" style="background: #FFFFFF;" title="Pure White"></button>
-                        <button class="normal-color-swatch-btn" data-color="#F3F4F6" style="background: #F3F4F6;" title="Cool White"></button>
-                        <button class="normal-color-swatch-btn" data-color="#E2E8F0" style="background: #E2E8F0;" title="Slate White"></button>
-                        <button class="normal-color-swatch-btn" data-color="#FFE600" style="background: #FFE600;" title="Yellow"></button>
-                        <button class="normal-color-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;" title="Cyan"></button>
-                        <button class="normal-color-swatch-btn" data-color="#10B981" style="background: #10B981;" title="Emerald"></button>
-                        <input type="color" value="#FFFFFF" class="color-picker-custom" id="custom-normal-color-input" title="Custom Hex Color">
+                      <div class="subblock-header-row">
+                        <span class="subblock-label">Text Color:</span>
+                        <label class="compact-color-picker-btn" for="custom-normal-color-input" title="Choose normal text color">
+                          <span class="color-preview-circle" id="preview-swatch-normal-color" style="background: #FFFFFF;"></span>
+                          <span class="color-hex-text" id="hex-text-normal-color">#FFFFFF</span>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                          <input type="color" value="#FFFFFF" class="color-picker-native-hidden" id="custom-normal-color-input">
+                        </label>
                       </div>
                     </div>
 
@@ -320,12 +337,14 @@ export class ToolStudioModal {
                     </div>
 
                     <div class="control-subblock">
-                      <span class="subblock-label">Stroke Outline Color:</span>
-                      <div class="outline-color-btns">
-                        <button class="outline-color-btn active" data-target="normal" data-color="#000000">Solid Black</button>
-                        <button class="outline-color-btn" data-target="normal" data-color="#1e293b">Dark Slate</button>
-                        <button class="outline-color-btn" data-target="normal" data-color="#581c87">Purple</button>
-                        <input type="color" value="#000000" class="color-picker-custom" id="custom-normal-outline-color" title="Custom Hex Stroke">
+                      <div class="subblock-header-row">
+                        <span class="subblock-label">Stroke Outline Color:</span>
+                        <label class="compact-color-picker-btn" for="custom-normal-outline-color" title="Choose normal stroke outline color">
+                          <span class="color-preview-circle" id="preview-swatch-normal-outline" style="background: #000000;"></span>
+                          <span class="color-hex-text" id="hex-text-normal-outline">#000000</span>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                          <input type="color" value="#000000" class="color-picker-native-hidden" id="custom-normal-outline-color">
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -341,15 +360,14 @@ export class ToolStudioModal {
                     </div>
 
                     <div class="control-subblock">
-                      <span class="subblock-label">Accent Hero Color:</span>
-                      <div class="color-swatches-grid">
-                        <button class="prominent-color-swatch-btn selected" data-color="#FFE600" style="background: #FFE600;" title="Electric Yellow"></button>
-                        <button class="prominent-color-swatch-btn" data-color="#FF4DA6" style="background: #FF4DA6;" title="Neon Pink"></button>
-                        <button class="prominent-color-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;" title="Vibrant Orange"></button>
-                        <button class="prominent-color-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;" title="Cyber Cyan"></button>
-                        <button class="prominent-color-swatch-btn" data-color="#10B981" style="background: #10B981;" title="Emerald"></button>
-                        <button class="prominent-color-swatch-btn" data-color="#FFFFFF" style="background: #FFFFFF;" title="Pure White"></button>
-                        <input type="color" value="#FFE600" class="color-picker-custom" id="custom-prominent-color-input" title="Custom Hex Color">
+                      <div class="subblock-header-row">
+                        <span class="subblock-label">Accent Hero Color:</span>
+                        <label class="compact-color-picker-btn" for="custom-prominent-color-input" title="Choose hero accent color">
+                          <span class="color-preview-circle" id="preview-swatch-prominent-color" style="background: #FFE600;"></span>
+                          <span class="color-hex-text" id="hex-text-prominent-color">#FFE600</span>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                          <input type="color" value="#FFE600" class="color-picker-native-hidden" id="custom-prominent-color-input">
+                        </label>
                       </div>
                     </div>
 
@@ -362,31 +380,32 @@ export class ToolStudioModal {
                     </div>
 
                     <div class="control-subblock">
-                      <span class="subblock-label">Stroke Outline Color:</span>
-                      <div class="outline-color-btns">
-                        <button class="outline-color-btn active" data-target="prominent" data-color="#000000">Solid Black</button>
-                        <button class="outline-color-btn" data-target="prominent" data-color="#0284c7">Cyan Border</button>
-                        <button class="outline-color-btn" data-target="prominent" data-color="#e11d48">Pink Border</button>
-                        <input type="color" value="#000000" class="color-picker-custom" id="custom-prominent-outline-color" title="Custom Hex Stroke">
+                      <div class="subblock-header-row">
+                        <span class="subblock-label">Stroke Outline Color:</span>
+                        <label class="compact-color-picker-btn" for="custom-prominent-outline-color" title="Choose hero stroke outline color">
+                          <span class="color-preview-circle" id="preview-swatch-prominent-outline" style="background: #000000;"></span>
+                          <span class="color-hex-text" id="hex-text-prominent-outline">#000000</span>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                          <input type="color" value="#000000" class="color-picker-native-hidden" id="custom-prominent-outline-color">
+                        </label>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <!-- Last Word Accent Option -->
-                <div class="last-word-accent-block" style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
-                  <div class="accent-toggle-row" style="display:flex; justify-content:space-between; align-items:center;">
-                    <label style="font-size: 0.85rem; font-weight: 600; color: #FFFFFF; display:flex; align-items:center; gap:8px;">
-                      <input type="checkbox" id="enable-last-word-toggle" checked style="accent-color: var(--cyan-primary);">
-                      Accent Last Spoken Word of Each Line
+                <div class="last-word-accent-block">
+                  <div class="accent-toggle-row">
+                    <label class="accent-toggle-label">
+                      <input type="checkbox" id="enable-last-word-toggle" checked style="accent-color: var(--primary-coral);">
+                      <span>Accent Last Spoken Word of Each Line</span>
                     </label>
-                  </div>
-                  <div class="color-swatches-grid" style="margin-top: 8px;">
-                    <button class="last-word-swatch-btn selected" data-color="#FFE600" style="background: #FFE600;"></button>
-                    <button class="last-word-swatch-btn" data-color="#FF4DA6" style="background: #FF4DA6;"></button>
-                    <button class="last-word-swatch-btn" data-color="#00F0FF" style="background: #00F0FF;"></button>
-                    <button class="last-word-swatch-btn" data-color="#FF6B00" style="background: #FF6B00;"></button>
-                    <input type="color" value="#FFE600" class="color-picker-custom" id="custom-last-word-input" title="Custom Last Word Color">
+                    <label class="compact-color-picker-btn" for="custom-last-word-input" title="Choose last word accent color">
+                      <span class="color-preview-circle" id="preview-swatch-last-word" style="background: #FFE600;"></span>
+                      <span class="color-hex-text" id="hex-text-last-word">#FFE600</span>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                      <input type="color" value="#FFE600" class="color-picker-native-hidden" id="custom-last-word-input">
+                    </label>
                   </div>
                 </div>
               </div>
@@ -622,12 +641,13 @@ export class ToolStudioModal {
     // Normal Color
     const normalColor = config.textColor || '#FFFFFF';
     const badgeNormal = this.container.querySelector('#badge-normal-color');
-    if (badgeNormal) badgeNormal.textContent = normalColor;
-    this.container.querySelectorAll('.normal-color-swatch-btn').forEach(b => {
-      b.classList.toggle('selected', b.getAttribute('data-color').toLowerCase() === normalColor.toLowerCase());
-    });
+    if (badgeNormal) badgeNormal.textContent = normalColor.toUpperCase();
     const normalInput = this.container.querySelector('#custom-normal-color-input');
     if (normalInput) normalInput.value = normalColor;
+    const swatchNormal = this.container.querySelector('#preview-swatch-normal-color');
+    if (swatchNormal) swatchNormal.style.background = normalColor;
+    const hexNormal = this.container.querySelector('#hex-text-normal-color');
+    if (hexNormal) hexNormal.textContent = normalColor.toUpperCase();
 
     // Normal Outline
     const normalOutWidth = config.normalOutlineWidth !== undefined ? config.normalOutlineWidth : 2;
@@ -637,21 +657,23 @@ export class ToolStudioModal {
     if (normalOutVal) normalOutVal.textContent = `${normalOutWidth}px`;
 
     const normalOutColor = config.normalOutlineColor || '#000000';
-    this.container.querySelectorAll('.outline-color-btn[data-target="normal"]').forEach(btn => {
-      btn.classList.toggle('active', btn.getAttribute('data-color').toLowerCase() === normalOutColor.toLowerCase());
-    });
     const normalOutInput = this.container.querySelector('#custom-normal-outline-color');
     if (normalOutInput) normalOutInput.value = normalOutColor;
+    const swatchNormalOut = this.container.querySelector('#preview-swatch-normal-outline');
+    if (swatchNormalOut) swatchNormalOut.style.background = normalOutColor;
+    const hexNormalOut = this.container.querySelector('#hex-text-normal-outline');
+    if (hexNormalOut) hexNormalOut.textContent = normalOutColor.toUpperCase();
 
     // Prominent Color
     const prominentColor = config.prominentColor || '#FFE600';
     const badgeProminent = this.container.querySelector('#badge-prominent-color');
-    if (badgeProminent) badgeProminent.textContent = prominentColor;
-    this.container.querySelectorAll('.prominent-color-swatch-btn').forEach(b => {
-      b.classList.toggle('selected', b.getAttribute('data-color').toLowerCase() === prominentColor.toLowerCase());
-    });
+    if (badgeProminent) badgeProminent.textContent = prominentColor.toUpperCase();
     const prominentInput = this.container.querySelector('#custom-prominent-color-input');
     if (prominentInput) prominentInput.value = prominentColor;
+    const swatchProminent = this.container.querySelector('#preview-swatch-prominent-color');
+    if (swatchProminent) swatchProminent.style.background = prominentColor;
+    const hexProminent = this.container.querySelector('#hex-text-prominent-color');
+    if (hexProminent) hexProminent.textContent = prominentColor.toUpperCase();
 
     // Prominent Outline
     const prominentOutWidth = config.prominentOutlineWidth !== undefined ? config.prominentOutlineWidth : 3;
@@ -661,17 +683,23 @@ export class ToolStudioModal {
     if (prominentOutVal) prominentOutVal.textContent = `${prominentOutWidth}px`;
 
     const prominentOutColor = config.prominentOutlineColor || '#000000';
-    this.container.querySelectorAll('.outline-color-btn[data-target="prominent"]').forEach(btn => {
-      btn.classList.toggle('active', btn.getAttribute('data-color').toLowerCase() === prominentOutColor.toLowerCase());
-    });
     const prominentOutInput = this.container.querySelector('#custom-prominent-outline-color');
     if (prominentOutInput) prominentOutInput.value = prominentOutColor;
+    const swatchProminentOut = this.container.querySelector('#preview-swatch-prominent-outline');
+    if (swatchProminentOut) swatchProminentOut.style.background = prominentOutColor;
+    const hexProminentOut = this.container.querySelector('#hex-text-prominent-outline');
+    if (hexProminentOut) hexProminentOut.textContent = prominentOutColor.toUpperCase();
 
     // Last Word Accent
     const lwToggle = this.container.querySelector('#enable-last-word-toggle');
     if (lwToggle) lwToggle.checked = config.enableLastWordColor !== false;
+    const lwColor = config.lastWordColor || '#FFE600';
     const lwInput = this.container.querySelector('#custom-last-word-input');
-    if (lwInput) lwInput.value = config.lastWordColor || '#FFE600';
+    if (lwInput) lwInput.value = lwColor;
+    const swatchLw = this.container.querySelector('#preview-swatch-last-word');
+    if (swatchLw) swatchLw.style.background = lwColor;
+    const hexLw = this.container.querySelector('#hex-text-last-word');
+    if (hexLw) hexLw.textContent = lwColor.toUpperCase();
 
     // Animations (22 styles)
     const animGrid = this.container.querySelector('#animation-cards-grid');
@@ -776,17 +804,8 @@ export class ToolStudioModal {
     this.container.querySelectorAll('.orient-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         soundFx.playKeyBeep(520);
-        this.container.querySelectorAll('.orient-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this.currentMode = btn.getAttribute('data-mode');
-
-        const previewBox = this.container.querySelector('#preview-screen-box');
-        if (previewBox) {
-          previewBox.className = `preview-screen-box preview-${this.currentMode}`;
-        }
-
-        this.populateControls();
-        this.onConfigChanged(this.getActiveConfig(), this.currentMode);
+        const mode = btn.getAttribute('data-mode');
+        this.setOrientation(mode);
       });
     });
 
@@ -980,23 +999,41 @@ export class ToolStudioModal {
     this.container.querySelector('#custom-normal-color-input')?.addEventListener('input', (e) => {
       const color = e.target.value;
       const b = this.container.querySelector('#badge-normal-color');
-      if (b) b.textContent = color;
+      if (b) b.textContent = color.toUpperCase();
+      const sw = this.container.querySelector('#preview-swatch-normal-color');
+      if (sw) sw.style.background = color;
+      const hx = this.container.querySelector('#hex-text-normal-color');
+      if (hx) hx.textContent = color.toUpperCase();
       this.setActiveConfig({ textColor: color });
     });
 
     this.container.querySelector('#custom-prominent-color-input')?.addEventListener('input', (e) => {
       const color = e.target.value;
       const b = this.container.querySelector('#badge-prominent-color');
-      if (b) b.textContent = color;
+      if (b) b.textContent = color.toUpperCase();
+      const sw = this.container.querySelector('#preview-swatch-prominent-color');
+      if (sw) sw.style.background = color;
+      const hx = this.container.querySelector('#hex-text-prominent-color');
+      if (hx) hx.textContent = color.toUpperCase();
       this.setActiveConfig({ prominentColor: color });
     });
 
     this.container.querySelector('#custom-normal-outline-color')?.addEventListener('input', (e) => {
-      this.setActiveConfig({ normalOutlineColor: e.target.value, outlineColor: e.target.value });
+      const color = e.target.value;
+      const sw = this.container.querySelector('#preview-swatch-normal-outline');
+      if (sw) sw.style.background = color;
+      const hx = this.container.querySelector('#hex-text-normal-outline');
+      if (hx) hx.textContent = color.toUpperCase();
+      this.setActiveConfig({ normalOutlineColor: color, outlineColor: color });
     });
 
     this.container.querySelector('#custom-prominent-outline-color')?.addEventListener('input', (e) => {
-      this.setActiveConfig({ prominentOutlineColor: e.target.value });
+      const color = e.target.value;
+      const sw = this.container.querySelector('#preview-swatch-prominent-outline');
+      if (sw) sw.style.background = color;
+      const hx = this.container.querySelector('#hex-text-prominent-outline');
+      if (hx) hx.textContent = color.toUpperCase();
+      this.setActiveConfig({ prominentOutlineColor: color });
     });
 
     // Outline Width Sliders
@@ -1025,7 +1062,12 @@ export class ToolStudioModal {
     });
 
     this.container.querySelector('#custom-last-word-input')?.addEventListener('input', (e) => {
-      this.setActiveConfig({ lastWordColor: e.target.value });
+      const color = e.target.value;
+      const sw = this.container.querySelector('#preview-swatch-last-word');
+      if (sw) sw.style.background = color;
+      const hx = this.container.querySelector('#hex-text-last-word');
+      if (hx) hx.textContent = color.toUpperCase();
+      this.setActiveConfig({ lastWordColor: color });
     });
 
     // Add Interval button
@@ -1193,7 +1235,6 @@ export class ToolStudioModal {
   open(orientationMode = 'landscape') {
     if (this.isOpen) return;
     this.isOpen = true;
-    this.currentMode = orientationMode;
 
     soundFx.playToolWhoosh();
     this.introAnimElement.classList.add('animating');
@@ -1201,7 +1242,7 @@ export class ToolStudioModal {
     setTimeout(() => {
       this.introAnimElement.classList.remove('animating');
       this.container.classList.add('active');
-      this.populateControls();
+      this.setOrientation(orientationMode || this.currentMode);
       this.startAnimationLoop();
     }, 450);
   }

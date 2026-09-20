@@ -117,81 +117,83 @@ export class UserDashboard {
 
     this.container.innerHTML = `
       <!-- Left Sidebar (Matching Reference Image) -->
-      <aside class="user-sidebar">
+      <aside class="user-sidebar" id="user-sidebar-nav">
         <div class="user-sidebar-header">
-          <div style="width: 28px; height: 28px; background: #ff5533; transform: rotate(45deg); border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(255, 85, 51, 0.4);">
-            <div style="width: 10px; height: 10px; background: #ffffff; transform: rotate(-45deg); border-radius: 2px;"></div>
-          </div>
-          <div>
+          <div class="user-sidebar-brand-group">
+            <span class="brand-rhombus" style="width: 22px; height: 22px;"></span>
             <div class="user-brand-title">Zen Caption AI</div>
-            <div style="font-size: 11px; color: #71717a; font-weight: 600;">ENTERPRISE STUDIO</div>
           </div>
+          <button class="user-sidebar-toggle" id="btn-user-sidebar-toggle" aria-label="Toggle navigation">
+            <span></span><span></span><span></span>
+          </button>
         </div>
 
-        <ul class="user-sidebar-menu">
-          <li class="user-menu-item ${this.activeTab === 'templates' ? 'active' : ''}" data-tab="templates" id="tab-btn-templates">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
-              <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
-              <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
-              <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
-            </svg>
-            <span>Templates & Styles</span>
-          </li>
-
-          <li class="user-menu-item ${this.activeTab === 'apply' ? 'active' : ''}" data-tab="apply" id="tab-btn-apply">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-            </svg>
-            <span>Apply Captions</span>
-          </li>
-
-          <li class="user-menu-item ${this.activeTab === 'quota' ? 'active' : ''}" data-tab="quota" id="tab-btn-quota">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path>
-            </svg>
-            <span>My Plan & Quota</span>
-          </li>
-
-          <li style="margin: 12px 0 6px 0; height: 1px; background: var(--sidebar-border);"></li>
-
-          <li class="user-menu-item" id="btn-back-to-home" style="color: #94a3b8;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
-              <polyline points="9 22 9 12 15 12 15 22"></polyline>
-            </svg>
-            <span>Public Site</span>
-          </li>
-
-          ${userRole === 'admin' ? `
-          <li class="user-menu-item" id="btn-switch-admin" style="color: var(--primary-coral); font-weight: 800;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"></path>
-              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"></path>
-            </svg>
-            <span>Admin Panel</span>
-          </li>
-          ` : ''}
-        </ul>
-
-        <div class="user-sidebar-footer">
-          <div class="user-profile-badge">
-            <div class="user-avatar-circle">${userInitials}</div>
-            <div class="user-info-text">
-              <div class="user-info-name">${userName}</div>
-              <div class="user-info-plan">${userPlan}</div>
-            </div>
-            ${user ? `
-            <button id="btn-user-logout" title="Sign Out" style="background: none; border: none; color: #a1a1aa; cursor: pointer; padding: 4px;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"></path>
+        <div class="user-sidebar-drawer" id="user-sidebar-drawer">
+          <ul class="user-sidebar-menu">
+            <li class="user-menu-item ${this.activeTab === 'templates' ? 'active' : ''}" data-tab="templates" id="tab-btn-templates">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
               </svg>
-            </button>
-            ` : `
-            <button id="btn-user-login-prompt" title="Sign In" style="background: var(--primary-coral); border: none; color: #fff; border-radius: 4px; padding: 4px 8px; font-size: 11px; font-weight: 700; cursor: pointer;">
-              Sign In
-            </button>
-            `}
+              <span>Templates & Styles</span>
+            </li>
+
+            <li class="user-menu-item ${this.activeTab === 'apply' ? 'active' : ''}" data-tab="apply" id="tab-btn-apply">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+              <span>Apply Captions</span>
+            </li>
+
+            <li class="user-menu-item ${this.activeTab === 'quota' ? 'active' : ''}" data-tab="quota" id="tab-btn-quota">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path>
+              </svg>
+              <span>My Plan & Quota</span>
+            </li>
+
+            <li style="margin: 12px 0 6px 0; height: 1px; background: var(--sidebar-border);"></li>
+
+            <li class="user-menu-item" id="btn-back-to-home" style="color: #94a3b8;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+              <span>Back to Home</span>
+            </li>
+
+            ${userRole === 'admin' ? `
+            <li class="user-menu-item" id="btn-switch-admin" style="color: var(--primary-coral); font-weight: 800;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"></path>
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"></path>
+              </svg>
+              <span>Admin Panel</span>
+            </li>
+            ` : ''}
+          </ul>
+
+          <div class="user-sidebar-footer">
+            <div class="user-profile-badge">
+              <div class="user-avatar-circle">${userInitials}</div>
+              <div class="user-info-text">
+                <div class="user-info-name">${userName}</div>
+                <div class="user-info-plan">${userPlan}</div>
+              </div>
+              ${user ? `
+              <button id="btn-user-logout" title="Sign Out" style="background: none; border: none; color: #a1a1aa; cursor: pointer; padding: 4px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"></path>
+                </svg>
+              </button>
+              ` : `
+              <button id="btn-user-login-prompt" title="Sign In" style="background: var(--primary-coral); border: none; color: #fff; border-radius: 4px; padding: 4px 8px; font-size: 11px; font-weight: 700; cursor: pointer;">
+                Sign In
+              </button>
+              `}
+            </div>
           </div>
         </div>
       </aside>
@@ -210,35 +212,61 @@ export class UserDashboard {
     this.renderActiveTab();
   }
 
+  closeSidebarDrawer() {
+    const sidebar = this.container?.querySelector('#user-sidebar-nav');
+    const toggle = this.container?.querySelector('#btn-user-sidebar-toggle');
+    sidebar?.classList.remove('open');
+    toggle?.classList.remove('active');
+  }
+
   bindSidebarEvents() {
+    const toggle = this.container.querySelector('#btn-user-sidebar-toggle');
+    const sidebar = this.container.querySelector('#user-sidebar-nav');
+    toggle?.addEventListener('click', () => {
+      const isOpen = sidebar?.classList.toggle('open');
+      toggle.classList.toggle('active', isOpen);
+    });
+
     this.container.querySelectorAll('.user-menu-item[data-tab]').forEach(el => {
       el.addEventListener('click', () => {
         const tab = el.getAttribute('data-tab');
+        this.closeSidebarDrawer();
         this.switchTab(tab);
       });
     });
 
     this.container.querySelector('#btn-back-to-home')?.addEventListener('click', () => {
+      this.closeSidebarDrawer();
       this.navigate('home');
     });
 
     this.container.querySelector('#btn-switch-admin')?.addEventListener('click', () => {
+      this.closeSidebarDrawer();
       this.navigate('admin');
     });
 
     this.container.querySelector('#btn-user-logout')?.addEventListener('click', async () => {
+      this.closeSidebarDrawer();
       await api.logout();
       this.showToast('You have been signed out.', 'info');
       this.navigate('home');
     });
 
     this.container.querySelector('#btn-user-login-prompt')?.addEventListener('click', () => {
+      this.closeSidebarDrawer();
       this.openAuthModal('signin');
     });
   }
 
   switchTab(tab) {
     this.activeTab = tab;
+    if (tab === 'templates') {
+      document.title = 'Templates & Styles - Zen Caption AI';
+    } else if (tab === 'apply') {
+      document.title = 'Apply Captions - Zen Caption AI';
+    } else if (tab === 'quota') {
+      document.title = 'My Plan & Quota - Zen Caption AI';
+    }
     this.container.querySelectorAll('.user-menu-item[data-tab]').forEach(el => {
       el.classList.toggle('active', el.getAttribute('data-tab') === tab);
     });
@@ -263,17 +291,15 @@ export class UserDashboard {
   // TAB 1: TEMPLATES & STYLE STUDIO
   // ==========================================================================
   renderTemplatesTab(parent) {
+    parent.innerHTML = '';
     const wrap = document.createElement('div');
     wrap.innerHTML = `
       <div class="user-tab-header">
         <div>
           <h1 class="user-tab-title">16 Professional Caption Templates</h1>
-          <p style="color: #64748b; font-size: 14px; margin-top: 4px;">
-            Select any template to make it active for your videos. Click <strong>Customize</strong> to tune fonts, sizes, and colors. Your custom edits stay saved to your account!
-          </p>
         </div>
 
-        <div style="display: flex; gap: 12px; align-items: center;">
+        <div class="user-tab-actions">
           <div class="mode-toggle-group">
             <button class="mode-btn ${this.currentMode === 'landscape' ? 'active' : ''}" id="user-mode-landscape" title="16:9 Widescreen Landscape">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="5" width="20" height="14" rx="2.5"></rect><line x1="8" y1="12" x2="16" y2="12"></line></svg>
@@ -284,10 +310,6 @@ export class UserDashboard {
               <span>9:16 Portrait</span>
             </button>
           </div>
-
-          <button class="btn btn-primary" id="btn-proceed-to-video" style="padding: 10px 20px; font-size: 14px; font-weight: 700; border-radius: 24px;">
-            <span>Apply to Video →</span>
-          </button>
         </div>
       </div>
 
@@ -301,16 +323,16 @@ export class UserDashboard {
     // Orientation toggle
     wrap.querySelector('#user-mode-landscape')?.addEventListener('click', () => {
       this.currentMode = 'landscape';
+      if (this.toolStudio) this.toolStudio.setOrientation('landscape');
       this.renderTemplatesTab(parent);
     });
     wrap.querySelector('#user-mode-portrait')?.addEventListener('click', () => {
       this.currentMode = 'portrait';
+      if (this.toolStudio) this.toolStudio.setOrientation('portrait');
       this.renderTemplatesTab(parent);
     });
 
-    wrap.querySelector('#btn-proceed-to-video')?.addEventListener('click', () => {
-      this.switchTab('apply');
-    });
+
 
     const grid = wrap.querySelector('#user-templates-grid');
     CAPTION_TEMPLATES.forEach(tpl => {
@@ -402,6 +424,9 @@ export class UserDashboard {
   openCustomizerForTemplate(tplId) {
     if (!this.toolStudio) return;
     this.toolStudio.selectedTemplateId = tplId;
+    if (typeof this.toolStudio.setOrientation === 'function') {
+      this.toolStudio.setOrientation(this.currentMode);
+    }
     const tpl = CAPTION_TEMPLATES.find(t => t.id === tplId);
     const customConfig = this.userCustomTemplates[tplId];
     const initialConfig = customConfig ? { ...tpl.config, ...customConfig } : { ...tpl.config };
@@ -410,7 +435,10 @@ export class UserDashboard {
     this.toolStudio.switchModalTab('customize');
 
     // Attach hook when config changes in modal to persist to user profile
-    this.toolStudio.onConfigChanged = async (cfg) => {
+    this.toolStudio.onConfigChanged = async (cfg, mode) => {
+      if (mode && mode !== this.currentMode) {
+        this.currentMode = mode;
+      }
       this.activeConfig = cfg;
       this.userCustomTemplates[tplId] = cfg;
       if (api.token) {
@@ -532,9 +560,6 @@ export class UserDashboard {
             <button class="btn btn-primary" id="btn-user-browse-file" style="padding: 12px 28px; font-size: 15px;">
               📁 Browse Video File
             </button>
-            <button class="btn btn-outline" id="btn-user-load-demo" style="padding: 12px 24px; font-size: 15px; border-color: var(--primary-coral); color: var(--primary-coral);">
-              🎬 Load Showcase Demo Video
-            </button>
           </div>
 
           <!-- Video Quality Enhancement Checkbox -->
@@ -556,7 +581,7 @@ export class UserDashboard {
             </svg>
           </div>
           <div style="font-size: 13px; color: #9a3412; line-height: 1.5;">
-            <strong style="color: #7c2d12; font-weight: 800;">Important Notice:</strong> Be aware every video processing happens on Client Side System CPU and GPU and RAM.
+            <strong style="color: #7c2d12; font-weight: 800;">⚠ Processing Notice:</strong> All video processing is performed entirely on your local device using your system's CPU, GPU, and RAM. No video data is uploaded to any server. Processing speed and performance depend on your hardware capabilities.
           </div>
         </div>
       `;
@@ -580,10 +605,6 @@ export class UserDashboard {
           this.enhanceVideoQuality = e.target.checked;
         });
       }
-
-      wrap.querySelector('#btn-user-load-demo')?.addEventListener('click', async () => {
-        await this.handleDemoVideoLoad();
-      });
 
       fileInput?.addEventListener('change', async (e) => {
         if (e.target.files && e.target.files[0]) {
@@ -627,7 +648,7 @@ export class UserDashboard {
           </p>
         </div>
 
-        <div style="display: flex; gap: 8px;">
+        <div class="user-tab-actions">
           <button class="btn btn-outline" id="btn-reselect-video" style="padding: 8px 16px; font-size: 13px;">
             🔄 New Video
           </button>
@@ -637,11 +658,11 @@ export class UserDashboard {
         </div>
       </div>
 
-      <div class="workspace-grid" style="display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: start;">
+      <div class="workspace-grid">
         
         <!-- Left: Video Player -->
-        <div class="video-player-card" style="background: #ffffff; border-radius: var(--radius-xl); border: 1px solid var(--border-color); padding: 20px; box-shadow: var(--shadow-sm);">
-          <div class="video-container ${this.currentMode}" id="user-video-wrapper" style="position: relative; border-radius: var(--radius-lg); overflow: hidden; background: #000000; aspect-ratio: ${this.currentMode === 'landscape' ? '16/9' : '9/16'}; max-height: 480px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+        <div class="video-player-card">
+          <div class="video-container ${this.currentMode}" id="user-video-wrapper">
             <video class="studio-video-element" id="user-main-video" playsinline style="width: 100%; height: 100%; object-fit: contain;"></video>
             
             <!-- Real-Time Caption Overlay -->
@@ -649,33 +670,33 @@ export class UserDashboard {
           </div>
 
           <!-- Controls -->
-          <div class="player-controls" style="margin-top: 16px;">
-            <div class="timeline-scrubber-wrapper" style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+          <div class="player-controls">
+            <div class="timeline-scrubber-wrapper">
               <input type="range" class="timeline-scrubber" id="user-timeline-scrubber" min="0" max="100" value="0" step="0.1" style="flex: 1; accent-color: var(--primary-coral); cursor: pointer;">
-              <span class="timestamp-indicator" id="user-time-display" style="font-size: 12px; font-weight: 700; color: #64748b; min-width: 90px; text-align: right;">00:00 / 00:00</span>
+              <span class="timestamp-indicator" id="user-time-display">00:00 / 00:00</span>
             </div>
 
             <!-- Enhancement Checkbox -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding: 8px 12px; background: #fafbfe; border-radius: 8px; border: 1px solid #e2e8f0;">
-              <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #334155; cursor: pointer;">
+            <div class="player-enhance-bar">
+              <label class="player-enhance-label">
                 <input type="checkbox" id="user-player-enhance" ${this.enhanceVideoQuality ? 'checked' : ''} style="accent-color: var(--primary-coral);">
                 <span>✨ Enhance Video Quality</span>
               </label>
               <span class="badge badge-success" style="font-size: 10px;">60 FPS LOSSLESS</span>
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-              <div style="display: flex; gap: 6px;">
-                <button class="btn btn-outline" id="user-btn-play" style="width: 40px; height: 40px; padding: 0; border-radius: 50%; font-size: 16px;">▶</button>
-                <button class="btn btn-outline" id="user-btn-rw" style="padding: 8px 12px; font-size: 12px;">↺ 5s</button>
-                <button class="btn btn-outline" id="user-btn-ff" style="padding: 8px 12px; font-size: 12px;">5s ↻</button>
-                <button class="btn btn-outline" id="user-btn-mute" style="padding: 8px 12px; font-size: 14px;">🔊</button>
+            <div class="player-action-controls">
+              <div class="player-playback-btns">
+                <button class="btn btn-outline btn-play-circle" id="user-btn-play">▶</button>
+                <button class="btn btn-outline btn-compact-action" id="user-btn-rw">↺ 5s</button>
+                <button class="btn btn-outline btn-compact-action" id="user-btn-ff">5s ↻</button>
+                <button class="btn btn-outline btn-compact-action" id="user-btn-mute">🔊</button>
               </div>
 
-              <div style="display: flex; gap: 6px;">
-                <button class="btn btn-outline" id="user-btn-srt" style="padding: 8px 12px; font-size: 12px;">.SRT</button>
-                <button class="btn btn-outline" id="user-btn-vtt" style="padding: 8px 12px; font-size: 12px;">.VTT</button>
-                <button class="btn btn-primary" id="user-btn-burn" style="padding: 8px 18px; font-size: 13px;">
+              <div class="player-export-btns">
+                <button class="btn btn-outline btn-compact-action" id="user-btn-srt">.SRT</button>
+                <button class="btn btn-outline btn-compact-action" id="user-btn-vtt">.VTT</button>
+                <button class="btn btn-primary btn-burn-captions" id="user-btn-burn">
                   🎥 Burn Captions (60 FPS Export)
                 </button>
               </div>
@@ -896,6 +917,18 @@ export class UserDashboard {
 
     this.videoElement.addEventListener('loadedmetadata', () => {
       this.videoDuration = this.videoElement.duration || 0;
+      const vw = this.videoElement.videoWidth || 1920;
+      const vh = this.videoElement.videoHeight || 1080;
+      const isPortrait = vh > vw;
+      this.currentMode = isPortrait ? 'portrait' : 'landscape';
+      if (this.toolStudio && typeof this.toolStudio.setOrientation === 'function') {
+        this.toolStudio.setOrientation(this.currentMode);
+      }
+      const videoWrapper = wrap.querySelector('#user-video-wrapper');
+      if (videoWrapper) {
+        videoWrapper.className = `video-container ${this.currentMode}`;
+        videoWrapper.style.aspectRatio = isPortrait ? '9/16' : '16/9';
+      }
       if (scrubber) scrubber.max = this.videoDuration;
       this.updateTimeDisplay();
       this.renderMiniSegmentsList();
