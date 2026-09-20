@@ -134,6 +134,20 @@ export class UploadScreen {
         </div>
       </section>
 
+      <!-- Important Notice regarding Client-Side Hardware Processing -->
+      <div class="client-processing-notice" style="max-width: 800px; margin: 24px auto 0 auto; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; gap: 12px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+        <div style="width: 32px; height: 32px; border-radius: 50%; background: #ffedd5; color: #ea580c; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <div style="font-size: 13px; color: #9a3412; line-height: 1.5;">
+          <strong style="color: #7c2d12; font-weight: 800;">Important Notice:</strong> Be aware every video processing happens on Client Side System CPU and GPU and RAM.
+        </div>
+      </div>
+
       <!-- Main Video Workspace (Hidden until video loaded) -->
       <section class="workspace-grid" id="workspace-grid" style="display: none;">
         
@@ -155,7 +169,7 @@ export class UploadScreen {
 
             <!-- Video Quality Enhancement Bar (Option to Boost Video Quality) -->
             <div class="video-enhancement-toolbar" id="video-enhancement-toolbar">
-              <label class="enhance-quality-toggle-label" id="enhance-quality-label" title="Boost video quality: +30% Vibrance, +10% Contrast, -10% Shadows, +20% Sharpness">
+              <label class="enhance-quality-toggle-label" id="enhance-quality-label" title="Enhance Video Quality">
                 <input type="checkbox" id="chk-enhance-quality" class="enhance-quality-input">
                 <span class="enhance-custom-checkbox">
                   <svg class="enhance-check-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
@@ -494,7 +508,7 @@ export class UploadScreen {
     soundFx.playKeyBeep(this.enhanceVideoQuality ? 680 : 380);
     this.showToast(
       this.enhanceVideoQuality
-        ? '✨ Video Quality Enhanced: +30% Vibrance, +10% Contrast, -10% Shadows, +20% Sharpness'
+        ? '✨ Video Quality Enhanced'
         : 'Video Quality Enhancement disabled.',
       'info'
     );

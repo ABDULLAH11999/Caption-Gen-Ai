@@ -569,7 +569,7 @@ export const DEFAULT_LANDSCAPE_CONFIG = {
   fontSize: 30,
   maxWordsPerLine: 6,
   progressiveDisplay: true,
-  enhanceQuality: false
+  enhanceQuality: true
 };
 
 // Default configuration for Portrait (9:16 Shorts/Reels) - Pre-configured from Template 1 (September Vibrant Pop)
@@ -578,6 +578,6 @@ export const DEFAULT_PORTRAIT_CONFIG = {
   fontSize: 34,
   maxWordsPerLine: 5,
   progressiveDisplay: true,
-  enhanceQuality: false
+  enhanceQuality: true
 };
 

@@ -19,15 +19,24 @@ export const pool = new Pool({
   },
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000
+  connectionTimeoutMillis: 25000
 });
 
-export async function query(text, params) {
-  const start = Date.now();
+// Handle idle pool client errors (e.g. Neon serverless resets idle connection) without crashing
+pool.on('error', (err) => {
+  console.warn('[DB Pool Idle Client Warning]', err.message);
+});
+
+export async function query(text, params, retries = 2) {
   try {
     const res = await pool.query(text, params);
     return res;
   } catch (err) {
+    if (retries > 0 && (err.message?.includes('timeout') || err.message?.includes('Connection terminated') || err.message?.includes('ECONNRESET'))) {
+      console.warn(`[DB Query Retry] Retrying query due to: ${err.message}`);
+      await new Promise(r => setTimeout(r, 800));
+      return query(text, params, retries - 1);
+    }
     console.error('[DB Query Error]', { text, error: err.message });
     throw err;
   }
@@ -72,6 +81,7 @@ export async function initDb() {
       type VARCHAR(50) DEFAULT 'signup',
       expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
       used BOOLEAN DEFAULT FALSE,
+      attempts INT DEFAULT 0,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -153,6 +163,24 @@ export async function initDb() {
       generation_count INT DEFAULT 1,
       UNIQUE(ip_address, day_date)
     );
+
+    CREATE TABLE IF NOT EXISTS visitor_logs (
+      id SERIAL PRIMARY KEY,
+      ip_address VARCHAR(100) NOT NULL,
+      country VARCHAR(100) DEFAULT 'Unknown',
+      country_code VARCHAR(10) DEFAULT 'UN',
+      landed_url TEXT NOT NULL,
+      user_agent TEXT,
+      device_type VARCHAR(50) DEFAULT 'Desktop',
+      user_id INT REFERENCES users(id) ON DELETE SET NULL,
+      user_email VARCHAR(255),
+      user_name VARCHAR(255),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_visitor_logs_created ON visitor_logs(created_at);
+    CREATE INDEX IF NOT EXISTS idx_visitor_logs_ip ON visitor_logs(ip_address);
+    CREATE INDEX IF NOT EXISTS idx_visitor_logs_user ON visitor_logs(user_id);
   `;
 
   await query(ddl);
@@ -167,14 +195,14 @@ export async function initDb() {
         name: 'Free Starter',
         price: 0,
         billing_cycle: 'month',
-        short_desc: 'Perfect for casual creators starting out with viral captions.',
+        short_desc: 'Full 60 FPS studio with AI video enhancement. 3 video exports per day.',
         features: JSON.stringify([
           { text: '3 Video captions per day', included: true },
-          { text: 'Access to all 16 viral presets', included: true },
+          { text: 'All 16 Viral & Luxury Presets', included: true },
           { text: 'Whisper AI high-accuracy transcription', included: true },
-          { text: 'Standard 720p export', included: true },
-          { text: '60 FPS GPU acceleration', included: false },
-          { text: 'Unlimited custom typography', included: false }
+          { text: '60 FPS GPU lossless export', included: true },
+          { text: 'AI Video Quality Enhancement (HD+)', included: true },
+          { text: 'Full Granular Customizer Studio', included: true }
         ]),
         daily_limit: 3,
         monthly_limit: 30,
@@ -232,12 +260,12 @@ export async function initDb() {
   const adminCheck = await query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
   if (adminCheck.rows.length === 0) {
     console.log('[DB] Seeding default administrator account...');
-    const adminPasswordHash = hashPassword('admin123');
+    const adminPasswordHash = hashPassword('7940');
     await query(
       `INSERT INTO users (name, username, email, password_hash, role, plan_id, daily_quota, monthly_quota)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (username) DO NOTHING`,
-      ['Super Admin', 'admin', 'admin@zencaption.ai', adminPasswordHash, 'admin', 'agency-elite', 99999, 999999]
+      ['Super Admin', 'abdullah', 'abdullah@zencaption.ai', adminPasswordHash, 'admin', 'agency-elite', 99999, 999999]
     );
   }
 
@@ -273,6 +301,14 @@ export async function initDb() {
       `INSERT INTO site_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`,
       [s.key, s.value]
     );
+  }
+
+  // Cleanup expired sessions and used/expired OTPs
+  try {
+    await query('DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP');
+    await query('DELETE FROM otps WHERE expires_at < CURRENT_TIMESTAMP OR used = TRUE');
+  } catch (cleanErr) {
+    // Non-critical background cleanup
   }
 
   console.log('[DB] PostgreSQL initialization complete.');

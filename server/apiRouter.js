@@ -7,12 +7,117 @@ import {
   generatePurchaseConfirmationEmailHtml, 
   generateContactReplyEmailHtml 
 } from './emailService.js';
+import { resolveCountry, detectDevice } from './geoService.js';
 
 export const apiRouter = express.Router();
 
 apiRouter.use(express.json());
 
-// Auth Middleware
+// ----------------------------------------------------------------------------
+// HIGH-PERFORMANCE SLIDING-WINDOW RATE LIMITER & THROTTLER
+// Protects against API exhaustion, SMTP quota burnout, and brute force attacks
+// ----------------------------------------------------------------------------
+class RateLimiter {
+  constructor({ windowMs, maxRequests, message }) {
+    this.windowMs = windowMs;
+    this.maxRequests = maxRequests;
+    this.message = message || 'Too many requests. Please try again later.';
+    this.hits = new Map(); // ip -> [timestamps]
+
+    // Periodic sweep every 60s to prevent memory accumulation
+    setInterval(() => this.cleanup(), 60000).unref();
+  }
+
+  cleanup() {
+    const now = Date.now();
+    for (const [key, timestamps] of this.hits.entries()) {
+      const valid = timestamps.filter(t => now - t < this.windowMs);
+      if (valid.length === 0) {
+        this.hits.delete(key);
+      } else {
+        this.hits.set(key, valid);
+      }
+    }
+  }
+
+  getClientKey(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    return forwarded ? forwarded.split(',')[0].trim() : (req.socket?.remoteAddress || req.ip || '127.0.0.1');
+  }
+
+  middleware() {
+    return (req, res, next) => {
+      const key = this.getClientKey(req);
+      const now = Date.now();
+      const timestamps = (this.hits.get(key) || []).filter(t => now - t < this.windowMs);
+
+      if (timestamps.length >= this.maxRequests) {
+        const oldest = timestamps[0];
+        const retryAfterSec = Math.ceil((oldest + this.windowMs - now) / 1000);
+        res.setHeader('Retry-After', retryAfterSec);
+        res.setHeader('X-RateLimit-Limit', this.maxRequests);
+        res.setHeader('X-RateLimit-Remaining', 0);
+        return res.status(429).json({
+          error: this.message,
+          retryAfterSeconds: retryAfterSec
+        });
+      }
+
+      timestamps.push(now);
+      this.hits.set(key, timestamps);
+      res.setHeader('X-RateLimit-Limit', this.maxRequests);
+      res.setHeader('X-RateLimit-Remaining', Math.max(0, this.maxRequests - timestamps.length));
+      next();
+    };
+  }
+}
+
+// Global API Limiter: 300 req / min
+export const globalApiLimiter = new RateLimiter({
+  windowMs: 60 * 1000,
+  maxRequests: 300,
+  message: 'API rate limit exceeded. Please slow down.'
+});
+
+// Strict Signin Limiter: 10 attempts / 5 mins (prevents credential stuffing)
+export const signinLimiter = new RateLimiter({
+  windowMs: 5 * 60 * 1000,
+  maxRequests: 10,
+  message: 'Too many sign-in attempts. Please wait 5 minutes before trying again.'
+});
+
+// Strict Signup & OTP dispatch Limiter: 5 attempts / 15 mins (protects Gmail SMTP quota)
+export const signupLimiter = new RateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 5,
+  message: 'Too many signup attempts from this IP. Please wait 15 minutes before requesting another verification code.'
+});
+
+// OTP Verification Limiter: 10 attempts / 10 mins (prevents brute force of 6-digit codes)
+export const otpVerifyLimiter = new RateLimiter({
+  windowMs: 10 * 60 * 1000,
+  maxRequests: 10,
+  message: 'Too many code verification attempts. Please wait 10 minutes.'
+});
+
+// Public Forms Limiter (Contact / Purchase): 5 submissions / 10 mins
+export const publicFormLimiter = new RateLimiter({
+  windowMs: 10 * 60 * 1000,
+  maxRequests: 5,
+  message: 'Submission limit reached. Please wait a few minutes before submitting another form.'
+});
+
+// Quota Consume Limiter: 15 calls / min
+export const quotaConsumeLimiter = new RateLimiter({
+  windowMs: 60 * 1000,
+  maxRequests: 15,
+  message: 'Video export rate limit reached. Please wait a moment.'
+});
+
+// Mount global limiter
+apiRouter.use(globalApiLimiter.middleware());
+
+// Auth Middleware (with Deactivated / Suspended Account Lockout)
 async function authenticateUser(req, res, next) {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : req.query.token;
@@ -32,8 +137,14 @@ async function authenticateUser(req, res, next) {
     );
 
     if (sessionRes.rows.length > 0) {
-      req.user = sessionRes.rows[0];
-      req.token = token;
+      const user = sessionRes.rows[0];
+      if (!user.is_active) {
+        req.user = null;
+        req.userSuspended = true;
+      } else {
+        req.user = user;
+        req.token = token;
+      }
     } else {
       req.user = null;
     }
@@ -44,6 +155,9 @@ async function authenticateUser(req, res, next) {
 }
 
 function requireAuth(req, res, next) {
+  if (req.userSuspended) {
+    return res.status(403).json({ error: 'Your account has been deactivated or suspended. Please contact support.' });
+  }
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required. Please sign in.' });
   }
@@ -51,6 +165,9 @@ function requireAuth(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
+  if (req.userSuspended) {
+    return res.status(403).json({ error: 'Account suspended.' });
+  }
   if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin authorization required.' });
   }
@@ -96,8 +213,8 @@ apiRouter.get('/auth/check-username', async (req, res) => {
   res.json({ available: check.rows.length === 0 });
 });
 
-// Step 1: Sign up request -> Send OTP Email
-apiRouter.post('/auth/signup', async (req, res) => {
+// Step 1: Sign up request -> Send OTP Email (Strict Rate Limited & Throttled to protect Gmail SMTP)
+apiRouter.post('/auth/signup', signupLimiter.middleware(), async (req, res) => {
   const { name, username, email, password } = req.body;
 
   if (!name || !username || !email || !password) {
@@ -105,7 +222,18 @@ apiRouter.post('/auth/signup', async (req, res) => {
   }
 
   const cleanEmail = email.toLowerCase().trim();
-  const cleanUsername = username.toLowerCase().trim();
+  const cleanUsername = username.toLowerCase().trim().replace(/[^a-z0-9_]/g, '');
+
+  // Basic validation
+  if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+  if (cleanUsername.length < 3) {
+    return res.status(400).json({ error: 'Username must be at least 3 characters.' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+  }
 
   // Check existing username or email
   const existing = await query(
@@ -115,18 +243,18 @@ apiRouter.post('/auth/signup', async (req, res) => {
 
   if (existing.rows.length > 0) {
     if (existing.rows[0].username === cleanUsername) {
-      return res.status(400).json({ error: 'Username is already taken.' });
+      return res.status(400).json({ error: 'Username is already taken. Please choose another.' });
     }
     return res.status(400).json({ error: 'An account with this email already exists.' });
   }
 
-  // Generate 6-digit OTP code
+  // Generate secure 6-digit OTP code
   const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
-  // Store OTP
+  // Store OTP with attempt counter = 0
   await query(
-    'INSERT INTO otps (email, code, type, expires_at) VALUES ($1, $2, $3, $4)',
+    'INSERT INTO otps (email, code, type, expires_at, attempts) VALUES ($1, $2, $3, $4, 0)',
     [cleanEmail, otpCode, 'signup', expiresAt]
   );
 
@@ -145,44 +273,70 @@ apiRouter.post('/auth/signup', async (req, res) => {
   });
 });
 
-// Step 2: Verify OTP -> Create Account & Issue Months-Long Session
-apiRouter.post('/auth/verify-otp', async (req, res) => {
+// Step 2: Verify OTP -> Create Account with Brute-Force Counter & Issue 90-day Session
+apiRouter.post('/auth/verify-otp', otpVerifyLimiter.middleware(), async (req, res) => {
   const { email, code, name, username, password } = req.body;
   if (!email || !code) {
     return res.status(400).json({ error: 'Email and verification code are required.' });
   }
   const cleanEmail = email.toLowerCase().trim();
 
+  // Find latest active OTP for this email
   const otpRes = await query(
-    `SELECT id FROM otps 
-     WHERE email = $1 AND code = $2 AND used = FALSE AND expires_at > CURRENT_TIMESTAMP
+    `SELECT id, attempts, code FROM otps 
+     WHERE email = $1 AND used = FALSE AND expires_at > CURRENT_TIMESTAMP
      ORDER BY id DESC LIMIT 1`,
-    [cleanEmail, code.toString().trim()]
+    [cleanEmail]
   );
 
   if (otpRes.rows.length === 0) {
-    return res.status(400).json({ error: 'Invalid or expired verification code.' });
+    return res.status(400).json({ error: 'Invalid or expired verification code. Please request a new code.' });
+  }
+
+  const otpRow = otpRes.rows[0];
+
+  // Invalidate if exceeding 5 failed attempts (brute force lockout)
+  if ((otpRow.attempts || 0) >= 5) {
+    await query('UPDATE otps SET used = TRUE WHERE id = $1', [otpRow.id]);
+    return res.status(429).json({ error: 'Too many incorrect attempts. This code has expired for security. Please request a new code.' });
+  }
+
+  // Check code match
+  if (otpRow.code !== code.toString().trim()) {
+    const updatedAttempts = (otpRow.attempts || 0) + 1;
+    await query('UPDATE otps SET attempts = $1 WHERE id = $2', [updatedAttempts, otpRow.id]);
+    const remaining = 5 - updatedAttempts;
+    return res.status(400).json({
+      error: remaining > 0 
+        ? `Incorrect verification code. ${remaining} attempts remaining.` 
+        : 'Incorrect verification code. Code has been invalidated.'
+    });
   }
 
   // Mark OTP used
-  await query('UPDATE otps SET used = TRUE WHERE id = $1', [otpRes.rows[0].id]);
+  await query('UPDATE otps SET used = TRUE WHERE id = $1', [otpRow.id]);
+
+  // Query free plan limits from DB
+  const freePlanRes = await query("SELECT daily_limit, monthly_limit FROM plans WHERE id = 'free'");
+  const dailyLimit = freePlanRes.rows[0]?.daily_limit || 3;
+  const monthlyLimit = freePlanRes.rows[0]?.monthly_limit || 30;
 
   // Create user
   const passwordHash = hashPassword(password);
-  const cleanUsername = username.toLowerCase().trim();
+  const cleanUsername = username.toLowerCase().trim().replace(/[^a-z0-9_]/g, '');
 
   const newUserRes = await query(
-    `INSERT INTO users (name, username, email, password_hash, role, plan_id, daily_quota, monthly_quota)
-     VALUES ($1, $2, $3, $4, 'user', 'free', 5, 50)
+    `INSERT INTO users (name, username, email, password_hash, role, plan_id, daily_quota, monthly_quota, is_active)
+     VALUES ($1, $2, $3, $4, 'user', 'free', $5, $6, TRUE)
      RETURNING id, name, username, email, role, plan_id, daily_quota, monthly_quota`,
-    [name, cleanUsername, cleanEmail, passwordHash]
+    [name, cleanUsername, cleanEmail, passwordHash, dailyLimit, monthlyLimit]
   );
 
   const newUser = newUserRes.rows[0];
 
   // Create 90-day persistent session token
   const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days (months session)
+  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days
 
   await query(
     'INSERT INTO sessions (token, user_id, expires_at) VALUES ($1, $2, $3)',
@@ -196,8 +350,8 @@ apiRouter.post('/auth/verify-otp', async (req, res) => {
   });
 });
 
-// Sign In
-apiRouter.post('/auth/signin', async (req, res) => {
+// Sign In (Rate Limited against Credential Stuffing & Password Brute Force)
+apiRouter.post('/auth/signin', signinLimiter.middleware(), async (req, res) => {
   const { identifier, password } = req.body;
   if (!identifier || !password) {
     return res.status(400).json({ error: 'Username/Email and Password are required.' });
@@ -219,7 +373,7 @@ apiRouter.post('/auth/signin', async (req, res) => {
 
   const user = userRes.rows[0];
   if (!user.is_active) {
-    return res.status(403).json({ error: 'Account is suspended. Please contact support.' });
+    return res.status(403).json({ error: 'This account has been suspended or deactivated. Please contact support.' });
   }
 
   // Issue 90-day persistent session
@@ -272,8 +426,8 @@ apiRouter.get('/public/settings', async (req, res) => {
   res.json({ settings });
 });
 
-// Contact Request Submission
-apiRouter.post('/public/contact', async (req, res) => {
+// Contact Request Submission (Throttled against Form Spamming)
+apiRouter.post('/public/contact', publicFormLimiter.middleware(), async (req, res) => {
   const { name, email, subject, message } = req.body;
   if (!name || !email || !message) {
     return res.status(400).json({ error: 'Name, email, and message are required.' });
@@ -287,8 +441,8 @@ apiRouter.post('/public/contact', async (req, res) => {
   res.json({ success: true, message: 'Your message has been sent successfully!', contactId: insRes.rows[0]?.id });
 });
 
-// Purchase Request Submission
-apiRouter.post('/public/purchase', async (req, res) => {
+// Purchase Request Submission (Throttled to protect Gmail SMTP Quota)
+apiRouter.post('/public/purchase', publicFormLimiter.middleware(), async (req, res) => {
   const name = req.body.name || req.body.user_name;
   const email = req.body.email || req.body.user_email;
   const phone = req.body.phone || req.body.user_phone;
@@ -359,19 +513,23 @@ apiRouter.get('/public/blogs/:slug', async (req, res) => {
   res.json({ blog: result.rows[0] });
 });
 
-// Quota Check
+// Quota Check (Accurate, Multi-Device and Atomic per User)
 apiRouter.post('/public/quota-check', async (req, res) => {
-  const ip = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+  const forwarded = req.headers['x-forwarded-for'];
+  const ip = forwarded ? forwarded.split(',')[0].trim() : (req.socket?.remoteAddress || req.ip || '127.0.0.1');
   const today = new Date().toISOString().split('T')[0];
 
   if (req.user) {
-    const dailyLimit = req.user.daily_quota || 5;
-    const monthlyLimit = req.user.monthly_quota || 100;
+    const dailyLimit = req.user.daily_quota || 3;
+    const monthlyLimit = req.user.monthly_quota || 30;
+
+    // Sum all generations for this user on today's date across any devices/IPs
     const usageRes = await query(
-      `SELECT generation_count FROM usage_logs WHERE user_id = $1 AND day_date = $2`,
+      `SELECT COALESCE(SUM(generation_count), 0)::int as count FROM usage_logs WHERE user_id = $1 AND day_date = $2`,
       [req.user.user_id, today]
     );
-    const count = usageRes.rows[0]?.generation_count || 0;
+    const count = parseInt(usageRes.rows[0]?.count || 0);
+
     return res.json({
       allowed: count < dailyLimit,
       used: count,
@@ -385,13 +543,13 @@ apiRouter.post('/public/quota-check', async (req, res) => {
     });
   }
 
-  // Guest IP Check
+  // Guest IP Check (where user_id IS NULL)
   const guestLimit = 3; // Default free guest limit per day
   const usageRes = await query(
-    `SELECT generation_count FROM usage_logs WHERE ip_address = $1 AND day_date = $2`,
+    `SELECT COALESCE(SUM(generation_count), 0)::int as count FROM usage_logs WHERE ip_address = $1 AND day_date = $2 AND user_id IS NULL`,
     [ip, today]
   );
-  const count = usageRes.rows[0]?.generation_count || 0;
+  const count = parseInt(usageRes.rows[0]?.count || 0);
 
   res.json({
     allowed: count < guestLimit,
@@ -406,22 +564,78 @@ apiRouter.post('/public/quota-check', async (req, res) => {
   });
 });
 
-// Quota Consume
-apiRouter.post('/public/quota-consume', async (req, res) => {
-  const ip = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+// Quota Consume (Throttled & Collision-Free between Users and Guests)
+apiRouter.post('/public/quota-consume', quotaConsumeLimiter.middleware(), async (req, res) => {
+  const forwarded = req.headers['x-forwarded-for'];
+  const ip = forwarded ? forwarded.split(',')[0].trim() : (req.socket?.remoteAddress || req.ip || '127.0.0.1');
   const today = new Date().toISOString().split('T')[0];
   const userId = req.user ? req.user.user_id : null;
 
-  await query(
-    `INSERT INTO usage_logs (ip_address, user_id, day_date, generation_count)
-     VALUES ($1, $2, $3, 1)
-     ON CONFLICT (ip_address, day_date)
-     DO UPDATE SET generation_count = usage_logs.generation_count + 1,
-                   user_id = COALESCE(EXCLUDED.user_id, usage_logs.user_id)`,
-    [ip, userId, today]
-  );
+  if (userId) {
+    // For authenticated users: find or create today's usage row for user_id
+    const existing = await query(
+      `SELECT id FROM usage_logs WHERE user_id = $1 AND day_date = $2 LIMIT 1`,
+      [userId, today]
+    );
+    if (existing.rows.length > 0) {
+      await query(
+        `UPDATE usage_logs SET generation_count = generation_count + 1, ip_address = $1 WHERE id = $2`,
+        [ip, existing.rows[0].id]
+      );
+    } else {
+      await query(
+        `INSERT INTO usage_logs (ip_address, user_id, day_date, generation_count) VALUES ($1, $2, $3, 1)`,
+        [ip, userId, today]
+      );
+    }
+  } else {
+    // For guest visitors: find or create guest row by ip_address where user_id IS NULL
+    const existing = await query(
+      `SELECT id FROM usage_logs WHERE ip_address = $1 AND day_date = $2 AND user_id IS NULL LIMIT 1`,
+      [ip, today]
+    );
+    if (existing.rows.length > 0) {
+      await query(
+        `UPDATE usage_logs SET generation_count = generation_count + 1 WHERE id = $1`,
+        [existing.rows[0].id]
+      );
+    } else {
+      await query(
+        `INSERT INTO usage_logs (ip_address, user_id, day_date, generation_count) VALUES ($1, NULL, $2, 1)`,
+        [ip, today]
+      );
+    }
+  }
 
   res.json({ success: true, consumed: true });
+});
+
+// Visitor Tracking Ingestion Endpoint
+apiRouter.post('/public/track-visitor', async (req, res) => {
+  try {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = forwarded ? forwarded.split(',')[0].trim() : (req.socket?.remoteAddress || req.ip || '127.0.0.1');
+    const landedUrl = req.body.landedUrl || req.body.url || '/';
+    const userAgent = req.body.userAgent || req.headers['user-agent'] || '';
+
+    const { country, countryCode } = await resolveCountry(ip);
+    const deviceType = detectDevice(userAgent);
+
+    const userId = req.user ? req.user.user_id : null;
+    const userEmail = req.user ? req.user.email : null;
+    const userName = req.user ? req.user.name : null;
+
+    await query(
+      `INSERT INTO visitor_logs (ip_address, country, country_code, landed_url, user_agent, device_type, user_id, user_email, user_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [ip, country, countryCode, String(landedUrl).substring(0, 500), String(userAgent).substring(0, 500), deviceType, userId, userEmail, userName]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    // Non-blocking telemetry
+    res.json({ success: false });
+  }
 });
 
 // ----------------------------------------------------------------------------
@@ -473,14 +687,123 @@ apiRouter.get('/admin/stats', requireAdmin, async (req, res) => {
   const pendingPurchases = await query("SELECT COUNT(*) FROM purchases WHERE status = 'pending'");
   const blogsCount = await query('SELECT COUNT(*) FROM blogs');
   const todayUsage = await query('SELECT COALESCE(SUM(generation_count), 0) as total FROM usage_logs WHERE day_date = CURRENT_DATE');
+  const totalVisitorsRes = await query('SELECT COUNT(*) as total_visits, COUNT(DISTINCT ip_address) as unique_visitors FROM visitor_logs');
+  const todayVisitorsRes = await query("SELECT COUNT(*) as count FROM visitor_logs WHERE created_at >= CURRENT_DATE");
 
   res.json({
     totalUsers: parseInt(usersCount.rows[0].count),
     totalContacts: parseInt(contactsCount.rows[0].count),
     pendingPurchases: parseInt(pendingPurchases.rows[0].count),
     totalBlogs: parseInt(blogsCount.rows[0].count),
-    todayGenerations: parseInt(todayUsage.rows[0].total)
+    todayGenerations: parseInt(todayUsage.rows[0].total),
+    totalVisitors: parseInt(totalVisitorsRes.rows[0]?.total_visits || 0),
+    uniqueVisitors: parseInt(totalVisitorsRes.rows[0]?.unique_visitors || 0),
+    todayVisitors: parseInt(todayVisitorsRes.rows[0]?.count || 0)
   });
+});
+
+// Visitor Tracking List & Analytics (Filtered by period, unique users, and search)
+apiRouter.get('/admin/visitors', requireAdmin, async (req, res) => {
+  try {
+    const period = req.query.period || 'all'; // 'all' | 'hour' | 'today' | 'week' | 'month'
+    const isUnique = req.query.unique === 'true';
+    const userType = req.query.userType || 'all'; // 'all' | 'auth' | 'guest'
+    const search = req.query.search ? `%${req.query.search}%` : null;
+
+    // Build WHERE conditions
+    const conditions = [];
+    const params = [];
+    let pIdx = 1;
+
+    // Period filter
+    if (period === 'hour') {
+      conditions.push(`created_at >= NOW() - INTERVAL '1 hour'`);
+    } else if (period === 'today') {
+      conditions.push(`created_at >= CURRENT_DATE`);
+    } else if (period === 'week') {
+      conditions.push(`created_at >= NOW() - INTERVAL '7 days'`);
+    } else if (period === 'month') {
+      conditions.push(`created_at >= NOW() - INTERVAL '30 days'`);
+    }
+
+    // User Type filter
+    if (userType === 'auth') {
+      conditions.push(`user_id IS NOT NULL`);
+    } else if (userType === 'guest') {
+      conditions.push(`user_id IS NULL`);
+    }
+
+    // Search filter
+    if (search) {
+      conditions.push(`(ip_address ILIKE $${pIdx} OR country ILIKE $${pIdx} OR user_email ILIKE $${pIdx} OR user_name ILIKE $${pIdx} OR landed_url ILIKE $${pIdx})`);
+      params.push(search);
+      pIdx++;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    let rows;
+    if (isUnique) {
+      // Partition by IP address so each unique visitor displays their single latest record
+      const queryText = `
+        WITH ranked_visitors AS (
+          SELECT id, ip_address, country, country_code, landed_url, device_type, user_id, user_email, user_name, created_at,
+                 ROW_NUMBER() OVER (PARTITION BY ip_address ORDER BY created_at DESC) as rn
+          FROM visitor_logs
+          ${whereClause}
+        )
+        SELECT id, ip_address, country, country_code, landed_url, device_type, user_id, user_email, user_name, created_at
+        FROM ranked_visitors
+        WHERE rn = 1
+        ORDER BY created_at DESC
+        LIMIT 250
+      `;
+      const result = await query(queryText, params);
+      rows = result.rows;
+    } else {
+      const queryText = `
+        SELECT id, ip_address, country, country_code, landed_url, device_type, user_id, user_email, user_name, created_at
+        FROM visitor_logs
+        ${whereClause}
+        ORDER BY created_at DESC
+        LIMIT 250
+      `;
+      const result = await query(queryText, params);
+      rows = result.rows;
+    }
+
+    // Summary statistics for current filter
+    const statsResult = await query(`
+      SELECT 
+        COUNT(*) as total_visits,
+        COUNT(DISTINCT ip_address) as unique_visitors,
+        COUNT(DISTINCT user_id) as auth_users
+      FROM visitor_logs
+      ${whereClause}
+    `, params);
+
+    const topCountriesRes = await query(`
+      SELECT country, country_code, COUNT(*) as count
+      FROM visitor_logs
+      ${whereClause}
+      GROUP BY country, country_code
+      ORDER BY count DESC
+      LIMIT 5
+    `, params);
+
+    res.json({
+      visitors: rows,
+      stats: {
+        totalVisits: parseInt(statsResult.rows[0]?.total_visits || 0),
+        uniqueVisitors: parseInt(statsResult.rows[0]?.unique_visitors || 0),
+        authUsers: parseInt(statsResult.rows[0]?.auth_users || 0),
+        topCountries: topCountriesRes.rows
+      }
+    });
+  } catch (err) {
+    console.error('[Admin Visitors Error]', err);
+    res.status(500).json({ error: 'Failed to fetch visitor logs: ' + err.message });
+  }
 });
 
 // Users CRUD

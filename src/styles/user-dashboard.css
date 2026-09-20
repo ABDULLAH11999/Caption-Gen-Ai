@@ -146,6 +146,50 @@
   letter-spacing: -0.5px;
 }
 
+/* Segmented Mode Switcher (16:9 Landscape / 9:16 Portrait) */
+.mode-toggle-group {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 30px;
+  border: 1px solid #e2e8f0;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 16px;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748b;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.mode-btn:hover {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.mode-btn.active {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.mode-btn.active svg {
+  color: var(--primary-coral, #ff5533);
+}
+
 /* Template Cards Grid with Customize Icon */
 .user-templates-grid {
   display: grid;
@@ -155,11 +199,11 @@
 
 .user-tpl-card {
   background: #ffffff;
-  border: 2px solid var(--border-color);
-  border-radius: var(--radius-xl);
-  padding: 20px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -167,23 +211,45 @@
 
 .user-tpl-card:hover {
   border-color: #cbd5e1;
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  box-shadow: 0 10px 26px -4px rgba(15, 23, 42, 0.1);
+  transform: translateY(-3px);
 }
 
 .user-tpl-card.selected {
   border-color: var(--primary-coral);
-  box-shadow: 0 8px 24px rgba(255, 85, 51, 0.14);
+  box-shadow: 0 10px 28px -2px rgba(255, 85, 51, 0.2);
 }
 
 .user-tpl-preview-box {
-  min-height: 80px;
-  border-radius: var(--radius-md);
+  min-height: 100px;
+  height: 100px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  margin-bottom: 16px;
+  padding: 16px 20px;
+  margin-bottom: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 14px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.user-tpl-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.user-tpl-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.2px;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-tpl-card-actions {

@@ -213,7 +213,6 @@ export class ToolStudioModal {
                     </span>
                     <span style="font-size: 0.88rem; font-weight: 700; color: #FFFFFF;">Enhance Video Quality</span>
                   </div>
-                  <span class="enhance-specs-badge">+30% Vib • +10% Con • -10% Shd • +20% Shp</span>
                 </label>
               </div>
 

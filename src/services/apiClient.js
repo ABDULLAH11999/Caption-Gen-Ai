@@ -288,6 +288,30 @@ class ApiClient {
       body: JSON.stringify(settings)
     });
   }
+
+  // Telemetry & Visitor Tracking
+  async trackVisit(data = {}) {
+    try {
+      return await this.request('/public/track-visitor', {
+        method: 'POST',
+        body: JSON.stringify({
+          landedUrl: data.landedUrl || window.location.pathname + window.location.search,
+          userAgent: navigator.userAgent
+        })
+      });
+    } catch (e) {
+      // Non-blocking telemetry
+    }
+  }
+
+  async getAdminVisitors(params = {}) {
+    const q = new URLSearchParams();
+    if (params.period) q.set('period', params.period);
+    if (params.unique) q.set('unique', String(params.unique));
+    if (params.userType) q.set('userType', params.userType);
+    if (params.search) q.set('search', params.search);
+    return this.request(`/admin/visitors?${q.toString()}`);
+  }
 }
 
 export const api = new ApiClient();

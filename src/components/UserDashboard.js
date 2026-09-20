@@ -123,8 +123,8 @@ export class UserDashboard {
             <div style="width: 10px; height: 10px; background: #ffffff; transform: rotate(-45deg); border-radius: 2px;"></div>
           </div>
           <div>
-            <div class="user-brand-title">Caption Studio</div>
-            <div style="font-size: 11px; color: #71717a; font-weight: 600;">ENTERPRISE AI</div>
+            <div class="user-brand-title">Zen Caption AI</div>
+            <div style="font-size: 11px; color: #71717a; font-weight: 600;">ENTERPRISE STUDIO</div>
           </div>
         </div>
 
@@ -273,19 +273,19 @@ export class UserDashboard {
           </p>
         </div>
 
-        <div style="display: flex; gap: 10px; align-items: center;">
+        <div style="display: flex; gap: 12px; align-items: center;">
           <div class="mode-toggle-group">
-            <button class="mode-btn ${this.currentMode === 'landscape' ? 'active' : ''}" id="user-mode-landscape">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"></rect></svg>
-              Landscape
+            <button class="mode-btn ${this.currentMode === 'landscape' ? 'active' : ''}" id="user-mode-landscape" title="16:9 Widescreen Landscape">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="5" width="20" height="14" rx="2.5"></rect><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+              <span>16:9 Landscape</span>
             </button>
-            <button class="mode-btn ${this.currentMode === 'portrait' ? 'active' : ''}" id="user-mode-portrait">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"></rect></svg>
-              Portrait
+            <button class="mode-btn ${this.currentMode === 'portrait' ? 'active' : ''}" id="user-mode-portrait" title="9:16 Shorts / Reels Portrait">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="2" width="12" height="20" rx="2.5"></rect><line x1="10" y1="18" x2="14" y2="18"></line></svg>
+              <span>9:16 Portrait</span>
             </button>
           </div>
 
-          <button class="btn btn-primary" id="btn-proceed-to-video" style="padding: 10px 18px; font-size: 14px;">
+          <button class="btn btn-primary" id="btn-proceed-to-video" style="padding: 10px 20px; font-size: 14px; font-weight: 700; border-radius: 24px;">
             <span>Apply to Video →</span>
           </button>
         </div>
@@ -325,8 +325,8 @@ export class UserDashboard {
       card.dataset.tplId = tpl.id;
 
       card.innerHTML = `
-        <div class="user-tpl-preview-box" style="background: ${tpl.previewBg || '#0f172a'};">
-          <div style="font-family: ${effectiveConfig.normalFontFamily || 'Inter'}, sans-serif; color: ${effectiveConfig.textColor || '#fff'}; font-size: 16px; font-weight: 700; text-align: center;">
+        <div class="user-tpl-preview-box" style="background: ${tpl.previewBg || '#080c14'};">
+          <div class="user-tpl-preview-text" style="font-family: ${effectiveConfig.normalFontFamily || 'Inter'}, sans-serif; color: ${effectiveConfig.textColor || '#fff'}; font-size: 21px; font-weight: 800; text-align: center; line-height: 1.25; letter-spacing: -0.2px;">
             ${tpl.sampleNormal || 'Viral'} 
             <span style="font-family: ${effectiveConfig.prominentFontFamily || 'Syne'}, sans-serif; color: ${effectiveConfig.prominentColor || '#FFE600'}; font-weight: 900; text-transform: uppercase;">
               ${tpl.sampleProminent || 'Captions'}
@@ -334,18 +334,12 @@ export class UserDashboard {
           </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
-          <h3 style="font-size: 16px; font-weight: 800; color: #0c0c0e;">${tpl.name}</h3>
-          ${isSelected ? `<span class="badge badge-success" style="font-size: 10px;">ACTIVE</span>` : ''}
-        </div>
-
-        <p style="font-size: 12px; color: #64748b; line-height: 1.4; margin-bottom: 12px;">
-          ${tpl.scope}
-        </p>
-
-        <div style="display: flex; gap: 6px; margin-bottom: 14px;">
-          <span class="badge badge-cyan" style="font-size: 10px;">${tpl.badge || tpl.category}</span>
-          ${isCustomized ? `<span class="badge badge-purple" style="font-size: 10px;">Customized</span>` : ''}
+        <div class="user-tpl-card-header">
+          <h3 class="user-tpl-title">${tpl.name}</h3>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            ${isSelected ? `<span class="badge badge-success" style="font-size: 10px; font-weight: 800; padding: 3px 7px;">ACTIVE</span>` : ''}
+            ${isCustomized ? `<span class="badge badge-purple" style="font-size: 10px; padding: 3px 7px;">Edited</span>` : ''}
+          </div>
         </div>
 
         <div class="user-tpl-card-actions">
@@ -543,12 +537,26 @@ export class UserDashboard {
             </button>
           </div>
 
-          <!-- Video Quality Enhancement Checkbox (Checked by default as user requested) -->
-          <div style="display: inline-flex; align-items: center; gap: 10px; background: #fafbfe; border: 1px solid #e2e8f0; padding: 10px 18px; border-radius: 30px;">
+          <!-- Video Quality Enhancement Checkbox -->
+          <div style="display: inline-flex; align-items: center; gap: 10px; background: #fafbfe; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 30px;">
             <input type="checkbox" id="user-enhance-quality" ${this.enhanceVideoQuality ? 'checked' : ''} style="accent-color: var(--primary-coral); cursor: pointer; width: 16px; height: 16px;">
             <label for="user-enhance-quality" style="font-size: 13px; font-weight: 700; color: #1e293b; cursor: pointer;">
-              ✨ Enhance Video Quality (+30% Vibrance, +10% Contrast, -10% Shadows, +20% Sharpness)
+              ✨ Enhance Video Quality
             </label>
+          </div>
+        </div>
+
+        <!-- Important Notice regarding Client-Side Hardware Processing -->
+        <div class="client-processing-notice" style="max-width: 800px; margin: 24px auto 0 auto; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; gap: 12px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+          <div style="width: 32px; height: 32px; border-radius: 50%; background: #ffedd5; color: #ea580c; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <div style="font-size: 13px; color: #9a3412; line-height: 1.5;">
+            <strong style="color: #7c2d12; font-weight: 800;">Important Notice:</strong> Be aware every video processing happens on Client Side System CPU and GPU and RAM.
           </div>
         </div>
       `;
@@ -651,7 +659,7 @@ export class UserDashboard {
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding: 8px 12px; background: #fafbfe; border-radius: 8px; border: 1px solid #e2e8f0;">
               <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #334155; cursor: pointer;">
                 <input type="checkbox" id="user-player-enhance" ${this.enhanceVideoQuality ? 'checked' : ''} style="accent-color: var(--primary-coral);">
-                <span>✨ Video Quality Enhancement (+30% Vib, +10% Con, -10% Shd, +20% Shp)</span>
+                <span>✨ Enhance Video Quality</span>
               </label>
               <span class="badge badge-success" style="font-size: 10px;">60 FPS LOSSLESS</span>
             </div>

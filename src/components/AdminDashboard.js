@@ -17,6 +17,12 @@ export class AdminDashboard {
     this.blogs = [];
     this.settings = {};
     this.activeContactForReply = null;
+    this.visitorFilter = {
+      period: 'all',
+      unique: false,
+      userType: 'all',
+      search: ''
+    };
   }
 
   async init() {
@@ -52,6 +58,9 @@ export class AdminDashboard {
           </li>
           <li class="admin-menu-item" data-tab="blogs">
             <span>📝</span><span>SEO Blog Articles</span>
+          </li>
+          <li class="admin-menu-item" data-tab="visitors">
+            <span>🌐</span><span>Visitor Tracking</span>
           </li>
           <li class="admin-menu-item" data-tab="settings">
             <span>⚙️</span><span>Site SEO &amp; Branding</span>
@@ -125,6 +134,9 @@ export class AdminDashboard {
         break;
       case 'blogs':
         await this.renderBlogsTab(main);
+        break;
+      case 'visitors':
+        await this.renderVisitorsTab(main);
         break;
       case 'settings':
         await this.renderSettingsTab(main);
@@ -1138,5 +1150,232 @@ export class AdminDashboard {
         this.showToast(err.message, 'error');
       }
     });
+  }
+
+  // ==========================================================================
+  // 8. VISITOR TRACKING TAB
+  // ==========================================================================
+  async renderVisitorsTab(container) {
+    if (!this.visitorFilter) {
+      this.visitorFilter = {
+        period: 'all',
+        unique: false,
+        userType: 'all',
+        search: ''
+      };
+    }
+
+    container.innerHTML = `
+      <div class="admin-top-bar">
+        <div>
+          <h1 class="admin-view-title">🌐 Visitor Tracking &amp; Intelligence</h1>
+          <p style="color: #64748b; font-size: 14px; margin-top: 4px;">
+            Real-time landed user tracking, geo-located IP analytics, and unique visitor filters.
+          </p>
+        </div>
+        <button class="btn btn-outline" id="btn-refresh-visitors">
+          <span>🔄 Refresh Data</span>
+        </button>
+      </div>
+
+      <!-- Quick Metrics Overview -->
+      <div class="admin-stats-grid" id="visitor-stats-grid">
+        <div class="admin-stat-card">
+          <div class="admin-stat-label">Total Visits</div>
+          <div class="admin-stat-value" id="stat-total-visits">...</div>
+        </div>
+        <div class="admin-stat-card">
+          <div class="admin-stat-label">Unique Visitors (IPs)</div>
+          <div class="admin-stat-value" id="stat-unique-visitors" style="color: var(--primary-coral);">...</div>
+        </div>
+        <div class="admin-stat-card">
+          <div class="admin-stat-label">Registered Creators</div>
+          <div class="admin-stat-value" id="stat-auth-users" style="color: #3b82f6;">...</div>
+        </div>
+        <div class="admin-stat-card">
+          <div class="admin-stat-label">Top Location</div>
+          <div class="admin-stat-value" id="stat-top-country" style="font-size: 20px; font-weight: 800; color: #10b981;">...</div>
+        </div>
+      </div>
+
+      <!-- Controls & Filter Bar -->
+      <div class="admin-table-card">
+        <div class="admin-table-header" style="flex-wrap: wrap; gap: 14px;">
+          <!-- Period Filter -->
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-size: 13px; font-weight: 700; color: #475569;">Period:</label>
+            <select class="form-control" id="filter-visitor-period" style="width: 160px; font-size: 13px; font-weight: 600;">
+              <option value="all" ${this.visitorFilter.period === 'all' ? 'selected' : ''}>All Time</option>
+              <option value="hour" ${this.visitorFilter.period === 'hour' ? 'selected' : ''}>Last Hour</option>
+              <option value="today" ${this.visitorFilter.period === 'today' ? 'selected' : ''}>Today</option>
+              <option value="week" ${this.visitorFilter.period === 'week' ? 'selected' : ''}>This Week (7 Days)</option>
+              <option value="month" ${this.visitorFilter.period === 'month' ? 'selected' : ''}>This Month (30 Days)</option>
+            </select>
+          </div>
+
+          <!-- User Type Filter -->
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-size: 13px; font-weight: 700; color: #475569;">User Type:</label>
+            <select class="form-control" id="filter-visitor-usertype" style="width: 170px; font-size: 13px; font-weight: 600;">
+              <option value="all" ${this.visitorFilter.userType === 'all' ? 'selected' : ''}>All Visitors</option>
+              <option value="auth" ${this.visitorFilter.userType === 'auth' ? 'selected' : ''}>Registered Creators</option>
+              <option value="guest" ${this.visitorFilter.userType === 'guest' ? 'selected' : ''}>Guests Only</option>
+            </select>
+          </div>
+
+          <!-- Unique Users Checkbox Toggle -->
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 700; color: #0f172a; background: #f8fafc; padding: 6px 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <input type="checkbox" id="filter-visitor-unique" ${this.visitorFilter.unique ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: var(--primary-coral); cursor: pointer;">
+            <span>Unique Users Only (Latest per IP)</span>
+          </label>
+
+          <!-- Search Input -->
+          <div style="flex: 1; min-width: 200px; display: flex; justify-content: flex-end;">
+            <input type="text" class="form-control" id="search-visitor-input" placeholder="🔍 Search IP, Country, User, or URL..." value="${this.visitorFilter.search || ''}" style="max-width: 320px; font-size: 13px;">
+          </div>
+        </div>
+
+        <!-- Visitor Data Table -->
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Visitor Identity</th>
+                <th>IP Address</th>
+                <th>Country</th>
+                <th>Landed URL</th>
+                <th>Device</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="visitor-table-body">
+              <tr><td colspan="6" style="text-align: center; padding: 40px; color: #94a3b8;">Loading visitor data...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    // Load and bind table
+    await this.fetchAndRenderVisitorData(container);
+    this.bindVisitorFilterEvents(container);
+  }
+
+  async fetchAndRenderVisitorData(container) {
+    const tbody = container.querySelector('#visitor-table-body');
+    if (!tbody) return;
+
+    try {
+      const res = await api.getAdminVisitors(this.visitorFilter);
+      const visitors = res.visitors || [];
+      const stats = res.stats || {};
+
+      // Update stat cards
+      const elTotal = container.querySelector('#stat-total-visits');
+      const elUnique = container.querySelector('#stat-unique-visitors');
+      const elAuth = container.querySelector('#stat-auth-users');
+      const elTopCountry = container.querySelector('#stat-top-country');
+
+      if (elTotal) elTotal.textContent = stats.totalVisits ?? 0;
+      if (elUnique) elUnique.textContent = stats.uniqueVisitors ?? 0;
+      if (elAuth) elAuth.textContent = stats.authUsers ?? 0;
+      
+      const topCountry = stats.topCountries && stats.topCountries[0] ? `${stats.topCountries[0].country} (${stats.topCountries[0].count})` : 'None yet';
+      if (elTopCountry) elTopCountry.textContent = topCountry;
+
+      if (visitors.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 40px; color: #94a3b8;">No visitor records found for the selected filter.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = visitors.map(v => {
+        const isAuth = !!v.user_id;
+        const timeAgo = this.formatTimeAgo(new Date(v.created_at));
+        const formattedDate = new Date(v.created_at).toLocaleString();
+
+        return `
+          <tr>
+            <td>
+              ${isAuth ? `
+                <div style="font-weight: 800; color: #0c0c0e;">${v.user_name || 'Creator'}</div>
+                <div style="font-size: 12px; color: #64748b;">${v.user_email || ''}</div>
+                <span class="badge badge-coral" style="font-size: 10px; font-weight: 700; padding: 2px 6px;">Signed In Creator</span>
+              ` : `
+                <div style="font-weight: 700; color: #64748b;">Guest Visitor</div>
+                <span class="badge" style="background: #f1f5f9; color: #64748b; font-size: 10px;">Anonymous</span>
+              `}
+            </td>
+            <td>
+              <code style="font-weight: 700; color: #0f172a; background: #f1f5f9; padding: 3px 6px; border-radius: 4px;">${v.ip_address}</code>
+            </td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 14px;">📍</span>
+                <span style="font-weight: 700; color: #1e293b;">${v.country || 'Unknown'}</span>
+                <span class="badge" style="background: #f1f5f9; color: #64748b; font-size: 10px;">${v.country_code || 'UN'}</span>
+              </div>
+            </td>
+            <td>
+              <span style="font-family: monospace; font-size: 12px; background: #f0fdf4; color: #166534; padding: 3px 8px; border-radius: 4px; border: 1px solid #bbf7d0;">
+                ${v.landed_url || '/'}
+              </span>
+            </td>
+            <td>
+              <span class="badge" style="background: #f8fafc; border: 1px solid #e2e8f0; color: #334155; font-weight: 700;">
+                ${v.device_type === 'Mobile' ? '📱 Mobile' : (v.device_type === 'Tablet' ? '📟 Tablet' : '💻 Desktop')}
+              </span>
+            </td>
+            <td>
+              <div style="font-weight: 700; color: #1e293b; font-size: 13px;">${timeAgo}</div>
+              <div style="font-size: 11px; color: #94a3b8;">${formattedDate}</div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 40px; color: #ef4444;">Failed to load visitor logs: ${err.message}</td></tr>`;
+    }
+  }
+
+  bindVisitorFilterEvents(container) {
+    container.querySelector('#filter-visitor-period')?.addEventListener('change', (e) => {
+      this.visitorFilter.period = e.target.value;
+      this.fetchAndRenderVisitorData(container);
+    });
+
+    container.querySelector('#filter-visitor-usertype')?.addEventListener('change', (e) => {
+      this.visitorFilter.userType = e.target.value;
+      this.fetchAndRenderVisitorData(container);
+    });
+
+    container.querySelector('#filter-visitor-unique')?.addEventListener('change', (e) => {
+      this.visitorFilter.unique = e.target.checked;
+      this.fetchAndRenderVisitorData(container);
+    });
+
+    let searchTimer = null;
+    container.querySelector('#search-visitor-input')?.addEventListener('input', (e) => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        this.visitorFilter.search = e.target.value.trim();
+        this.fetchAndRenderVisitorData(container);
+      }, 300);
+    });
+
+    container.querySelector('#btn-refresh-visitors')?.addEventListener('click', () => {
+      this.fetchAndRenderVisitorData(container);
+      this.showToast('Visitor data refreshed', 'info');
+    });
+  }
+
+  formatTimeAgo(date) {
+    const diffSec = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (diffSec < 60) return 'Just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour}h ago`;
+    const diffDay = Math.floor(diffHour / 24);
+    return `${diffDay}d ago`;
   }
 }

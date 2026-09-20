@@ -248,6 +248,12 @@ class ZenSaaSApp {
     }
 
     window.scrollTo({ top: 0, behavior: 'instant' });
+    
+    // Automatically track visitor telemetry
+    try {
+      api.trackVisit({ landedUrl: targetUrl });
+    } catch (e) {}
+
     this.renderRoute(route, params);
   }
 
