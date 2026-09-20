@@ -740,8 +740,10 @@ export class UploadScreen {
     const isAuto = config.styleMode !== 'custom';
 
     // 1. Analyze background luminance per sentence to prevent rapid contrast switching and blinking
-    if (this.lastSentenceIdForBg !== captionState.id || this.cachedIsLightBg === undefined) {
-      this.lastSentenceIdForBg = captionState.id;
+    const activeSentenceId = captionState.sentenceId || captionState.id || `${captionState.startTime}_${captionState.endTime}`;
+
+    if (this.lastSentenceIdForBg !== activeSentenceId || this.cachedIsLightBg === undefined) {
+      this.lastSentenceIdForBg = activeSentenceId;
       const bgAnalysis = videoColorAnalyzer.analyzeVideoArea(this.videoElement);
       this.cachedIsLightBg = bgAnalysis.isLightBackground;
     }
@@ -752,7 +754,7 @@ export class UploadScreen {
     const isPortrait = this.currentMode === 'portrait' || (this.videoElement && this.videoElement.videoHeight > this.videoElement.videoWidth);
 
     // Check if current sentence is already rendered in DOM to avoid recreating nodes and prevent blinking
-    const sentenceKey = `${captionState.id}_${isAuto ? 'auto' : 'custom'}_${config.position}_${config.fontSize}_${isLightBg ? 'light' : 'dark'}_${config.prominentColor}_${config.textColor}`;
+    const sentenceKey = `${activeSentenceId}_${isAuto ? 'auto' : 'custom'}_${config.position}_${config.fontSize}_${isLightBg ? 'light' : 'dark'}_${config.prominentColor}_${config.textColor}`;
     const needsFullRender = this.lastOverlaySentenceKey !== sentenceKey;
 
     if (isAuto) {
