@@ -247,21 +247,8 @@ class ZenSaaSApp {
       window.history.pushState({}, '', targetUrl);
     }
 
-    // Update page title per route
-    const pageTitles = {
-      home: 'Zen Caption AI - Viral Caption Studio',
-      blog: 'Blog & Creator Guides - Zen Caption AI',
-      'blog-detail': 'Zen Caption AI Blog',
-      about: 'About Us - Zen Caption AI',
-      contact: 'Contact - Zen Caption AI',
-      terms: 'Terms of Service - Zen Caption AI',
-      cookies: 'Cookie Policy - Zen Caption AI',
-      app: 'Studio - Zen Caption AI',
-      admin: 'Admin Dashboard - Zen Caption AI'
-    };
-    if (route !== 'blog-detail') {
-      document.title = pageTitles[route] || 'Zen Caption AI';
-    }
+    // Update page title, meta description, and keywords per route
+    this.updateRouteMeta(route, params, targetUrl);
 
     window.scrollTo({ top: 0, behavior: 'instant' });
     
