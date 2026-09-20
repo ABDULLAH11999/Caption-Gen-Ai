@@ -914,36 +914,37 @@ video.video-enhanced {
 }
 
 /* ==========================================================================
-   NON-OVERLAPPING LIVE CAPTION OVERLAY & 2-ROW MAXIMUM SEGMENT SYSTEM
+   LIVE CAPTION OVERLAY: TIGHT, NATURAL VIRAL WORD FLOW (NO CLIPPING)
    ========================================================================== */
+.caption-segment-anchor {
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 20;
+}
+
 .caption-anim-segment-wrapper {
   display: inline-flex !important;
   flex-wrap: wrap !important;
-  justify-content: center !important;
-  align-items: center !important;
-  row-gap: 14px !important;
-  column-gap: 8px !important;
-  width: 100% !important;
-  max-width: 96% !important;
-  max-height: 4.8em !important;
-  overflow: hidden !important;
-  margin: 0 auto !important;
+  align-items: baseline !important;
+  gap: 3px 6px !important;
+  width: auto !important;
+  max-width: 90% !important;
+  margin: 0 !important;
   box-sizing: border-box !important;
+  overflow: visible !important;
 }
 
 .caption-anim-segment-wrapper .caption-word-token {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  vertical-align: middle !important;
-  margin: 2px 5px !important;
-  padding: 2px 6px !important;
+  display: inline-block !important;
+  vertical-align: baseline !important;
+  margin: 1px 2px !important;
+  padding: 0 2px !important;
   box-sizing: border-box !important;
   white-space: nowrap !important;
   opacity: 1 !important;
   visibility: visible !important;
   transform: none !important;
-  line-height: 1.35 !important;
+  line-height: 1.15 !important;
 }
 
 .caption-anim-segment-wrapper .caption-word-token.current {

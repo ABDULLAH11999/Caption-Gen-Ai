@@ -1156,12 +1156,17 @@ export class UserDashboard {
     const lastWordColor = hasLastWordColor ? cfg.lastWordColor : prominentColor;
     const speakingHighlightColor = cfg.karaokeHighlightColor || prominentColor;
 
-    // 8. Build styled words: 100% OPAQUE (coming words never transparent), colorful, zero overlap
+    // 8. Build styled words: 100% OPAQUE (coming words never transparent), colorful, tight word flow
     const wordsHtml = words.map((w, idx) => {
+      const cleanWord = (w.word || '').replace(/[.,!?:;"'()]/g, '');
+      const isHeroKeyword = autoTypographyEngine.brandRegex.test(cleanWord) || 
+                            autoTypographyEngine.monthsDatesRegex.test(cleanWord) || 
+                            autoTypographyEngine.placesRegex.test(cleanWord) || 
+                            autoTypographyEngine.impactWordsRegex.test(cleanWord);
+      
       const isSpeaking = (idx === speakingWordIdx);
       const isLastWord = (idx === words.length - 1);
-      // Dual-font prominence: last word, or alternating hero word if segment has >= 3 words
-      const isProminent = isLastWord || (words.length >= 3 && idx % 2 === 1);
+      const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && idx === 1);
 
       let font = normalFont;
       let color = defaultTextColor;
@@ -1178,22 +1183,21 @@ export class UserDashboard {
 
       if (isSpeaking) {
         color = speakingHighlightColor;
+        font = prominentFont;
       }
 
       const wordFontSize = isSpeaking ? speakingFontSize : baseFontSize;
       const fontWeight = isSpeaking ? 900 : (isProminent ? 800 : 700);
       const textShadow = isSpeaking
-        ? `0 0 18px ${color}, 0 2px 10px rgba(0,0,0,0.98), 0 0 4px #000000`
-        : `0 2px 8px rgba(0,0,0,0.95), 0 0 3px #000000`;
+        ? `0 0 16px ${color}, 0 2px 8px rgba(0,0,0,0.98), 0 0 3px #000000`
+        : `0 2px 6px rgba(0,0,0,0.95), 0 0 2px #000000`;
 
       return `
         <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''}" style="
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          vertical-align: middle !important;
-          margin: 2px 5px !important;
-          padding: 2px 6px !important;
+          display: inline-block !important;
+          vertical-align: baseline !important;
+          margin: 1px 3px !important;
+          padding: 0 2px !important;
           box-sizing: border-box !important;
           font-family: '${font}', sans-serif;
           color: ${color} !important;
@@ -1201,8 +1205,8 @@ export class UserDashboard {
           font-weight: ${fontWeight};
           opacity: 1 !important;
           visibility: visible !important;
-          line-height: 1.35;
-          letter-spacing: 0.3px;
+          line-height: 1.15;
+          letter-spacing: 0.2px;
           text-shadow: ${textShadow};
           transform: none !important;
           white-space: nowrap !important;
@@ -1227,28 +1231,23 @@ export class UserDashboard {
     const animMeta = CAPTION_ANIMATIONS.find(a => a.id === animId || a.cssClass === animId);
     const animClass = animMeta ? animMeta.cssClass : (animId.startsWith('anim-') ? animId : 'anim-pop');
 
-    // 11. Position setup
-    let bottomPos = '12%';
-    let topPos = 'auto';
-    let transformPos = 'translateX(-50%)';
-    if (cfg.position === 'top' || cfg.position === 'top-left' || cfg.position === 'top-right') {
-      topPos = '12%';
-      bottomPos = 'auto';
-    } else if (cfg.position === 'middle') {
-      topPos = '50%';
-      bottomPos = 'auto';
-      transformPos = 'translate(-50%, -50%)';
-    }
+    // 11. Precise Position from CAPTION_POSITIONS (supports middle-left, top-left, center, etc.)
+    const positionId = cfg.position || 'middle-left';
+    const posMeta = CAPTION_POSITIONS.find(p => p.id === positionId) || CAPTION_POSITIONS[3]; // default middle-left
+    const posX = posMeta.x || '6%';
+    const posY = posMeta.y || '50%';
+    const posTransform = posMeta.transform || 'translate(0, -50%)';
+    const textAlign = posMeta.align || 'left';
+    const justifyAlign = (textAlign === 'left') ? 'flex-start' : (textAlign === 'right' ? 'flex-end' : 'center');
 
     let anchor = overlay.querySelector('.caption-segment-anchor');
     let animWrapper = overlay.querySelector('.caption-anim-segment-wrapper');
 
     if (!anchor || !animWrapper || isNewSegment) {
-      // Re-create segment with configured entrance animation.
-      // row-gap: 14px and column-gap: 8px completely prevent overlapping between words & lines!
+      // Re-create segment with configured entrance animation and tight natural word spacing (no overflow clipping!)
       overlay.innerHTML = `
-        <div class="caption-segment-anchor" style="position: absolute; top: ${topPos}; bottom: ${bottomPos}; left: 50%; transform: ${transformPos}; width: 92%; max-height: 75%; text-align: center; pointer-events: none; z-index: 20;">
-          <div class="caption-anim-segment-wrapper ${animClass}" style="display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: center; row-gap: 14px; column-gap: 8px; width: 100%; max-width: 96%; max-height: 4.8em; overflow: hidden; text-transform: uppercase;">
+        <div class="caption-segment-anchor" style="position: absolute; top: ${posY}; left: ${posX}; transform: ${posTransform}; width: auto; max-width: 88%; text-align: ${textAlign}; pointer-events: none; z-index: 20;">
+          <div class="caption-anim-segment-wrapper ${animClass}" style="display: inline-flex; flex-wrap: wrap; justify-content: ${justifyAlign}; align-items: baseline; gap: 3px 6px; width: auto; max-width: 100%; text-transform: uppercase;">
             ${wordsHtml}
           </div>
         </div>
