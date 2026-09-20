@@ -164,7 +164,6 @@ export class UploadScreen {
                 </span>
                 <span>✨ Enhance Video Quality</span>
               </label>
-              <span class="enhance-specs-badge">+30% Vibrance • +10% Contrast • -10% Shadows • +20% Sharpness</span>
             </div>
 
             <div class="control-buttons-row">
@@ -474,6 +473,33 @@ export class UploadScreen {
     }
   }
 
+  toggleVideoEnhancement(enabled) {
+    this.enhanceVideoQuality = !!enabled;
+    if (this.activeConfig) {
+      this.activeConfig.enhanceQuality = this.enhanceVideoQuality;
+      this.activeConfig.enhanceVideoQuality = this.enhanceVideoQuality;
+    }
+    if (this.videoElement) {
+      this.videoElement.classList.toggle('video-enhanced', this.enhanceVideoQuality);
+    }
+    const tb = this.container?.querySelector('#video-enhancement-toolbar');
+    if (tb) {
+      tb.classList.toggle('active', this.enhanceVideoQuality);
+    }
+    const chk = this.container?.querySelector('#chk-enhance-quality');
+    if (chk && chk.checked !== this.enhanceVideoQuality) {
+      chk.checked = this.enhanceVideoQuality;
+    }
+    storage.saveSetting('enhance_video_quality', this.enhanceVideoQuality);
+    soundFx.playKeyBeep(this.enhanceVideoQuality ? 680 : 380);
+    this.showToast(
+      this.enhanceVideoQuality
+        ? '✨ Video Quality Enhanced: +30% Vibrance, +10% Contrast, -10% Shadows, +20% Sharpness'
+        : 'Video Quality Enhancement disabled.',
+      'info'
+    );
+  }
+
   togglePlay() {
     if (!this.videoElement) return;
     if (this.videoElement.paused) {
@@ -533,6 +559,7 @@ export class UploadScreen {
     this.videoBlob = blob;
     const videoUrl = URL.createObjectURL(blob);
     this.videoElement.src = videoUrl;
+    this.videoElement.classList.toggle('video-enhanced', this.enhanceVideoQuality);
 
     // Show workspace
     this.container.querySelector('#workspace-grid').style.display = 'grid';
@@ -569,6 +596,7 @@ export class UploadScreen {
       this.videoBlob = blob;
       const videoUrl = URL.createObjectURL(blob);
       this.videoElement.src = videoUrl;
+      this.videoElement.classList.toggle('video-enhanced', this.enhanceVideoQuality);
       this.container.querySelector('#workspace-grid').style.display = 'grid';
       this.container.querySelector('#drop-zone').style.display = 'none';
 

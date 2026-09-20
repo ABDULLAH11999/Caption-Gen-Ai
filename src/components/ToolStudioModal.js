@@ -30,18 +30,18 @@ export class ToolStudioModal {
     this.phraseIdx = 0;
     this.activeFontTarget = 'normal'; // 'normal' | 'prominent'
     this.activeModalTab = 'templates'; // 'templates' | 'customize'
-    this.selectedTemplateId = 'viral-reel';
+    this.selectedTemplateId = 'september-pop';
     this.templateFilterCategory = 'all';
   }
 
   async initConfigs() {
-    const v4Migrated = await storage.getSetting('config_templates_v4');
-    if (!v4Migrated) {
+    const v5Migrated = await storage.getSetting('config_templates_v5');
+    if (!v5Migrated) {
       this.landscapeConfig = { ...DEFAULT_LANDSCAPE_CONFIG };
       this.portraitConfig = { ...DEFAULT_PORTRAIT_CONFIG };
       await storage.saveSetting('config_landscape', this.landscapeConfig);
       await storage.saveSetting('config_portrait', this.portraitConfig);
-      await storage.saveSetting('config_templates_v4', true);
+      await storage.saveSetting('config_templates_v5', true);
     } else {
       const savedLandscape = await storage.getSetting('config_landscape');
       const savedPortrait = await storage.getSetting('config_portrait');
@@ -49,9 +49,9 @@ export class ToolStudioModal {
       if (savedPortrait) this.portraitConfig = { ...this.portraitConfig, ...savedPortrait };
     }
 
-    if (!this.landscapeConfig.templateId) this.landscapeConfig.templateId = 'viral-reel';
-    if (!this.portraitConfig.templateId) this.portraitConfig.templateId = 'viral-reel';
-    this.selectedTemplateId = this.getActiveConfig().templateId || 'viral-reel';
+    if (!this.landscapeConfig.templateId) this.landscapeConfig.templateId = 'september-pop';
+    if (!this.portraitConfig.templateId) this.portraitConfig.templateId = 'september-pop';
+    this.selectedTemplateId = this.getActiveConfig().templateId || 'september-pop';
   }
 
   getActiveConfig() {
@@ -195,6 +195,26 @@ export class ToolStudioModal {
                 <button type="button" class="btn-reset-template-preset" id="btn-reset-template-preset" title="Reset this template to default preset">
                   ↺ Reset Template
                 </button>
+              </div>
+
+              <!-- 0. Video Quality Enhancement Option -->
+              <div class="config-section-card" style="background: linear-gradient(135deg, rgba(16, 24, 40, 0.75), rgba(8, 20, 36, 0.85)); border-color: rgba(0, 240, 255, 0.2);">
+                <div class="config-section-title">
+                  <span>✨ Video Quality Enhancement</span>
+                  <span class="badge badge-cyan" id="modal-enhance-badge">OFF</span>
+                </div>
+                <label class="enhance-quality-toggle-label" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(255, 255, 255, 0.04); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08);">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="chk-modal-enhance-quality" class="enhance-quality-input">
+                    <span class="enhance-custom-checkbox">
+                      <svg class="enhance-check-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </span>
+                    <span style="font-size: 0.88rem; font-weight: 700; color: #FFFFFF;">Enhance Video Quality</span>
+                  </div>
+                  <span class="enhance-specs-badge">+30% Vib • +10% Con • -10% Shd • +20% Shp</span>
+                </label>
               </div>
 
               <!-- 1. Caption Position (9 Locations) -->
@@ -570,6 +590,16 @@ export class ToolStudioModal {
     const badge = this.container.querySelector('#customizing-template-badge');
     if (badge) badge.textContent = activeTmpl.name;
 
+    // Video Enhancement Status
+    const chkEnhance = this.container.querySelector('#chk-modal-enhance-quality');
+    const badgeEnhance = this.container.querySelector('#modal-enhance-badge');
+    const isEnhanced = !!config.enhanceQuality;
+    if (chkEnhance) chkEnhance.checked = isEnhanced;
+    if (badgeEnhance) {
+      badgeEnhance.textContent = isEnhanced ? 'ACTIVE (HD+)' : 'OFF';
+      badgeEnhance.className = `badge ${isEnhanced ? 'badge-green' : 'badge-cyan'}`;
+    }
+
     // Position Grid
     this.container.querySelectorAll('.pos-btn[data-pos]').forEach(btn => {
       if (btn.getAttribute('data-pos') === config.position) {
@@ -819,6 +849,15 @@ export class ToolStudioModal {
       this.renderFontGrid();
     });
 
+    // Video Enhancement Checkbox Toggle in Modal
+    this.container.querySelector('#chk-modal-enhance-quality')?.addEventListener('change', (e) => {
+      const isEnhanced = e.target.checked;
+      soundFx.playKeyBeep(isEnhanced ? 680 : 380);
+      this.setActiveConfig({ enhanceQuality: isEnhanced, enhanceVideoQuality: isEnhanced });
+      this.populateCustomizeControls();
+      this.updatePreview();
+    });
+
     // Global Click Listener
     this.container.addEventListener('click', (e) => {
       // Template Card Click (Selection)
@@ -1035,7 +1074,7 @@ export class ToolStudioModal {
       } else {
         this.portraitConfig = { ...DEFAULT_PORTRAIT_CONFIG };
       }
-      this.selectedTemplateId = 'viral-reel';
+      this.selectedTemplateId = 'september-pop';
       this.populateControls();
       this.setActiveConfig(this.getActiveConfig());
     });
@@ -1055,6 +1094,12 @@ export class ToolStudioModal {
     if (titleSpan) titleSpan.textContent = `LIVE PREVIEW (${this.currentMode.toUpperCase()})`;
     const profileBadge = this.container.querySelector('#preview-profile-badge');
     if (profileBadge) profileBadge.textContent = this.currentMode === 'landscape' ? '16:9 Landscape' : '9:16 Portrait';
+
+    // Toggle video-enhanced on preview mockup
+    const previewBox = this.container.querySelector('#preview-screen-box');
+    if (previewBox) {
+      previewBox.classList.toggle('video-enhanced', !!config.enhanceQuality);
+    }
 
     // Position preview text based on user selected position
     const positionId = config.position || 'middle-left';

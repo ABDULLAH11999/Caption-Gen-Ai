@@ -70,12 +70,43 @@ export const CAPTION_ANIMATIONS = [
 // 16 Production-Ready Caption Templates with Unique Scopes
 export const CAPTION_TEMPLATES = [
   {
+    id: 'september-pop',
+    name: 'September Vibrant Pop',
+    scope: 'Gen-Z lifestyle, shopping hauls, dating stories. Playful rounded typography with electric neon pink accents.',
+    category: 'viral',
+    icon: '💖',
+    badge: 'DEFAULT / POP',
+    previewBg: 'linear-gradient(135deg, #3b0764 0%, #1e1b4b 100%)',
+    sampleNormal: 'for',
+    sampleProminent: 'September',
+    config: {
+      templateId: 'september-pop',
+      normalFontFamily: 'Outfit',
+      prominentFontFamily: 'Righteous',
+      fontSize: 32,
+      position: 'middle-left',
+      textColor: '#FFFFFF',
+      prominentColor: '#FF4DA6',
+      normalOutlineColor: '#000000',
+      normalOutlineWidth: 2.0,
+      prominentOutlineColor: '#000000',
+      prominentOutlineWidth: 3.5,
+      shadowColor: 'rgba(0,0,0,0.95)',
+      shadowBlur: 10,
+      animation: 'anim-bounce-drop',
+      uppercase: false,
+      karaokeHighlightColor: '#FF4DA6',
+      enableLastWordColor: true,
+      lastWordColor: '#FF4DA6'
+    }
+  },
+  {
     id: 'viral-reel',
     name: 'Viral Reel (Hormozi / Ref)',
     scope: 'TikTok & Reels viral engagement. Bold clean normal words with electric yellow & cyan hero accents.',
     category: 'viral',
     icon: '🔥',
-    badge: 'DEFAULT / VIRAL',
+    badge: 'HORMOZI VIRAL',
     previewBg: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)',
     sampleNormal: 'result of',
     sampleProminent: 'Zen AI',
@@ -128,37 +159,6 @@ export const CAPTION_TEMPLATES = [
       uppercase: false,
       karaokeHighlightColor: '#FFB6C1',
       enableLastWordColor: false
-    }
-  },
-  {
-    id: 'september-pop',
-    name: 'September Vibrant Pop',
-    scope: 'Gen-Z lifestyle, shopping hauls, dating stories. Playful rounded typography with electric neon pink accents.',
-    category: 'viral',
-    icon: '💖',
-    badge: 'NEON POP',
-    previewBg: 'linear-gradient(135deg, #3b0764 0%, #1e1b4b 100%)',
-    sampleNormal: 'for',
-    sampleProminent: 'September',
-    config: {
-      templateId: 'september-pop',
-      normalFontFamily: 'Outfit',
-      prominentFontFamily: 'Righteous',
-      fontSize: 32,
-      position: 'middle-left',
-      textColor: '#FFFFFF',
-      prominentColor: '#FF4DA6',
-      normalOutlineColor: '#000000',
-      normalOutlineWidth: 2.0,
-      prominentOutlineColor: '#000000',
-      prominentOutlineWidth: 3.5,
-      shadowColor: 'rgba(0,0,0,0.95)',
-      shadowBlur: 10,
-      animation: 'anim-bounce-drop',
-      uppercase: false,
-      karaokeHighlightColor: '#FF4DA6',
-      enableLastWordColor: true,
-      lastWordColor: '#FF4DA6'
     }
   },
   {
@@ -563,7 +563,7 @@ export const CAPTION_TEMPLATES = [
   }
 ];
 
-// Default configuration for Landscape (16:9) - Pre-configured from Template 1 (Viral Reel)
+// Default configuration for Landscape (16:9) - Pre-configured from Template 1 (September Vibrant Pop)
 export const DEFAULT_LANDSCAPE_CONFIG = {
   ...CAPTION_TEMPLATES[0].config,
   fontSize: 30,
@@ -572,7 +572,7 @@ export const DEFAULT_LANDSCAPE_CONFIG = {
   enhanceQuality: false
 };
 
-// Default configuration for Portrait (9:16 Shorts/Reels) - Pre-configured from Template 1 (Viral Reel)
+// Default configuration for Portrait (9:16 Shorts/Reels) - Pre-configured from Template 1 (September Vibrant Pop)
 export const DEFAULT_PORTRAIT_CONFIG = {
   ...CAPTION_TEMPLATES[0].config,
   fontSize: 34,
