@@ -1073,7 +1073,7 @@ export class UserDashboard {
     }).join('');
 
     overlay.innerHTML = `
-      <div style="position: absolute; bottom: 14%; left: 50%; transform: translateX(-50%); width: 90%; text-align: center; font-size: ${cfg.fontSize || 32}px; font-weight: 800; line-height: 1.3;">
+      <div style="position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%); width: 92%; max-height: 75%; overflow: hidden; text-align: center; font-size: clamp(14px, 3.8vw, ${cfg.fontSize || 30}px); font-weight: 800; line-height: 1.25; pointer-events: none;">
         ${wordsHtml}
       </div>
     `;
