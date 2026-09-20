@@ -72,6 +72,13 @@ class ApiClient {
     });
   }
 
+  async resendOtp({ email, name }) {
+    return this.request('/auth/resend-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, name })
+    });
+  }
+
   async verifyOtp({ email, code, name, username, password }) {
     const res = await this.request('/auth/verify-otp', {
       method: 'POST',
