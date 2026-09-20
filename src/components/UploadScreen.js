@@ -23,11 +23,22 @@ export class UploadScreen {
     this.videoDuration = 0;
     this.videoElement = null;
     this.isPlaying = false;
+    this.enhanceVideoQuality = false;
     this.container = null;
   }
 
   setConfig(config, mode) {
     this.activeConfig = config;
+    if (config && config.enhanceQuality !== undefined) {
+      this.enhanceVideoQuality = !!config.enhanceQuality;
+      if (this.videoElement) {
+        this.videoElement.classList.toggle('video-enhanced', this.enhanceVideoQuality);
+      }
+      const chk = this.container?.querySelector('#chk-enhance-quality');
+      if (chk) chk.checked = this.enhanceVideoQuality;
+      const tb = this.container?.querySelector('#video-enhancement-toolbar');
+      if (tb) tb.classList.toggle('active', this.enhanceVideoQuality);
+    }
     if (mode) {
       this.currentMode = mode;
       this.updateOrientationView();
@@ -362,6 +373,11 @@ export class UploadScreen {
     });
     this.container.querySelector('#btn-mode-portrait')?.addEventListener('click', () => {
       this.switchOrientation('portrait');
+    });
+
+    // Video Enhancement Checkbox Toggle
+    this.container.querySelector('#chk-enhance-quality')?.addEventListener('change', (e) => {
+      this.toggleVideoEnhancement(e.target.checked);
     });
 
     // Open Style Studio Button
