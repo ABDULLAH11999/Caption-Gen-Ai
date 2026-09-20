@@ -205,6 +205,23 @@ class SpeechTranscriberService {
     return normalized.split(/\s+/).filter(Boolean);
   }
 
+  normalizeWordSequences(sentences) {
+    const allWords = sentences.flatMap(sentence => sentence.words || []);
+
+    for (let i = 0; i < allWords.length - 1; i++) {
+      const current = allWords[i];
+      const next = allWords[i + 1];
+
+      if (/^you'?re$/i.test(current.word) && /^efficiency[.!?]?$/i.test(next.word)) {
+        current.word = 'your';
+      }
+    }
+
+    sentences.forEach(sentence => {
+      sentence.text = (sentence.words || []).map(word => word.word).join(' ');
+    });
+  }
+
   /**
    * Formats Whisper output (with chunks/timestamps) into structured sentences
    */
@@ -270,7 +287,10 @@ class SpeechTranscriberService {
         }
       });
 
-      if (sentences.length > 0) return sentences;
+      if (sentences.length > 0) {
+        this.normalizeWordSequences(sentences);
+        return sentences;
+      }
     }
 
     // Fallback from raw text
