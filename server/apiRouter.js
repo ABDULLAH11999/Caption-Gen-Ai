@@ -448,7 +448,7 @@ apiRouter.post('/auth/verify-otp', otpVerifyLimiter.middleware(), async (req, re
   const monthlyLimit = freePlanRes.rows[0]?.monthly_limit || 30;
 
   // Create user
-  const passwordHash = hashPassword(password);
+  const passwordHash = hashPassword((password || '').trim());
   const cleanUsername = username.toLowerCase().trim().replace(/[^a-z0-9_]/g, '');
 
   const newUserRes = await query(
@@ -485,12 +485,13 @@ apiRouter.post('/auth/signin', signinLimiter.middleware(), async (req, res) => {
 
   const cleanId = identifier.toLowerCase().trim();
   const passwordHash = hashPassword(password);
+  const trimmedPasswordHash = hashPassword(password.trim());
 
   const userRes = await query(
     `SELECT id, name, username, email, role, plan_id, daily_quota, monthly_quota, is_active
      FROM users
-     WHERE (email = $1 OR username = $1) AND password_hash = $2`,
-    [cleanId, passwordHash]
+     WHERE (LOWER(email) = $1 OR LOWER(username) = $1) AND (password_hash = $2 OR password_hash = $3)`,
+    [cleanId, passwordHash, trimmedPasswordHash]
   );
 
   if (userRes.rows.length === 0) {

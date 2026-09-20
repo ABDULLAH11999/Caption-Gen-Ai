@@ -268,7 +268,7 @@ export class AuthModal {
     signinForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const identifier = this.container.querySelector('#signin-id').value.trim();
-      const password = this.container.querySelector('#signin-pass').value;
+      const password = this.container.querySelector('#signin-pass').value.trim();
       const errorBox = this.container.querySelector('#signin-error');
       const submitBtn = this.container.querySelector('#btn-submit-signin');
 
@@ -297,7 +297,7 @@ export class AuthModal {
       const name = this.container.querySelector('#signup-name').value.trim();
       const username = this.container.querySelector('#signup-username').value.trim();
       const email = this.container.querySelector('#signup-email').value.trim();
-      const password = this.container.querySelector('#signup-pass').value;
+      const password = this.container.querySelector('#signup-pass').value.trim();
       const errorBox = this.container.querySelector('#signup-error');
       const submitBtn = this.container.querySelector('#btn-submit-signup');
 
