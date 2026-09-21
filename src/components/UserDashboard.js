@@ -1997,16 +1997,18 @@ export class UserDashboard {
             <span>Behind</span>
           </label>
 
-          <div class="segment-timing-inputs">
-            <span>Start</span>
-            <input type="number" step="0.1" min="0" class="segment-time-input" data-field="start" data-idx="${idx}" value="${segStart.toFixed(1)}">
-            <span>s</span>
-          </div>
+          <div class="segment-editor-timing-row">
+            <div class="segment-timing-inputs">
+              <span>Start</span>
+              <input type="number" step="0.1" min="0" class="segment-time-input" data-field="start" data-idx="${idx}" value="${segStart.toFixed(1)}">
+              <span>s</span>
+            </div>
 
-          <div class="segment-timing-inputs">
-            <span>End</span>
-            <input type="number" step="0.1" min="0" class="segment-time-input" data-field="end" data-idx="${idx}" value="${segEnd.toFixed(1)}">
-            <span>s</span>
+            <div class="segment-timing-inputs">
+              <span>End</span>
+              <input type="number" step="0.1" min="0" class="segment-time-input" data-field="end" data-idx="${idx}" value="${segEnd.toFixed(1)}">
+              <span>s</span>
+            </div>
           </div>
 
           <input type="text" class="segment-text-input" data-field="text" data-idx="${idx}" value="${seg.text || ''}" placeholder="Caption line text...">

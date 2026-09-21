@@ -373,7 +373,7 @@
 }
 
 .edit-segments-sidebar {
-  width: 560px;
+  width: 680px;
   max-width: 94vw;
   height: 100vh;
   background: #ffffff;
@@ -459,8 +459,12 @@
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 12px 16px;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
+  grid-template-areas:
+    "idx behind timing remove"
+    "text text text text";
   gap: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease;
@@ -472,6 +476,7 @@
 }
 
 .segment-badge-idx {
+  grid-area: idx;
   font-weight: 800;
   font-size: 11px;
   color: var(--primary-coral);
@@ -479,6 +484,19 @@
   padding: 4px 7px;
   border-radius: 6px;
   flex-shrink: 0;
+}
+
+.modal-behind-toggle {
+  grid-area: behind;
+}
+
+.segment-editor-timing-row {
+  grid-area: timing;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .segment-timing-inputs {
@@ -511,7 +529,11 @@
 }
 
 .segment-text-input {
+  grid-area: text;
   flex: 1;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 600;
@@ -529,6 +551,7 @@
 }
 
 .btn-remove-segment {
+  grid-area: remove;
   background: #fee2e2;
   color: #ef4444;
   border: 1px solid #fecaca;
@@ -1036,9 +1059,33 @@ video.video-enhanced {
     width: 100vw !important;
     max-width: 100vw !important;
   }
+
+  .segment-item-card {
+    grid-template-columns: auto auto 1fr auto;
+  }
+
+  .segment-editor-timing-row {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 600px) {
+  .segment-item-card {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "idx behind remove"
+      "timing timing timing"
+      "text text text";
+  }
+
+  .segment-editor-timing-row {
+    gap: 8px;
+  }
+
+  .segment-time-input {
+    width: 58px;
+  }
+
   .user-templates-grid {
     grid-template-columns: 1fr !important;
     gap: 14px !important;
