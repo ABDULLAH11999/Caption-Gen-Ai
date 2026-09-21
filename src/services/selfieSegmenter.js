@@ -13,7 +13,6 @@ class SelfieSegmenterService {
     this.maskCanvas = document.createElement('canvas');
     this.maskCtx = this.maskCanvas.getContext('2d');
     this.maskImageData = null;
-    this.maskPixelBuffer = null;
     this.lastTimestamp = -1;
   }
 
@@ -43,7 +42,7 @@ class SelfieSegmenterService {
             delegate: "GPU"
           },
           runningMode: "VIDEO",
-          outputConfidenceMasks: false,
+          outputConfidenceMasks: true,
           outputCategoryMask: true
         });
 
@@ -64,7 +63,7 @@ class SelfieSegmenterService {
               delegate: "CPU"
             },
             runningMode: "VIDEO",
-            outputConfidenceMasks: false,
+            outputConfidenceMasks: true,
             outputCategoryMask: true
           });
           this.isInitialized = true;
@@ -88,36 +87,72 @@ class SelfieSegmenterService {
   }
 
   /**
-   * Generates the foreground person cutout on this.cutoutCanvas from the categoryMask
+   * Generates the foreground person cutout on this.cutoutCanvas from maskObj
+   * Person pixels are preserved with original video content; background pixels are made 100% transparent.
    */
-  applyMaskAndCutout(mask, video, width, height) {
-    const maskW = mask.width;
-    const maskH = mask.height;
+  applyMaskAndCutout(maskObj, video, width, height) {
+    const maskW = maskObj.width;
+    const maskH = maskObj.height;
 
     if (this.maskCanvas.width !== maskW || this.maskCanvas.height !== maskH) {
       this.maskCanvas.width = maskW;
       this.maskCanvas.height = maskH;
       this.maskImageData = this.maskCtx.createImageData(maskW, maskH);
-      this.maskPixelBuffer = new Uint32Array(this.maskImageData.data.buffer);
     }
 
-    const maskArray = mask.getAsUint8Array();
-    const pixels = this.maskPixelBuffer;
-    const total = maskArray.length;
-    for (let i = 0; i < total; i++) {
-      // Category > 0 is foreground person (0xFFFFFFFF = full opacity white), category 0 is background
-      pixels[i] = maskArray[i] > 0 ? 0xFFFFFFFF : 0x00000000;
+    const data = this.maskImageData.data;
+    const totalPixels = maskW * maskH;
+
+    // Check if maskObj is Float32 (Confidence Mask) or Uint8 (Category Mask)
+    if (typeof maskObj.getAsFloat32Array === 'function') {
+      const floatArr = maskObj.getAsFloat32Array();
+      // Sample top corners to identify background value baseline
+      const cornerAvg = (floatArr[0] + floatArr[Math.max(0, maskW - 1)]) / 2;
+      const invert = cornerAvg > 0.5;
+
+      for (let i = 0; i < totalPixels; i++) {
+        let conf = floatArr[i];
+        if (invert) conf = 1.0 - conf;
+
+        // Clean alpha ramp: Solid person (alpha 255), smooth edges, transparent background
+        let alpha = 0;
+        if (conf >= 0.45) {
+          alpha = 255;
+        } else if (conf > 0.12) {
+          alpha = Math.round(((conf - 0.12) / 0.33) * 255);
+        }
+
+        const idx = i * 4;
+        data[idx] = 255;
+        data[idx + 1] = 255;
+        data[idx + 2] = 255;
+        data[idx + 3] = alpha;
+      }
+    } else if (typeof maskObj.getAsUint8Array === 'function') {
+      const uintArr = maskObj.getAsUint8Array();
+      // Background category is present in the corner pixel
+      const bgCat = uintArr[0];
+
+      for (let i = 0; i < totalPixels; i++) {
+        const isPerson = (uintArr[i] !== bgCat);
+        const idx = i * 4;
+        data[idx] = 255;
+        data[idx + 1] = 255;
+        data[idx + 2] = 255;
+        data[idx + 3] = isPerson ? 255 : 0;
+      }
     }
+
     this.maskCtx.putImageData(this.maskImageData, 0, 0);
 
     const cutoutCtx = this.cutoutCtx;
     cutoutCtx.clearRect(0, 0, width, height);
 
-    // 1. Draw scaled binary mask
+    // 1. Draw scaled person mask (White on person, Transparent on background)
     cutoutCtx.imageSmoothingEnabled = true;
     cutoutCtx.drawImage(this.maskCanvas, 0, 0, width, height);
 
-    // 2. Retain source pixels only where mask exists (foreground person)
+    // 2. Retain source pixels only where person mask exists
     cutoutCtx.globalCompositeOperation = "source-in";
     cutoutCtx.drawImage(video, 0, 0, width, height);
     cutoutCtx.globalCompositeOperation = "source-over"; // Reset blend mode
@@ -152,16 +187,28 @@ class SelfieSegmenterService {
 
     try {
       this.segmenter.segmentForVideo(video, timestamp, (result) => {
-        const mask = result.categoryMask;
+        let mask = null;
+        if (result.confidenceMasks && result.confidenceMasks.length > 0) {
+          mask = result.confidenceMasks.length >= 2 ? result.confidenceMasks[1] : result.confidenceMasks[0];
+        } else if (result.categoryMask) {
+          mask = result.categoryMask;
+        }
+
         if (!mask) return;
 
         this.applyMaskAndCutout(mask, video, width, height);
 
-        // 3. Composite cutout over target canvas
+        // Composite person cutout over target canvas (Layer 3 over Layer 2 captions)
         targetCtx.clearRect(0, 0, width, height);
         targetCtx.drawImage(this.cutoutCanvas, 0, 0, width, height);
 
-        mask.close(); // Prevent memory leak
+        // Free mask memory immediately
+        if (result.confidenceMasks) {
+          result.confidenceMasks.forEach(m => { try { m.close(); } catch (_) {} });
+        }
+        if (result.categoryMask) {
+          try { result.categoryMask.close(); } catch (_) {}
+        }
       });
     } catch (err) {
       console.error('Rotoscoping render error:', err);
@@ -190,13 +237,25 @@ class SelfieSegmenterService {
 
     try {
       this.segmenter.segmentForVideo(video, timestamp, (result) => {
-        const mask = result.categoryMask;
+        let mask = null;
+        if (result.confidenceMasks && result.confidenceMasks.length > 0) {
+          mask = result.confidenceMasks.length >= 2 ? result.confidenceMasks[1] : result.confidenceMasks[0];
+        } else if (result.categoryMask) {
+          mask = result.categoryMask;
+        }
+
         if (!mask) return;
 
         this.applyMaskAndCutout(mask, video, width, height);
 
         ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
-        mask.close();
+
+        if (result.confidenceMasks) {
+          result.confidenceMasks.forEach(m => { try { m.close(); } catch (_) {} });
+        }
+        if (result.categoryMask) {
+          try { result.categoryMask.close(); } catch (_) {}
+        }
       });
     } catch (e) {
       console.error('drawCutoutToContext error:', e);
