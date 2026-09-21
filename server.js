@@ -96,11 +96,29 @@ app.get('/sitemap.xml', async (req, res) => {
   }
 });
 
-// Explicit Favicon routes to guarantee browser loads the Orange Diamond icon
-app.get(['/favicon.ico', '/favicon.svg'], (req, res) => {
+// Explicit Favicon routes to guarantee proper content-types for Googlebot and browsers
+app.get('/favicon.ico', (req, res) => {
+  res.setHeader('Content-Type', 'image/x-icon');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  const distIco = path.join(DIST_DIR, 'favicon.ico');
+  if (fs.existsSync(distIco)) return res.sendFile(distIco);
+  res.sendFile(path.join(__dirname, 'public', 'favicon.ico'));
+});
+
+app.get('/favicon.svg', (req, res) => {
   res.setHeader('Content-Type', 'image/svg+xml');
   res.setHeader('Cache-Control', 'public, max-age=86400');
-  res.sendFile(path.join(DIST_DIR, 'favicon.svg'));
+  const distSvg = path.join(DIST_DIR, 'favicon.svg');
+  if (fs.existsSync(distSvg)) return res.sendFile(distSvg);
+  res.sendFile(path.join(__dirname, 'public', 'favicon.svg'));
+});
+
+app.get(['/apple-touch-icon.png', '/apple-touch-icon-precomposed.png'], (req, res) => {
+  res.setHeader('Content-Type', 'image/png');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  const distPng = path.join(DIST_DIR, 'apple-touch-icon.png');
+  if (fs.existsSync(distPng)) return res.sendFile(distPng);
+  res.sendFile(path.join(__dirname, 'public', 'apple-touch-icon.png'));
 });
 
 // Serve compiled static assets from dist

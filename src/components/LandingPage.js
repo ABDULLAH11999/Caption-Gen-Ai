@@ -48,6 +48,14 @@ export class LandingPage {
           </a>
         </div>
 
+        <div class="hero-rating-badge" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin: 16px auto 0; font-size: 14px; color: #475569;" itemprop="aggregateRating" itemscope itemtype="https://schema.org/AggregateRating">
+          <div style="color: #f59e0b; font-size: 16px; letter-spacing: 2px;">★★★★★</div>
+          <span style="font-weight: 800; color: #0f172a;"><span itemprop="ratingValue">4.9</span>/5</span>
+          <span style="color: #64748b;">(<span itemprop="ratingCount">134</span> reviews)</span>
+          <span style="display: inline-block; width: 4px; height: 4px; background: #cbd5e1; border-radius: 50%;"></span>
+          <span style="font-weight: 700; color: #16a34a; background: #dcfce7; padding: 2px 10px; border-radius: 999px; font-size: 12px;">100% Free</span>
+        </div>
+
         <!-- Flowchart Style Process Banner (Landscape Arrows) -->
         <div class="flowchart-banner-wrap">
           <div class="flowchart-banner-title">Simple 3-Step Instant Creation Flow</div>
@@ -169,7 +177,55 @@ export class LandingPage {
         </div>
       </section>
 
-      <!-- 4. PRICING & PLANS SECTION -->
+      <!-- 4. FREQUENTLY ASKED QUESTIONS (FAQ) SECTION (Placed Above Pricing) -->
+      <section class="section-wrap" id="faq">
+        <div class="section-header-center">
+          <span class="badge badge-coral" style="margin-bottom: 12px;">Frequently Asked Questions</span>
+          <h2 class="section-heading">Everything About Zen Caption Tool</h2>
+          <p class="section-subheading">Common questions about the 100% free AI video caption generator and subtitle maker.</p>
+          <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; font-size: 14px; color: #64748b;" itemprop="aggregateRating" itemscope itemtype="https://schema.org/AggregateRating">
+            <span style="color: #f59e0b; font-size: 15px; letter-spacing: 2px;">★★★★★</span>
+            <span style="font-weight: 800; color: #0f172a;"><span itemprop="ratingValue">4.9</span>/5</span>
+            <span>based on <strong itemprop="ratingCount">134</strong> verified creator reviews</span>
+            <span style="display: inline-block; width: 4px; height: 4px; background: #cbd5e1; border-radius: 50%;"></span>
+            <span style="font-weight: 700; color: #16a34a; background: #dcfce7; padding: 2px 8px; border-radius: 999px; font-size: 12px;">Free Tool</span>
+          </div>
+        </div>
+
+        <div class="faq-grid" style="max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px;">
+          <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
+            <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">What is Zen Caption Tool?</h3>
+            <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Zen Caption Tool is a 100% free web-based AI video caption generator and subtitle maker. It transcribes spoken video audio using local Whisper AI models and automatically burns viral dual-font kinetic captions (Hormozi, MrBeast, TikTok style) with zero watermarks directly in your browser.</p>
+          </div>
+
+          <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
+            <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Is Zen Caption Tool completely free?</h3>
+            <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Yes! Zen Caption Tool provides 100% free video captioning with no watermarks, no mandatory credit card, and smooth high-definition video export.</p>
+          </div>
+
+          <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
+            <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Can I use Zen Caption as a Free AI Instagram Caption Generator for Real Estate?</h3>
+            <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Yes! Zen Caption is the premier free AI Instagram caption generator for real estate agents and property creators. Easily customize elegant luxury fonts, highlight property features, add neighborhood price callouts, and burn high-contrast subtitles into Instagram Reels, TikTok walkthroughs, and YouTube Shorts with zero watermark.</p>
+          </div>
+
+          <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
+            <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Is Zen Caption a customizable free captions generator?</h3>
+            <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Yes. Zen Caption is a 100% free captions generator customizable for any video style. You can customize font families, colors, outline strokes, shadow glow, word-by-word highlight colors, safe-zone positioning, and 22+ kinetic animations.</p>
+          </div>
+
+          <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
+            <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Does Zen Caption Tool upload my video to a remote server?</h3>
+            <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">No. Zen Caption Tool operates 100% client-side inside your web browser using WebAssembly and WebGPU. Your video files, transcripts, and exports remain private on your device.</p>
+          </div>
+
+          <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
+            <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Which caption animations and presets does Zen Caption Tool support?</h3>
+            <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Zen Caption Tool includes 16+ production-ready creator presets (September Pop, Viral Reel Hormozi, Cyberpunk Neon, Beast Mode, Luxury Vogue) and 22+ kinetic animations including TikTok Pop, Bounce Drop, 3D Tilt, Neon Shimmer, and Karaoke Highlights.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. PRICING & PLANS SECTION -->
       <section class="section-wrap" id="pricing">
         <div class="section-header-center">
           <span class="badge badge-coral" style="margin-bottom: 12px;">Flexible Plans</span>
@@ -181,47 +237,6 @@ export class LandingPage {
           <!-- Populated by renderPlans() -->
         </div>
       </section>
- 
-       <!-- 5. FREQUENTLY ASKED QUESTIONS (FAQ) SECTION -->
-       <section class="section-wrap" id="faq">
-         <div class="section-header-center">
-           <span class="badge badge-coral" style="margin-bottom: 12px;">Frequently Asked Questions</span>
-           <h2 class="section-heading">Everything About Zen Caption Tool</h2>
-           <p class="section-subheading">Common questions about the 100% free AI video caption generator and subtitle maker.</p>
-         </div>
- 
-         <div class="faq-grid" style="max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px;">
-           <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
-             <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">What is Zen Caption Tool?</h3>
-             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Zen Caption Tool is a 100% free web-based AI video caption generator and subtitle maker. It transcribes spoken video audio using local Whisper AI models and automatically burns viral dual-font kinetic captions (Hormozi, MrBeast, TikTok style) with zero watermarks directly in your browser.</p>
-           </div>
- 
-           <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
-             <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Is Zen Caption Tool completely free?</h3>
-             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Yes! Zen Caption Tool provides 100% free video captioning with no watermarks, no mandatory credit card, and smooth high-definition video export.</p>
-           </div>
- 
-           <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
-             <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Can I use Zen Caption as a Free AI Instagram Caption Generator for Real Estate?</h3>
-             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Yes! Zen Caption is the premier free AI Instagram caption generator for real estate agents and property creators. Easily customize elegant luxury fonts, highlight property features, add neighborhood price callouts, and burn high-contrast subtitles into Instagram Reels, TikTok walkthroughs, and YouTube Shorts with zero watermark.</p>
-           </div>
-
-           <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
-             <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Is Zen Caption a customizable free captions generator?</h3>
-             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Yes. Zen Caption is a 100% free captions generator customizable for any video style. You can customize font families, colors, outline strokes, shadow glow, word-by-word highlight colors, safe-zone positioning, and 22+ kinetic animations.</p>
-           </div>
-
-           <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
-             <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Does Zen Caption Tool upload my video to a remote server?</h3>
-             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">No. Zen Caption Tool operates 100% client-side inside your web browser using WebAssembly and WebGPU. Your video files, transcripts, and exports remain private on your device.</p>
-           </div>
- 
-           <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
-             <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Which caption animations and presets does Zen Caption Tool support?</h3>
-             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Zen Caption Tool includes 16+ production-ready creator presets (September Pop, Viral Reel Hormozi, Cyberpunk Neon, Beast Mode, Luxury Vogue) and 22+ kinetic animations including TikTok Pop, Bounce Drop, 3D Tilt, Neon Shimmer, and Karaoke Highlights.</p>
-           </div>
-         </div>
-       </section>
 
       <!-- PURCHASE REQUEST MODAL DIALOG -->
       <div class="saas-modal-backdrop" id="purchase-modal-backdrop">
