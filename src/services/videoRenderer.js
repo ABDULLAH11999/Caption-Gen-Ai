@@ -1,5 +1,5 @@
 // Lossless Native-Resolution Video Caption Burn-In & Export Engine
-import { CAPTION_POSITIONS } from '../config.js';
+import { CAPTION_POSITIONS, FONTS } from '../config.js';
 import { fixVideoMetadata } from './videoDurationFixer.js';
 import { autoTypographyEngine } from './autoTypographyEngine.js';
 import { selfieSegmenterService } from './selfieSegmenter.js';
@@ -11,19 +11,28 @@ export class VideoRenderer {
   }
 
   /**
-   * Renders the current frame on a canvas with pristine quality and styled captions
+   * Helper to resolve font family from font ID or name
    */
-  renderFrame(ctx, video, captionState, config, canvasWidth, canvasHeight) {
+  getFontFamily(fontId) {
+    if (!fontId) return "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+    const found = FONTS.find(f => f.id.toLowerCase() === fontId.toLowerCase() || f.name.toLowerCase().includes(fontId.toLowerCase()));
+    return found ? found.family : `'${fontId}', -apple-system, sans-serif`;
+  }
+
+  /**
+   * Renders the current frame on a canvas with pristine quality and styled captions
+   * Matches live preview video display 100% pixel-perfect
+   */
+  renderFrame(ctx, video, curTimeOrState, config = {}, canvasWidth, canvasHeight, sentencesOverride = null) {
     if (!video || !ctx) return;
 
-    // 1. Draw source video frame at 1:1 pixel perfection
+    // 1. Draw source video frame at native pixel perfection
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
     const isEnhanced = config && (config.enhanceQuality || config.enhanceVideoQuality) || (video.classList && video.classList.contains('video-enhanced'));
     if (isEnhanced) {
       // 100% GPU-accelerated shader filters (+30% Vibrance, +15% Contrast/Edge Sharpness, -10% Shadows)
-      // Pure CSS filters run directly in hardware GPU shaders (<0.2ms) without CPU rasterization stalls
       ctx.filter = 'contrast(115%) saturate(130%) brightness(96%)';
     } else {
       ctx.filter = 'none';
@@ -32,320 +41,180 @@ export class VideoRenderer {
     ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
     ctx.filter = 'none'; // Reset filter before drawing caption layers
 
-    // 2. If no captions to draw, return
-    if (!captionState || !captionState.visibleWords || captionState.visibleWords.length === 0) {
-      return;
+    // 2. Resolve currentTime and sentences
+    let curTime = 0;
+    let sentences = sentencesOverride || [];
+
+    if (typeof curTimeOrState === 'number') {
+      curTime = curTimeOrState;
+    } else if (curTimeOrState && typeof curTimeOrState === 'object') {
+      curTime = curTimeOrState.currentTime !== undefined ? curTimeOrState.currentTime : (video.currentTime || 0);
+      if (curTimeOrState.sentences) sentences = curTimeOrState.sentences;
+    } else {
+      curTime = video.currentTime || 0;
     }
 
-    const isAuto = config.styleMode !== 'custom';
-    if (isAuto) {
-      // 1. Position from config.position in Auto Mode (default: middle-left)
-      const positionId = config.position || 'middle-left';
-      let posX = canvasWidth * 0.06;
-      let posY = canvasHeight * 0.50;
-      let textAlign = 'left';
+    if (!sentences || sentences.length === 0) return;
 
-      switch (positionId) {
-        case 'top':
-          posX = canvasWidth * 0.5;
-          posY = canvasHeight * 0.14;
-          textAlign = 'center';
+    // 3. Find active sentence with micro-gap tolerance (matching live preview)
+    let currentSentence = sentences.find(s => {
+      const sStart = Number(s.start ?? s.startTime ?? 0);
+      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+      return curTime >= sStart && curTime <= sEnd;
+    });
+
+    if (!currentSentence && sentences.length > 0) {
+      currentSentence = sentences.find(s => {
+        const sStart = Number(s.start ?? s.startTime ?? 0);
+        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+        return curTime >= sStart && curTime <= (sEnd + 1.2);
+      });
+    }
+
+    if (!currentSentence) return;
+
+    // 4. Ensure words array exists with valid timings
+    let words = currentSentence.words;
+    if (!words || words.length === 0) {
+      const sStart = Number(currentSentence.start ?? currentSentence.startTime ?? 0);
+      const sEnd = Number(currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5));
+      const textWords = (currentSentence.text || '').split(/\s+/).filter(Boolean);
+      const dur = (sEnd - sStart) / Math.max(1, textWords.length);
+      words = textWords.map((word, idx) => ({
+        word,
+        start: sStart + idx * dur,
+        end: sStart + (idx + 1) * dur
+      }));
+    }
+
+    if (!words || words.length === 0) return;
+
+    // 5. Determine active speaking word index
+    let speakingWordIdx = words.findIndex(w => {
+      const ws = Number(w.start ?? w.startTime ?? 0);
+      const we = Number(w.end ?? w.endTime ?? (ws + 0.35));
+      return curTime >= ws && curTime < we;
+    });
+
+    if (speakingWordIdx === -1) {
+      for (let i = words.length - 1; i >= 0; i--) {
+        const ws = Number(words[i].start ?? words[i].startTime ?? 0);
+        if (curTime >= ws) {
+          speakingWordIdx = i;
           break;
-        case 'bottom':
-          posX = canvasWidth * 0.5;
-          posY = canvasHeight * 0.82;
-          textAlign = 'center';
-          break;
-        case 'middle':
-          posX = canvasWidth * 0.5;
-          posY = canvasHeight * 0.50;
-          textAlign = 'center';
-          break;
-        case 'middle-left':
-          posX = canvasWidth * 0.06;
-          posY = canvasHeight * 0.50;
-          textAlign = 'left';
-          break;
-        case 'middle-right':
-          posX = canvasWidth * 0.94;
-          posY = canvasHeight * 0.50;
-          textAlign = 'right';
-          break;
-        case 'top-left':
-          posX = canvasWidth * 0.06;
-          posY = canvasHeight * 0.14;
-          textAlign = 'left';
-          break;
-        case 'top-right':
-          posX = canvasWidth * 0.94;
-          posY = canvasHeight * 0.14;
-          textAlign = 'right';
-          break;
-        case 'bottom-left':
-          posX = canvasWidth * 0.06;
-          posY = canvasHeight * 0.82;
-          textAlign = 'left';
-          break;
-        case 'bottom-right':
-          posX = canvasWidth * 0.94;
-          posY = canvasHeight * 0.82;
-          textAlign = 'right';
-          break;
+        }
       }
+      if (speakingWordIdx === -1) speakingWordIdx = 0;
+    }
 
-      // Override with segment-specific custom position if set
-      if (captionState.posX !== undefined && captionState.posY !== undefined) {
-        posX = (canvasWidth * Number(captionState.posX)) / 100;
-        posY = (canvasHeight * Number(captionState.posY)) / 100;
-      }
-
-      // Cache luminance per sentence to prevent costly synchronous GPU readbacks on every frame
-      let isLightBackground = false;
-      const lumKey = captionState.id || (captionState.visibleWords && captionState.visibleWords[0] ? captionState.visibleWords[0].word : 'default');
-      if (this.lumCache && this.lumCache.has(lumKey)) {
-        isLightBackground = this.lumCache.get(lumKey);
+    // 6. Strict 2-Row Guarantee: Split sentence when > 4 words or > 22 chars (exact preview match)
+    const totalChars = words.reduce((acc, w) => acc + ((w.word || '').length), 0);
+    let displayWords = words;
+    let chunkOffset = 0;
+    if (words.length > 4 || (words.length === 4 && totalChars > 22)) {
+      const mid = Math.ceil(words.length / 2);
+      if (speakingWordIdx < mid) {
+        displayWords = words.slice(0, mid);
+        chunkOffset = 0;
       } else {
-        try {
-          const sampleW = 32;
-          const sampleH = 20;
-          const sampleImg = ctx.getImageData(Math.max(0, Math.floor(posX)), Math.max(0, Math.floor(posY - sampleH * 0.5)), sampleW, sampleH);
-          let lumSum = 0;
-          const pCount = sampleImg.data.length / 4;
-          for (let i = 0; i < sampleImg.data.length; i += 4) {
-            lumSum += 0.299 * sampleImg.data[i] + 0.587 * sampleImg.data[i + 1] + 0.114 * sampleImg.data[i + 2];
-          }
-          isLightBackground = (lumSum / (pCount || 1)) > 130;
-        } catch (e) {
-          isLightBackground = false;
-        }
-        if (!this.lumCache) this.lumCache = new Map();
-        this.lumCache.set(lumKey, isLightBackground);
+        displayWords = words.slice(mid);
+        chunkOffset = mid;
       }
-
-      // 2. Analyze sentence for token-level word importance with dual typography
-      const analysis = autoTypographyEngine.analyzeSentence(captionState, isLightBackground, config);
-
-      const baseScale = Math.min(canvasWidth, canvasHeight);
-      const userFontSize = config.fontSize !== undefined ? config.fontSize : 30;
-      const baseFontSize = Math.max(16, Math.round(userFontSize * (baseScale / 720) * 1.15));
-      const maxLineWidth = captionState.boxWidth
-        ? (canvasWidth * Number(captionState.boxWidth)) / 100
-        : (canvasWidth * 0.86);
-
-      // 3. Layout words into lines
-      const lines = [];
-      let curLine = [];
-      let curLineWidth = 0;
-
-      analysis.words.forEach((w) => {
-        const wordFontSize = Math.round(baseFontSize * (w.fontSizeMultiplier || 1.0));
-        const pItalic = w.fontStyle === 'italic' ? 'italic' : 'normal';
-        const pWeight = w.fontWeight || '800';
-        const pFamily = w.fontFamily || "'Inter', -apple-system, sans-serif";
-
-        ctx.font = `${pItalic} ${pWeight} ${wordFontSize}px ${pFamily}`;
-        const wWidth = ctx.measureText(w.word).width;
-        const spacing = wordFontSize * 0.24;
-        const testWidth = curLineWidth + (curLine.length > 0 ? spacing : 0) + wWidth;
-
-        if (testWidth > maxLineWidth && curLine.length > 0) {
-          lines.push({ words: curLine, width: curLineWidth });
-          curLine = [{ ...w, width: wWidth, spacing, font: `${pItalic} ${pWeight} ${wordFontSize}px ${pFamily}`, fontSize: wordFontSize }];
-          curLineWidth = wWidth;
-        } else {
-          curLine.push({ ...w, width: wWidth, spacing, font: `${pItalic} ${pWeight} ${wordFontSize}px ${pFamily}`, fontSize: wordFontSize });
-          curLineWidth = testWidth;
-        }
-      });
-      if (curLine.length > 0) {
-        lines.push({ words: curLine, width: curLineWidth });
-      }
-
-      const lineHeight = baseFontSize * 1.35;
-      const totalBlockHeight = lines.length * lineHeight;
-      const startBlockY = posY - totalBlockHeight * 0.5 + lineHeight * 0.4;
-      const maxBlockWidth = Math.max(...lines.map(l => l.width), 100);
-
-      // 4. If light background, draw dark glass backing pill
-      if (isLightBackground) {
-        ctx.save();
-        ctx.fillStyle = 'rgba(4, 8, 16, 0.62)';
-        ctx.beginPath();
-        const padX = 20;
-        const padY = 14;
-        let pillX = posX - padX * 0.5;
-        if (textAlign === 'center') {
-          pillX = posX - maxBlockWidth * 0.5 - padX * 0.5;
-        } else if (textAlign === 'right') {
-          pillX = posX - maxBlockWidth - padX * 0.5;
-        }
-        const pillY = posY - totalBlockHeight * 0.5 - padY * 0.5;
-        const pillW = maxBlockWidth + padX;
-        const pillH = totalBlockHeight + padY;
-
-        if (ctx.roundRect) {
-          ctx.roundRect(pillX, pillY, pillW, pillH, 12);
-        } else {
-          ctx.rect(pillX, pillY, pillW, pillH);
-        }
-        ctx.fill();
-        ctx.restore();
-      }
-
-      // 5. Draw words
-      lines.forEach((line, lineIdx) => {
-        const lineY = startBlockY + lineIdx * lineHeight;
-        let curX = posX;
-        if (textAlign === 'center') {
-          curX = posX - line.width / 2;
-        } else if (textAlign === 'right') {
-          curX = posX - line.width;
-        }
-
-        line.words.forEach((w) => {
-          ctx.save();
-          ctx.font = w.font;
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'middle';
-
-          // Stroke & Outline
-          const rawStrokeWidth = w.isProminent 
-            ? (config?.prominentOutlineWidth !== undefined ? config.prominentOutlineWidth : 3.0)
-            : (config?.normalOutlineWidth !== undefined ? config.normalOutlineWidth : (isLightBackground ? 2.5 : 1.2));
-          ctx.lineWidth = Math.max(1.0, rawStrokeWidth * (baseScale / 720));
-          ctx.strokeStyle = w.isProminent 
-            ? (config?.prominentOutlineColor || '#000000')
-            : (config?.normalOutlineColor || '#000000');
-          ctx.lineJoin = 'round';
-          ctx.miterLimit = 2;
-
-          // Shadows & Neon Glows
-          if (w.category === 'brand') {
-            ctx.shadowColor = 'rgba(0, 240, 255, 0.85)';
-            ctx.shadowBlur = Math.round(18 * (baseScale / 720));
-          } else if (w.category === 'date') {
-            ctx.shadowColor = 'rgba(255, 77, 166, 0.85)';
-            ctx.shadowBlur = Math.round(20 * (baseScale / 720));
-          } else if (w.category === 'impact') {
-            ctx.shadowColor = 'rgba(255, 230, 0, 0.8)';
-            ctx.shadowBlur = Math.round(16 * (baseScale / 720));
-          } else {
-            ctx.shadowColor = isLightBackground ? 'rgba(0,0,0,0.95)' : 'rgba(0, 0, 0, 0.85)';
-            ctx.shadowBlur = Math.round(8 * (baseScale / 720));
-          }
-          ctx.shadowOffsetX = 0;
-          ctx.shadowOffsetY = Math.round(2 * (baseScale / 720));
-
-          // Draw stroke then fill
-          ctx.strokeText(w.word, curX, lineY);
-          ctx.fillStyle = w.color || '#FFFFFF';
-          ctx.fillText(w.word, curX, lineY);
-          ctx.restore();
-
-          curX += w.width + (w.spacing || 6);
-        });
-      });
-
-      // If segment is marked "behind" and selfieSegmenter is ready, render person cutout on top of captions
-      if (captionState && captionState.behind && selfieSegmenterService.isReady()) {
-        selfieSegmenterService.drawCutoutToContext(video, ctx, canvasWidth, canvasHeight);
-      }
-
-      return;
     }
 
-    // 3. Custom Mode: Compute caption position coordinates (from 9 position presets)
-    const positionId = config.position || 'middle-left';
-    const posMeta = CAPTION_POSITIONS.find(p => p.id === positionId) || CAPTION_POSITIONS[3];
+    // 7. Typography and responsive sizing relative to video resolution
+    const isPortrait = canvasHeight > canvasWidth;
+    const baseRefWidth = isPortrait ? 380 : 680;
+    const scale = canvasWidth / baseRefWidth;
 
-    let posX = canvasWidth * 0.06;
-    let posY = canvasHeight * 0.50;
-    let textAlign = 'left';
+    const previewFontSize = isPortrait ? 25 : ((config.fontSize && Number(config.fontSize) <= 30) ? Number(config.fontSize) : 28);
+    const baseFontSize = Math.max(16, Math.round(previewFontSize * scale));
 
-    switch (posMeta.id) {
-      case 'top':
-        posX = canvasWidth * 0.5;
-        posY = canvasHeight * 0.14;
-        textAlign = 'center';
-        break;
-      case 'bottom':
-        posX = canvasWidth * 0.5;
-        posY = canvasHeight * 0.82;
-        textAlign = 'center';
-        break;
-      case 'middle':
-        posX = canvasWidth * 0.5;
-        posY = canvasHeight * 0.50;
-        textAlign = 'center';
-        break;
-      case 'middle-left':
-        posX = canvasWidth * 0.06;
-        posY = canvasHeight * 0.50;
-        textAlign = 'left';
-        break;
-      case 'middle-right':
-        posX = canvasWidth * 0.94;
-        posY = canvasHeight * 0.50;
-        textAlign = 'right';
-        break;
-      case 'top-left':
-        posX = canvasWidth * 0.06;
-        posY = canvasHeight * 0.14;
-        textAlign = 'left';
-        break;
-      case 'top-right':
-        posX = canvasWidth * 0.94;
-        posY = canvasHeight * 0.14;
-        textAlign = 'right';
-        break;
-      case 'bottom-left':
-        posX = canvasWidth * 0.06;
-        posY = canvasHeight * 0.82;
-        textAlign = 'left';
-        break;
-      case 'bottom-right':
-        posX = canvasWidth * 0.94;
-        posY = canvasHeight * 0.82;
-        textAlign = 'right';
-        break;
-    }
+    const normalFontFamily = this.getFontFamily(config.normalFontFamily || 'Inter');
+    const prominentFontFamily = this.getFontFamily(config.prominentFontFamily || 'Syne');
 
-    // Override with segment-specific custom position if set
-    if (captionState.posX !== undefined && captionState.posY !== undefined) {
-      posX = (canvasWidth * Number(captionState.posX)) / 100;
-      posY = (canvasHeight * Number(captionState.posY)) / 100;
-    }
+    const defaultTextColor = config.textColor || '#FFFFFF';
+    const prominentColor = config.prominentColor || '#FFE600';
+    const hasLastWordColor = config.enableLastWordColor !== false && !!config.lastWordColor;
+    const lastWordColor = hasLastWordColor ? config.lastWordColor : prominentColor;
 
-    // 4. Calculate responsive font size relative to video dimensions
-    // Scale 1 - 100 with default 30 corresponds to ~4% of min video dimension
-    const baseScale = Math.min(canvasWidth, canvasHeight);
-    const fontSizePx = Math.max(14, Math.round((config.fontSize || 30) * (baseScale / 720) * 1.15));
+    // 8. Build styled words
+    const styledWords = displayWords.map((w, localIdx) => {
+      const globalIdx = chunkOffset + localIdx;
+      const cleanWord = (w.word || '').replace(/[.,!?:;"'()]/g, '');
+      const isHeroKeyword = autoTypographyEngine.brandRegex.test(cleanWord) || 
+                            autoTypographyEngine.monthsDatesRegex.test(cleanWord) || 
+                            autoTypographyEngine.placesRegex.test(cleanWord) || 
+                            autoTypographyEngine.impactWordsRegex.test(cleanWord);
+      
+      const isSpeaking = (globalIdx === speakingWordIdx);
+      const isLastWord = (globalIdx === words.length - 1);
+      const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && globalIdx === 1);
 
-    const fontFamily = config.fontFamily || 'Inter';
-    const fontWeight = '900'; // Bold punchy viral caption style
-    ctx.font = `${fontWeight} ${fontSizePx}px ${fontFamily}, -apple-system, sans-serif`;
-    ctx.textBaseline = 'middle';
+      let font = isProminent ? prominentFontFamily : normalFontFamily;
+      let color = isProminent ? prominentColor : defaultTextColor;
 
-    // 5. Wrap words into lines strictly staying inside max line width
-    const words = captionState.visibleWords;
-    const spacing = fontSizePx * 0.28;
-    const maxLineWidth = captionState.boxWidth
-      ? (canvasWidth * Number(captionState.boxWidth)) / 100
-      : (canvasWidth * 0.84);
+      if (isLastWord && hasLastWordColor) {
+        font = prominentFontFamily;
+        color = lastWordColor;
+      }
+      if (isSpeaking) {
+        font = prominentFontFamily;
+      }
 
+      const fontWeight = isSpeaking ? '900' : (isProminent ? '800' : '700');
+      const strokeWidth = (isProminent
+        ? (config.prominentOutlineWidth !== undefined ? config.prominentOutlineWidth : 2.5)
+        : (config.normalOutlineWidth !== undefined ? config.normalOutlineWidth : 1.5)) * scale;
+      const strokeColor = isProminent
+        ? (config.prominentOutlineColor || '#000000')
+        : (config.normalOutlineColor || '#000000');
+
+      const wordScale = isSpeaking ? 1.15 : 1.0;
+
+      return {
+        word: (w.word || '').toUpperCase(),
+        font,
+        fontWeight,
+        color,
+        strokeWidth: Math.max(1.5, strokeWidth),
+        strokeColor,
+        isSpeaking,
+        wordScale,
+        fontSize: baseFontSize
+      };
+    });
+
+    // 9. Layout positioning (Defaults to Middle-Left: 6% X, 50% Y)
+    const defaultPosMeta = CAPTION_POSITIONS.find(p => p.id === (config.position || 'middle-left')) || CAPTION_POSITIONS[3];
+    const hasCustomPos = currentSentence.posX !== undefined && currentSentence.posY !== undefined;
+    
+    let posX = hasCustomPos ? (canvasWidth * Number(currentSentence.posX)) / 100 : (canvasWidth * 0.06);
+    let posY = hasCustomPos ? (canvasHeight * Number(currentSentence.posY)) / 100 : (canvasHeight * 0.50);
+
+    const textAlign = hasCustomPos ? 'left' : (defaultPosMeta.align || 'left');
+    const customMaxWidth = currentSentence.boxWidth
+      ? (canvasWidth * Number(currentSentence.boxWidth)) / 100
+      : (canvasWidth * 0.94);
+
+    // 10. Wrap words into lines based on custom box width
     const lines = [];
     let curLine = [];
     let curLineWidth = 0;
+    const wordGap = Math.round(baseFontSize * 0.22);
 
-    words.forEach(w => {
-      const wWidth = ctx.measureText(w.word).width;
-      const testWidth = curLineWidth + (curLine.length > 0 ? spacing : 0) + wWidth;
-      if (testWidth > maxLineWidth && curLine.length > 0) {
+    styledWords.forEach((sw) => {
+      ctx.font = `${sw.fontWeight} ${sw.fontSize}px ${sw.font}`;
+      const rawWidth = ctx.measureText(sw.word).width;
+      const wordWidth = rawWidth * sw.wordScale;
+      const testWidth = curLineWidth + (curLine.length > 0 ? wordGap : 0) + wordWidth;
+
+      if (testWidth > customMaxWidth && curLine.length > 0) {
         lines.push({ words: curLine, width: curLineWidth });
-        curLine = [{ ...w, width: wWidth }];
-        curLineWidth = wWidth;
+        curLine = [{ ...sw, rawWidth, width: wordWidth }];
+        curLineWidth = wordWidth;
       } else {
-        curLine.push({ ...w, width: wWidth });
+        curLine.push({ ...sw, rawWidth, width: wordWidth });
         curLineWidth = testWidth;
       }
     });
@@ -353,71 +222,73 @@ export class VideoRenderer {
       lines.push({ words: curLine, width: curLineWidth });
     }
 
-    const lineHeight = fontSizePx * 1.25;
+    const lineHeight = baseFontSize * 1.15;
     const totalBlockHeight = lines.length * lineHeight;
-    const startBlockY = posY - totalBlockHeight * 0.5 + lineHeight * 0.5;
+    const startBlockY = hasCustomPos ? posY : (posY - totalBlockHeight * 0.5 + lineHeight * 0.5);
 
-    // 6. Draw each line cleanly aligned and centered
+    // 11. Render caption lines on Layer 2
     lines.forEach((line, lineIdx) => {
       const lineY = startBlockY + lineIdx * lineHeight;
-      let lineStartX = posX;
+      let startX = posX;
       if (textAlign === 'center') {
-        lineStartX = posX - line.width / 2;
+        startX = posX - line.width / 2;
       } else if (textAlign === 'right') {
-        lineStartX = posX - line.width;
+        startX = posX - line.width;
       }
 
-      let currentX = lineStartX;
-
-      line.words.forEach((w, wIdx) => {
+      let curX = startX;
+      line.words.forEach((w) => {
         ctx.save();
-        ctx.textAlign = 'left';
+        const centerX = curX + w.width / 2;
+        const centerY = lineY;
 
-        // Outline / Stroke (default black outline)
-        const outlineWidth = (config.outlineWidth !== undefined ? config.outlineWidth : 1) * (baseScale / 720);
-        ctx.lineWidth = Math.max(1.5, outlineWidth);
-        ctx.strokeStyle = config.outlineColor || '#000000';
+        ctx.translate(centerX, centerY);
+        if (w.wordScale !== 1.0) {
+          ctx.scale(w.wordScale, w.wordScale);
+        }
+
+        ctx.font = `${w.fontWeight} ${w.fontSize}px ${w.font}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Shadows & Neon Glow
+        if (w.isSpeaking) {
+          ctx.shadowColor = `${w.color}AA`;
+          ctx.shadowBlur = Math.round(16 * scale);
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = Math.round(2 * scale);
+        } else {
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+          ctx.shadowBlur = Math.round(6 * scale);
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = Math.round(2 * scale);
+        }
+
+        // Stroke
+        ctx.lineWidth = w.strokeWidth;
+        ctx.strokeStyle = w.strokeColor;
         ctx.lineJoin = 'round';
         ctx.miterLimit = 2;
+        ctx.strokeText(w.word, 0, 0);
 
-        // Shadow
-        ctx.shadowColor = config.shadowColor || 'rgba(0,0,0,0.9)';
-        ctx.shadowBlur = (config.shadowBlur || 8) * (baseScale / 720);
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 2;
+        // Fill
+        ctx.fillStyle = w.color;
+        ctx.fillText(w.word, 0, 0);
 
-        // Determine fill color (Base font color, last word color, or karaoke glow)
-        const isLastWordInLine = (wIdx === line.words.length - 1);
-        const isLastWordInSentence = (lineIdx === lines.length - 1 && wIdx === line.words.length - 1);
-        let fillColor = w.color || config.textColor || '#FFE600';
-
-        if (config.enableLastWordColor !== false && config.lastWordColor && (isLastWordInLine || isLastWordInSentence)) {
-          fillColor = config.lastWordColor;
-        }
-
-        if (w.isCurrent && config.animation === 'anim-karaoke-glow') {
-          fillColor = config.karaokeHighlightColor || '#00F0FF';
-          ctx.shadowColor = config.karaokeHighlightColor || '#00F0FF';
-          ctx.shadowBlur = 20;
-        }
-
-        ctx.strokeText(w.word, currentX, lineY);
-        ctx.fillStyle = fillColor;
-        ctx.fillText(w.word, currentX, lineY);
         ctx.restore();
 
-        currentX += w.width + spacing;
+        curX += w.width + wordGap;
       });
     });
 
-    // If segment is marked "behind" and selfieSegmenter is ready, render person cutout on top of captions
-    if (captionState && captionState.behind && selfieSegmenterService.isReady()) {
+    // 12. Rotoscoped Person Cutout (Layer 3 on top of Captions)
+    if (currentSentence.behind && selfieSegmenterService.isReady()) {
       selfieSegmenterService.drawCutoutToContext(video, ctx, canvasWidth, canvasHeight);
     }
   }
 
   /**
-   * Export full video with burned-in captions at lossless source resolution
+   * Export full video with burned-in captions at lossless source resolution and true 60 FPS
    */
   async exportVideo(videoElement, captionEngineInstance, config, onProgress) {
     if (this.isRendering) return;
@@ -432,7 +303,6 @@ export class VideoRenderer {
 
       let width = videoElement.videoWidth || 1280;
       let height = videoElement.videoHeight || 720;
-      // Clamp canvas resolution on mobile to prevent GPU texture exhaustion on large 100MB videos
       if (isMobile && (width > 1920 || height > 1920)) {
         const scale = 1920 / Math.max(width, height);
         width = Math.round(width * scale);
@@ -440,33 +310,36 @@ export class VideoRenderer {
       }
       const duration = videoElement.duration || 60;
 
-      // Create offscreen high-res render canvas
+      // Extract sentences array from captionEngineInstance
+      const sentences = Array.isArray(captionEngineInstance?.sentences)
+        ? captionEngineInstance.sentences
+        : (Array.isArray(captionEngineInstance) ? captionEngineInstance : []);
+
+      // Create high-res render canvas
       const offscreenCanvas = document.createElement('canvas');
       offscreenCanvas.width = width;
       offscreenCanvas.height = height;
       const ctx = offscreenCanvas.getContext('2d', { alpha: false });
 
-      // Setup audio graph
+      // Audio Graph Setup
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') {
         try { await audioCtx.resume(); } catch (e) {}
       }
       const dest = audioCtx.createMediaStreamDestination();
-      let source;
       try {
-        source = audioCtx.createMediaElementSource(videoElement);
+        const source = audioCtx.createMediaElementSource(videoElement);
         source.connect(dest);
         source.connect(audioCtx.destination);
       } catch (e) {
-        // Audio element may already be connected
+        // Already connected
       }
 
-      // Canvas capture stream supporting 60 FPS on desktop and 30-60 FPS on mobile
-      const targetFps = isMobile ? 30 : 60;
+      // 60 FPS Capture Stream
+      const targetFps = 60;
       const canvasStream = offscreenCanvas.captureStream ? offscreenCanvas.captureStream(targetFps) : offscreenCanvas;
       const videoTrack = canvasStream.getVideoTracks ? canvasStream.getVideoTracks()[0] : null;
 
-      // Combine canvas video track + destination audio track
       const combinedTracks = canvasStream.getVideoTracks ? [...canvasStream.getVideoTracks()] : [];
       if (dest.stream && dest.stream.getAudioTracks().length > 0) {
         combinedTracks.push(...dest.stream.getAudioTracks());
@@ -474,7 +347,7 @@ export class VideoRenderer {
 
       const combinedStream = new MediaStream(combinedTracks);
 
-      // Select best format supported by browser with WhatsApp & media player compatibility
+      // Select highest quality supported container
       let mimeType = 'video/webm;codecs=vp9,opus';
       if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.42E01E,mp4a.40.2')) {
         mimeType = 'video/mp4;codecs=avc1.42E01E,mp4a.40.2';
@@ -490,8 +363,8 @@ export class VideoRenderer {
         mimeType = 'video/webm';
       }
 
-      // 6-10 Mbps video + 192 kbps audio: broadcast-grade high bitrate, buttery smooth FPS
-      const videoBits = isMobile ? 6000000 : 10000000;
+      // Broadcast-grade 12-16 Mbps bitrate for pristine 60 FPS video
+      const videoBits = isMobile ? 8000000 : 14000000;
       const recorder = new MediaRecorder(combinedStream, {
         mimeType,
         videoBitsPerSecond: videoBits,
@@ -513,9 +386,6 @@ export class VideoRenderer {
         recorder.onerror = reject;
       });
 
-      // Clear luminance cache for export run
-      if (this.lumCache) this.lumCache.clear();
-
       recorder.start(100);
 
       // Reset video to start
@@ -526,20 +396,15 @@ export class VideoRenderer {
 
       videoElement.play();
 
-      let frameCallbackId = null;
-      let animFrameId = null;
+      let renderInterval = null;
 
       const finishExport = () => {
         if (!this.isRendering) return;
         this.isRendering = false;
         videoElement.removeEventListener('ended', finishExport);
-        if (frameCallbackId && 'cancelVideoFrameCallback' in videoElement) {
-          videoElement.cancelVideoFrameCallback(frameCallbackId);
-          frameCallbackId = null;
-        }
-        if (animFrameId) {
-          cancelAnimationFrame(animFrameId);
-          animFrameId = null;
+        if (renderInterval) {
+          clearInterval(renderInterval);
+          renderInterval = null;
         }
         videoElement.pause();
         if (recorder.state !== 'inactive') {
@@ -550,40 +415,28 @@ export class VideoRenderer {
 
       videoElement.addEventListener('ended', finishExport, { once: true });
 
-      const renderLoop = (now, metadata) => {
-        if (!this.isRendering) return;
+      // Run render loop at 60 FPS (16.66ms intervals)
+      renderInterval = setInterval(() => {
+        if (!this.isRendering) {
+          clearInterval(renderInterval);
+          return;
+        }
 
-        const curTime = (metadata && typeof metadata.mediaTime === 'number')
-          ? metadata.mediaTime
-          : videoElement.currentTime;
-
+        const curTime = videoElement.currentTime;
         const progress = Math.min(100, Math.round((curTime / duration) * 100));
         if (onProgress) onProgress(progress);
 
-        const captionState = captionEngineInstance.getActiveCaptionState(curTime, config);
-        this.renderFrame(ctx, videoElement, captionState, config, width, height);
+        // Render frame with 100% preview-matching caption styles
+        this.renderFrame(ctx, videoElement, curTime, config, width, height, sentences);
 
-        // Tell canvas stream track to capture the rendered frame immediately
         if (videoTrack && typeof videoTrack.requestFrame === 'function') {
           videoTrack.requestFrame();
         }
 
         if (videoElement.ended || curTime >= duration) {
           finishExport();
-        } else {
-          if ('requestVideoFrameCallback' in videoElement) {
-            frameCallbackId = videoElement.requestVideoFrameCallback(renderLoop);
-          } else {
-            animFrameId = requestAnimationFrame(renderLoop);
-          }
         }
-      };
-
-      if ('requestVideoFrameCallback' in videoElement) {
-        frameCallbackId = videoElement.requestVideoFrameCallback(renderLoop);
-      } else {
-        animFrameId = requestAnimationFrame(renderLoop);
-      }
+      }, 1000 / 60);
 
       const rawBlob = await exportPromise;
 
@@ -591,7 +444,6 @@ export class VideoRenderer {
       videoElement.currentTime = originalTime;
       if (!originalPaused) videoElement.play();
 
-      // Fix missing duration and container metadata for media players and WhatsApp sharing
       const finalDuration = duration > 0 ? duration : (videoElement.duration || 1);
       const fixedBlob = await fixVideoMetadata(rawBlob, finalDuration);
 
@@ -621,35 +473,6 @@ export class VideoRenderer {
       setTimeout(resolve, 3500);
     });
 
-    const captionEngineInstance = {
-      sentences: sentences || [],
-      getActiveCaptionState(curTime, cfg) {
-        if (!this.sentences || this.sentences.length === 0) return { visibleWords: [] };
-        let curSentence = this.sentences.find(s => curTime >= (s.start ?? s.startTime ?? 0) && curTime <= (s.end ?? s.endTime ?? 0));
-        if (!curSentence && this.sentences.length > 0) {
-          curSentence = this.sentences.find(s => curTime >= (s.start ?? s.startTime ?? 0) && curTime <= ((s.end ?? s.endTime ?? 0) + 1.2));
-        }
-        if (curSentence && curSentence.words && curSentence.words.length > 0) {
-          const visibleWords = curSentence.words.map((w, idx) => {
-            const isLast = idx === curSentence.words.length - 1;
-            return {
-              word: w.word,
-              isPastOrActive: curTime >= (w.start ?? w.startTime ?? 0),
-              isProminent: isLast || (idx % 3 === 2)
-            };
-          });
-          return {
-            visibleWords,
-            behind: !!curSentence.behind,
-            posX: curSentence.posX,
-            posY: curSentence.posY,
-            boxWidth: curSentence.boxWidth
-          };
-        }
-        return { visibleWords: [], behind: false };
-      }
-    };
-
     const effectiveConfig = {
       ...config,
       enhanceQuality: !!enhanceQuality,
@@ -666,7 +489,7 @@ export class VideoRenderer {
     }
 
     try {
-      const exportedBlob = await this.exportVideo(video, captionEngineInstance, effectiveConfig, (percent) => {
+      const exportedBlob = await this.exportVideo(video, sentences, effectiveConfig, (percent) => {
         if (typeof onProgress === 'function') {
           onProgress(percent / 100);
         }
