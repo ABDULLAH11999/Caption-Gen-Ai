@@ -35,6 +35,7 @@ export class ToolStudioModal {
     this.activeModalTab = 'templates'; // 'templates' | 'customize'
     this.selectedTemplateId = 'september-pop';
     this.templateFilterCategory = 'all';
+    this.customizeFilter = 'all'; // 'all' | 'colors' | 'fonts' | 'position' | 'animations'
   }
 
   async initConfigs() {
@@ -203,7 +204,7 @@ export class ToolStudioModal {
             </div>
 
             <!-- VIEW 2: Customize Template Studio -->
-            <div id="view-customize-studio" style="display: ${this.activeModalTab === 'customize' ? 'flex' : 'none'}; flex-direction: column; gap: 20px;">
+            <div id="view-customize-studio" style="display: ${this.activeModalTab === 'customize' ? 'flex' : 'none'}; flex-direction: column; gap: 16px;">
               <!-- Customize View Header Banner -->
               <div class="customize-studio-banner">
                 <button type="button" class="btn-back-to-templates" id="btn-back-to-templates">
@@ -218,8 +219,17 @@ export class ToolStudioModal {
                 </button>
               </div>
 
+              <!-- Quick Category Navigation Pills (Desktop & Mobile Friendly) -->
+              <div class="customize-category-nav" id="customize-category-nav">
+                <button type="button" class="cust-nav-pill active" data-filter="all">⚡ All Options</button>
+                <button type="button" class="cust-nav-pill" data-filter="colors">🎨 Colors &amp; Strokes</button>
+                <button type="button" class="cust-nav-pill" data-filter="fonts">🔤 Fonts &amp; Sizing</button>
+                <button type="button" class="cust-nav-pill" data-filter="position">📍 Position</button>
+                <button type="button" class="cust-nav-pill" data-filter="animations">🎬 Animations</button>
+              </div>
+
               <!-- 0. Video Quality Enhancement Option -->
-              <div class="config-section-card">
+              <div class="config-section-card" data-section="all quality">
                 <div class="config-section-title">
                   <span>✨ Video Quality Enhancement</span>
                   <span class="badge badge-coral" id="modal-enhance-badge">OFF</span>
@@ -238,31 +248,31 @@ export class ToolStudioModal {
               </div>
 
               <!-- 1. Caption Position (9 Locations) -->
-              <div class="config-section-card">
+              <div class="config-section-card" data-section="all position">
                 <div class="config-section-title">
                   <span>📍 Caption Position (9 Locations)</span>
                   <span class="badge badge-purple" id="selected-pos-name">Middle Left</span>
                 </div>
                 <div class="position-grid-7" id="position-grid-7">
                   <!-- Row 1: Top Left, Top, Top Right -->
-                  <button class="pos-btn" data-pos="top-left">Top Left</button>
-                  <button class="pos-btn" data-pos="top">Top</button>
-                  <button class="pos-btn" data-pos="top-right">Top Right</button>
+                  <button class="pos-btn" data-pos="top-left"><span class="pos-arrow">↖</span> Top-L</button>
+                  <button class="pos-btn" data-pos="top"><span class="pos-arrow">↑</span> Top</button>
+                  <button class="pos-btn" data-pos="top-right"><span class="pos-arrow">↗</span> Top-R</button>
 
                   <!-- Row 2: Middle Left, Middle, Middle Right -->
-                  <button class="pos-btn" data-pos="middle-left">Mid Left</button>
-                  <button class="pos-btn" data-pos="middle">Middle</button>
-                  <button class="pos-btn" data-pos="middle-right">Mid Right</button>
+                  <button class="pos-btn" data-pos="middle-left"><span class="pos-arrow">←</span> Mid-L</button>
+                  <button class="pos-btn" data-pos="middle"><span class="pos-arrow">●</span> Center</button>
+                  <button class="pos-btn" data-pos="middle-right"><span class="pos-arrow">→</span> Mid-R</button>
 
                   <!-- Row 3: Bottom Left, Bottom, Bottom Right -->
-                  <button class="pos-btn" data-pos="bottom-left">Bottom Left</button>
-                  <button class="pos-btn" data-pos="bottom">Bottom</button>
-                  <button class="pos-btn" data-pos="bottom-right">Bottom Right</button>
+                  <button class="pos-btn" data-pos="bottom-left"><span class="pos-arrow">↙</span> Btm-L</button>
+                  <button class="pos-btn" data-pos="bottom"><span class="pos-arrow">↓</span> Bottom</button>
+                  <button class="pos-btn" data-pos="bottom-right"><span class="pos-arrow">↘</span> Btm-R</button>
                 </div>
               </div>
 
               <!-- 2. Caption Size (1 - 100, default 30) -->
-              <div class="config-section-card">
+              <div class="config-section-card" data-section="all fonts">
                 <div class="config-section-title">
                   <span>🔤 Caption Size (Scale 1 - 100)</span>
                   <span class="slider-value-tag" id="caption-size-value">30</span>
@@ -278,7 +288,7 @@ export class ToolStudioModal {
               </div>
 
               <!-- 3. Dual Font Family Selection -->
-              <div class="config-section-card">
+              <div class="config-section-card" data-section="all fonts">
                 <div class="config-section-title">
                   <span>3. Caption Fonts</span>
                   <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -302,9 +312,9 @@ export class ToolStudioModal {
               </div>
 
               <!-- 4. Modern Dual Color & Stroke Pro Grid -->
-              <div class="config-section-card">
+              <div class="config-section-card" data-section="all colors">
                 <div class="config-section-title">
-                  <span>4. Colors & Stroke Styling</span>
+                  <span>4. Colors &amp; Stroke Styling</span>
                   <span class="badge badge-coral">Pro Dual Typography</span>
                 </div>
 
@@ -319,6 +329,7 @@ export class ToolStudioModal {
                       <span class="badge badge-coral" id="badge-normal-color">#FFFFFF</span>
                     </div>
                     
+                    <!-- 1. Normal Text Color Parallel to Picker -->
                     <div class="control-subblock">
                       <div class="subblock-header-row">
                         <span class="subblock-label">Text Color:</span>
@@ -331,14 +342,7 @@ export class ToolStudioModal {
                       </div>
                     </div>
 
-                    <div class="control-subblock">
-                      <div class="subblock-header-row">
-                        <span class="subblock-label">Stroke Outline Width:</span>
-                        <span class="slider-value-tag" id="normal-outline-width-val">2px</span>
-                      </div>
-                      <input type="range" min="0" max="14" step="0.5" value="2" class="custom-range-slider" id="normal-outline-slider">
-                    </div>
-
+                    <!-- 2. Normal Stroke Color Parallel to Picker -->
                     <div class="control-subblock">
                       <div class="subblock-header-row">
                         <span class="subblock-label">Stroke Outline Color:</span>
@@ -349,6 +353,15 @@ export class ToolStudioModal {
                           <input type="color" value="#000000" class="color-picker-native-hidden" id="custom-normal-outline-color">
                         </label>
                       </div>
+                    </div>
+
+                    <!-- 3. Normal Stroke Width Slider & Value -->
+                    <div class="control-subblock slider-subblock">
+                      <div class="subblock-header-row">
+                        <span class="subblock-label">Stroke Outline Width:</span>
+                        <span class="slider-value-tag" id="normal-outline-width-val">2px</span>
+                      </div>
+                      <input type="range" min="0" max="14" step="0.5" value="2" class="custom-range-slider" id="normal-outline-slider">
                     </div>
                   </div>
 
@@ -362,6 +375,7 @@ export class ToolStudioModal {
                       <span class="badge badge-purple" id="badge-prominent-color">#FFE600</span>
                     </div>
 
+                    <!-- 1. Hero Accent Color Parallel to Picker -->
                     <div class="control-subblock">
                       <div class="subblock-header-row">
                         <span class="subblock-label">Accent Hero Color:</span>
@@ -374,14 +388,7 @@ export class ToolStudioModal {
                       </div>
                     </div>
 
-                    <div class="control-subblock">
-                      <div class="subblock-header-row">
-                        <span class="subblock-label">Stroke Outline Width:</span>
-                        <span class="slider-value-tag" id="prominent-outline-width-val">3px</span>
-                      </div>
-                      <input type="range" min="0" max="14" step="0.5" value="3" class="custom-range-slider" id="prominent-outline-slider">
-                    </div>
-
+                    <!-- 2. Hero Stroke Color Parallel to Picker -->
                     <div class="control-subblock">
                       <div class="subblock-header-row">
                         <span class="subblock-label">Stroke Outline Color:</span>
@@ -393,28 +400,47 @@ export class ToolStudioModal {
                         </label>
                       </div>
                     </div>
+
+                    <!-- 3. Hero Stroke Width Slider & Value -->
+                    <div class="control-subblock slider-subblock">
+                      <div class="subblock-header-row">
+                        <span class="subblock-label">Stroke Outline Width:</span>
+                        <span class="slider-value-tag" id="prominent-outline-width-val">3px</span>
+                      </div>
+                      <input type="range" min="0" max="14" step="0.5" value="3" class="custom-range-slider" id="prominent-outline-slider">
+                    </div>
                   </div>
                 </div>
 
                 <!-- Last Word Accent Option -->
-                <div class="last-word-accent-block">
+                <div class="last-word-accent-block" id="last-word-accent-block">
                   <div class="accent-toggle-row">
                     <label class="accent-toggle-label">
                       <input type="checkbox" id="enable-last-word-toggle" checked style="accent-color: var(--primary-coral);">
                       <span>Accent Last Spoken Word of Each Line</span>
                     </label>
-                    <label class="compact-color-picker-btn" for="custom-last-word-input" title="Choose last word accent color">
-                      <span class="color-preview-circle" id="preview-swatch-last-word" style="background: #FFE600;"></span>
-                      <span class="color-hex-text" id="hex-text-last-word">#FFE600</span>
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-                      <input type="color" value="#FFE600" class="color-picker-native-hidden" id="custom-last-word-input">
-                    </label>
+                    <div class="accent-picker-wrap">
+                      <div class="quick-preset-dots" id="last-word-preset-dots">
+                        <button type="button" class="preset-dot last-word-preset-dot" data-color="#FFE600" style="background: #FFE600;" title="Neon Yellow"></button>
+                        <button type="button" class="preset-dot last-word-preset-dot" data-color="#FF4DA6" style="background: #FF4DA6;" title="Hot Pink"></button>
+                        <button type="button" class="preset-dot last-word-preset-dot" data-color="#00F0FF" style="background: #00F0FF;" title="Cyber Cyan"></button>
+                        <button type="button" class="preset-dot last-word-preset-dot" data-color="#22C55E" style="background: #22C55E;" title="Lime"></button>
+                        <button type="button" class="preset-dot last-word-preset-dot" data-color="#FF5533" style="background: #FF5533;" title="Coral"></button>
+                        <button type="button" class="preset-dot last-word-preset-dot" data-color="#FFFFFF" style="background: #FFFFFF;" title="White"></button>
+                      </div>
+                      <label class="compact-color-picker-btn" for="custom-last-word-input" title="Choose last word accent color">
+                        <span class="color-preview-circle" id="preview-swatch-last-word" style="background: #FFE600;"></span>
+                        <span class="color-hex-text" id="hex-text-last-word">#FFE600</span>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                        <input type="color" value="#FFE600" class="color-picker-native-hidden" id="custom-last-word-input">
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <!-- 5. Caption Animations (Auto & 22 styles) -->
-              <div class="config-section-card">
+              <div class="config-section-card" data-section="all animations">
                 <div class="config-section-title">
                   <span>5. Caption Animations (Auto &amp; 22 Styles)</span>
                   <span class="badge badge-purple" id="selected-anim-name">Pop & Bounce</span>
@@ -688,7 +714,11 @@ export class ToolStudioModal {
 
     // Last Word Accent
     const lwToggle = this.container.querySelector('#enable-last-word-toggle');
-    if (lwToggle) lwToggle.checked = config.enableLastWordColor !== false;
+    const isLwEnabled = config.enableLastWordColor !== false;
+    if (lwToggle) lwToggle.checked = isLwEnabled;
+    const lwWrap = this.container.querySelector('.accent-picker-wrap');
+    if (lwWrap) lwWrap.classList.toggle('disabled', !isLwEnabled);
+
     const lwColor = config.lastWordColor || '#FFE600';
     const lwInput = this.container.querySelector('#custom-last-word-input');
     if (lwInput) lwInput.value = lwColor;
@@ -696,6 +726,10 @@ export class ToolStudioModal {
     if (swatchLw) swatchLw.style.background = lwColor;
     const hexLw = this.container.querySelector('#hex-text-last-word');
     if (hexLw) hexLw.textContent = lwColor.toUpperCase();
+
+    this.container.querySelectorAll('.last-word-preset-dot').forEach(dot => {
+      dot.classList.toggle('active-dot', dot.getAttribute('data-color').toLowerCase() === lwColor.toLowerCase());
+    });
 
     // Animations (22 styles)
     const animGrid = this.container.querySelector('#animation-cards-grid');
@@ -773,6 +807,28 @@ export class ToolStudioModal {
     }
 
     this.renderIntervalsList();
+    this.switchCustomizeFilter(this.customizeFilter || 'all');
+  }
+
+  switchCustomizeFilter(filter) {
+    this.customizeFilter = filter || 'all';
+    if (!this.container) return;
+
+    this.container.querySelectorAll('.cust-nav-pill').forEach(pill => {
+      pill.classList.toggle('active', pill.getAttribute('data-filter') === this.customizeFilter);
+    });
+
+    const customView = this.container.querySelector('#view-customize-studio');
+    if (!customView) return;
+
+    customView.querySelectorAll('.config-section-card[data-section]').forEach(card => {
+      const sec = card.getAttribute('data-section') || '';
+      if (this.customizeFilter === 'all' || sec.includes(this.customizeFilter)) {
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    });
   }
 
   renderFontGrid() {
@@ -866,6 +922,15 @@ export class ToolStudioModal {
     this.container.querySelector('#btn-back-to-templates')?.addEventListener('click', () => {
       soundFx.playKeyBeep(450);
       this.switchModalTab('templates');
+    });
+
+    // Quick Category Filter Pills in Customizer
+    this.container.querySelectorAll('.cust-nav-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        soundFx.playKeyBeep(520);
+        const f = pill.getAttribute('data-filter');
+        this.switchCustomizeFilter(f);
+      });
     });
 
     // Category Filter Pills
@@ -1105,7 +1170,11 @@ export class ToolStudioModal {
 
     // Last Word Accent Toggle & Picker
     this.container.querySelector('#enable-last-word-toggle')?.addEventListener('change', (e) => {
-      this.setActiveConfig({ enableLastWordColor: e.target.checked });
+      const isChecked = e.target.checked;
+      soundFx.playKeyBeep(isChecked ? 580 : 350);
+      const lwWrap = this.container.querySelector('.accent-picker-wrap');
+      if (lwWrap) lwWrap.classList.toggle('disabled', !isChecked);
+      this.setActiveConfig({ enableLastWordColor: isChecked });
     });
 
     this.container.querySelector('#custom-last-word-input')?.addEventListener('input', (e) => {
@@ -1114,7 +1183,25 @@ export class ToolStudioModal {
       if (sw) sw.style.background = color;
       const hx = this.container.querySelector('#hex-text-last-word');
       if (hx) hx.textContent = color.toUpperCase();
+      this.container.querySelectorAll('.last-word-preset-dot').forEach(d => {
+        d.classList.toggle('active-dot', d.getAttribute('data-color').toLowerCase() === color.toLowerCase());
+      });
       this.setActiveConfig({ lastWordColor: color });
+    });
+
+    this.container.querySelectorAll('.last-word-preset-dot').forEach(dot => {
+      dot.addEventListener('click', () => {
+        soundFx.playKeyBeep(580);
+        const color = dot.getAttribute('data-color');
+        const sw = this.container.querySelector('#preview-swatch-last-word');
+        if (sw) sw.style.background = color;
+        const hx = this.container.querySelector('#hex-text-last-word');
+        if (hx) hx.textContent = color.toUpperCase();
+        const inp = this.container.querySelector('#custom-last-word-input');
+        if (inp) inp.value = color;
+        this.container.querySelectorAll('.last-word-preset-dot').forEach(d => d.classList.toggle('active-dot', d === dot));
+        this.setActiveConfig({ lastWordColor: color });
+      });
     });
 
     // Add Interval button
