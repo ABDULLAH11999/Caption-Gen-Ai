@@ -596,7 +596,13 @@ export class UserDashboard {
 
         <!-- System Requirements Modal -->
         <div id="sysreq-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
-          <div style="background:#fff; border-radius:16px; padding:32px 28px; max-width:480px; width:90%; box-shadow:0 24px 60px rgba(0,0,0,0.22); position:relative; font-family:inherit;">
+          <style>
+            @media (max-width: 600px) {
+              #sysreq-modal-inner { padding: 24px 16px !important; }
+              #sysreq-spec-grid { grid-template-columns: 1fr !important; }
+            }
+          </style>
+          <div id="sysreq-modal-inner" style="background:#fff; border-radius:16px; padding:32px 28px; max-width:640px; width:92%; box-shadow:0 24px 60px rgba(0,0,0,0.22); position:relative; font-family:inherit; max-height:90vh; overflow-y:auto;">
             <button id="btn-sysreq-close" style="position:absolute; top:14px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8; line-height:1;">×</button>
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
               <div style="width:36px;height:36px;border-radius:10px;background:#fff7ed;display:flex;align-items:center;justify-content:center;font-size:18px;">💻</div>
@@ -605,7 +611,7 @@ export class UserDashboard {
                 <div style="font-size:12px;color:#64748b;">For AI caption processing &amp; 60 FPS export</div>
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div id="sysreq-spec-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
                 <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">⚙️ Minimum</div>
                 <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#334155;">
