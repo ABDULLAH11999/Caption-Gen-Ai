@@ -20,6 +20,26 @@ class SpeechTranscriberService {
     this.modelId = 'Xenova/whisper-tiny';
   }
 
+  withTimeout(promise, ms, message) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), ms);
+    });
+
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  }
+
+  getModelTimeoutMs() {
+    const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent);
+    return isMobile ? 240000 : 180000;
+  }
+
+  getInferenceTimeoutMs(duration) {
+    const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent);
+    const base = isMobile ? 240000 : 180000;
+    return Math.min(600000, Math.max(base, Math.ceil((duration || 30) * 6000)));
+  }
+
   /**
    * Decodes an audio/video file Blob into raw PCM audio float array and audio buffer.
    */
@@ -294,17 +314,25 @@ class SpeechTranscriberService {
             });
           }
 
-          this.pipeline = await this.pipelinePromise;
+          this.pipeline = await this.withTimeout(
+            this.pipelinePromise,
+            this.getModelTimeoutMs(),
+            'Whisper model setup took too long'
+          );
         }
 
         onProgress({ status: 'transcribing', message: 'Transcribing spoken words with Whisper...', percent: 80 });
 
-        const result = await this.pipeline(rawPcm, {
-          return_timestamps: 'word',
-          chunk_length_s: 30,
-          stride_length_s: 5,
-          task: 'transcribe'
-        });
+        const result = await this.withTimeout(
+          this.pipeline(rawPcm, {
+            return_timestamps: false,
+            chunk_length_s: 30,
+            stride_length_s: 5,
+            task: 'transcribe'
+          }),
+          this.getInferenceTimeoutMs(duration),
+          'Whisper transcription took too long'
+        );
 
         if (result && result.text && result.text.trim()) {
           onProgress({ status: 'translating', message: 'Synchronizing English captions...', percent: 92 });
@@ -489,64 +517,107 @@ class SpeechTranscriberService {
    */
   formatWhisperResultToSentences(whisperResult, totalDuration, speechSegments) {
     const rawText = this.normalizeTranscriptText(whisperResult.text);
-    const chunks = whisperResult.chunks || [];
+    const words = this.extractWhisperWords(whisperResult);
+    const sourceWords = words.length > 0 ? words : rawText.split(/\s+/).filter(Boolean);
 
-    if (chunks.length > 0) {
-      // Group chunks into 5-8 word sentences for natural viral caption appearance
-      const sentences = [];
-      let currentSentenceWords = [];
-      let sentenceIdx = 1;
+    return this.buildVoiceAlignedSentences(sourceWords, totalDuration, speechSegments);
+  }
 
-      chunks.forEach((c, idx) => {
-        const tokens = this.tokenizeChunkText(c.text || '');
-        if (tokens.length === 0) return;
+  extractWhisperWords(whisperResult) {
+    const chunks = whisperResult?.chunks || [];
+    const words = [];
 
-        let chunkStart = c.timestamp ? Number(c.timestamp[0] ?? 0) : idx * 0.5;
-        let chunkEnd = c.timestamp ? Number(c.timestamp[1] ?? chunkStart + 0.4) : chunkStart + 0.4;
+    chunks.forEach((chunk) => {
+      const tokens = this.tokenizeChunkText(chunk.text || '');
+      tokens.forEach((token) => words.push(token));
+    });
 
-        if (!Number.isFinite(chunkStart)) chunkStart = idx * 0.5;
-        if (!Number.isFinite(chunkEnd) || chunkEnd <= chunkStart) chunkEnd = chunkStart + 0.4;
+    if (words.length > 0) return words;
+    return this.normalizeTranscriptText(whisperResult?.text || '').split(/\s+/).filter(Boolean);
+  }
 
-        chunkStart = Math.max(0, Math.min(chunkStart, totalDuration));
-        chunkEnd = Math.max(chunkStart + 0.05, Math.min(chunkEnd, totalDuration));
-        if (chunkStart >= totalDuration) return;
+  buildVoiceAlignedSentences(sourceWords, totalDuration, speechSegments = []) {
+    const words = (sourceWords || [])
+      .map(word => (typeof word === 'string' ? word : word?.word))
+      .filter(Boolean);
+    if (words.length === 0) return [];
 
-        const tokenStep = (chunkEnd - chunkStart) / tokens.length;
+    const usableSegments = (speechSegments || [])
+      .map(seg => ({
+        start: Math.max(0, Number(seg.start ?? 0)),
+        end: Math.min(totalDuration, Number(seg.end ?? totalDuration))
+      }))
+      .filter(seg => Number.isFinite(seg.start) && Number.isFinite(seg.end) && seg.end - seg.start >= 0.18);
 
-        tokens.forEach((wordText, tokenIdx) => {
-          const wStart = chunkStart + tokenIdx * tokenStep;
-          const wEnd = tokenIdx === tokens.length - 1 ? chunkEnd : chunkStart + (tokenIdx + 1) * tokenStep;
-
-          if (this.shouldStartSegmentBeforeWord(currentSentenceWords, wordText)) {
-            sentenceIdx = this.pushSentence(sentences, currentSentenceWords, sentenceIdx);
-            currentSentenceWords = [];
-          }
-
-          currentSentenceWords.push({
-            word: wordText,
-            start: parseFloat(wStart.toFixed(2)),
-            end: parseFloat(wEnd.toFixed(2))
-          });
-        });
-
-        const lastToken = tokens[tokens.length - 1];
-        const isPunctuationBreak = /[.!?]$/.test(lastToken);
-        const isLengthBreak = currentSentenceWords.length >= 7;
-
-        if (isPunctuationBreak || isLengthBreak || idx === chunks.length - 1) {
-          sentenceIdx = this.pushSentence(sentences, currentSentenceWords, sentenceIdx);
-          currentSentenceWords = [];
-        }
-      });
-
-      if (sentences.length > 0) {
-        this.normalizeWordSequences(sentences);
-        return this.consolidateTimeTokens(sentences);
-      }
+    if (usableSegments.length === 0) {
+      usableSegments.push({ start: 0, end: Math.max(0.8, totalDuration || words.length * 0.35) });
     }
 
-    // Fallback from raw text
-    return this.splitTextIntoTimedSentences(rawText, totalDuration, speechSegments);
+    const totalSpeechDuration = usableSegments.reduce((sum, seg) => sum + Math.max(0.01, seg.end - seg.start), 0);
+    const sentences = [];
+    let wordIndex = 0;
+    let elapsedSpeech = 0;
+
+    usableSegments.forEach((seg, segIdx) => {
+      if (wordIndex >= words.length) return;
+
+      elapsedSpeech += Math.max(0.01, seg.end - seg.start);
+      const idealEndIndex = segIdx === usableSegments.length - 1
+        ? words.length
+        : Math.round((elapsedSpeech / totalSpeechDuration) * words.length);
+      const endIndex = Math.max(wordIndex + 1, Math.min(words.length, idealEndIndex));
+      const segWords = words.slice(wordIndex, endIndex);
+      wordIndex = endIndex;
+
+      this.pushCaptionChunksForSpeechSegment(sentences, segWords, seg, sentences.length + 1);
+    });
+
+    if (wordIndex < words.length) {
+      const lastSeg = usableSegments[usableSegments.length - 1];
+      this.pushCaptionChunksForSpeechSegment(sentences, words.slice(wordIndex), lastSeg, sentences.length + 1);
+    }
+
+    this.normalizeWordSequences(sentences);
+    return this.consolidateTimeTokens(sentences);
+  }
+
+  pushCaptionChunksForSpeechSegment(sentences, segWords, seg) {
+    if (!segWords || segWords.length === 0) return;
+
+    const maxWordsPerCaption = 5;
+    const minCaptionDuration = 0.42;
+    const segDuration = Math.max(minCaptionDuration, seg.end - seg.start);
+    const chunkCount = Math.max(1, Math.ceil(segWords.length / maxWordsPerCaption));
+    const chunkSize = Math.ceil(segWords.length / chunkCount);
+    const wordDuration = segDuration / segWords.length;
+
+    for (let i = 0; i < segWords.length; i += chunkSize) {
+      const chunkWords = segWords.slice(i, i + chunkSize);
+      if (chunkWords.length === 0) continue;
+
+      const chunkStart = seg.start + i * wordDuration;
+      const chunkEnd = seg.start + Math.min(segWords.length, i + chunkWords.length) * wordDuration;
+      const safeEnd = Math.max(chunkStart + minCaptionDuration, chunkEnd);
+      const perWord = (safeEnd - chunkStart) / chunkWords.length;
+
+      const timedWords = chunkWords.map((word, idx) => ({
+        word,
+        start: parseFloat((chunkStart + idx * perWord).toFixed(2)),
+        end: parseFloat((chunkStart + (idx + 1) * perWord).toFixed(2)),
+        startTime: parseFloat((chunkStart + idx * perWord).toFixed(2)),
+        endTime: parseFloat((chunkStart + (idx + 1) * perWord).toFixed(2))
+      }));
+
+      sentences.push({
+        id: `sentence_${sentences.length + 1}`,
+        startTime: timedWords[0].start,
+        endTime: timedWords[timedWords.length - 1].end,
+        start: timedWords[0].start,
+        end: timedWords[timedWords.length - 1].end,
+        text: chunkWords.join(' '),
+        words: timedWords
+      });
+    }
   }
 
   /**

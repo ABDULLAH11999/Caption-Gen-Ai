@@ -304,10 +304,10 @@ export class CaptionEngine {
   }
 
   /**
-   * Splits long sentences so line segments NEVER create a 3rd row.
-   * Keeps compact phrases (up to 4 words / <= 24 chars like "3 to 6 PM") together on 1-2 rows.
+   * Splits long sentences so line segments stay compact.
+   * Keeps short voice chunks together so timing stays aligned with speech.
    */
-  splitLongSegments(sentences, maxWords = 4) {
+  splitLongSegments(sentences, maxWords = 5) {
     const result = [];
     (sentences || []).forEach((s, sIdx) => {
       let words = s.words;
@@ -320,7 +320,7 @@ export class CaptionEngine {
 
       const totalChars = words.reduce((acc, w) => acc + (w.word ? w.word.length : 0), 0);
 
-      // Keep phrases with up to 4 words or <= 24 characters together so "3 to 6 PM" stays on one row
+      // Keep short phrases together so the transcriber timing is not over-fragmented.
       if (words.length <= maxWords || totalChars <= 24) {
         result.push({
           ...s,
@@ -412,7 +412,7 @@ export class CaptionEngine {
     const consolidated = this.consolidateTimeAndOrphanSegments(normalized);
 
     // Automatically format segments so no segment creates a 3rd row while preserving "3 to 6 PM"
-    this.sentences = this.splitLongSegments(consolidated, 4);
+    this.sentences = this.splitLongSegments(consolidated, 5);
     this.sentences.sort((a, b) => a.start - b.start);
   }
 
