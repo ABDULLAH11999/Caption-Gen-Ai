@@ -146,11 +146,7 @@ export class LandingPage {
             </div>
 
             <div class="mockup-screen-area">
-              <div class="mockup-caption-line">
-                <span class="mockup-word-normal">creating</span>
-                <span class="mockup-word-prominent">Viral</span>
-                <span class="mockup-word-prominent">Reels</span>
-              </div>
+              <img class="mockup-preview-image" src="/img-1.jpg" alt="" />
 
               <div class="mockup-controls-overlay">
                 <span style="font-size: 12px; color: #a1a1aa; font-weight: 700;">00:03 / 00:13</span>
