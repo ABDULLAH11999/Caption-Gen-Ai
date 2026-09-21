@@ -48,10 +48,10 @@ export class LandingPage {
           </a>
         </div>
 
-        <div class="hero-rating-badge" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin: 16px auto 0; font-size: 14px; color: #475569;" itemprop="aggregateRating" itemscope itemtype="https://schema.org/AggregateRating">
+        <div class="hero-rating-badge" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin: 16px auto 0; font-size: 14px; color: #475569;">
           <div style="color: #f59e0b; font-size: 16px; letter-spacing: 2px;">★★★★★</div>
-          <span style="font-weight: 800; color: #0f172a;"><span itemprop="ratingValue">4.9</span>/5</span>
-          <span style="color: #64748b;">(<span itemprop="ratingCount">134</span> reviews)</span>
+          <span style="font-weight: 800; color: #0f172a;">4.9/5</span>
+          <span style="color: #64748b;">(134 reviews)</span>
           <span style="display: inline-block; width: 4px; height: 4px; background: #cbd5e1; border-radius: 50%;"></span>
           <span style="font-weight: 700; color: #16a34a; background: #dcfce7; padding: 2px 10px; border-radius: 999px; font-size: 12px;">100% Free</span>
         </div>
@@ -183,10 +183,10 @@ export class LandingPage {
           <span class="badge badge-coral" style="margin-bottom: 12px;">Frequently Asked Questions</span>
           <h2 class="section-heading">Everything About Zen Caption Tool</h2>
           <p class="section-subheading">Common questions about the 100% free AI video caption generator and subtitle maker.</p>
-          <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; font-size: 14px; color: #64748b;" itemprop="aggregateRating" itemscope itemtype="https://schema.org/AggregateRating">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; font-size: 14px; color: #64748b;">
             <span style="color: #f59e0b; font-size: 15px; letter-spacing: 2px;">★★★★★</span>
-            <span style="font-weight: 800; color: #0f172a;"><span itemprop="ratingValue">4.9</span>/5</span>
-            <span>based on <strong itemprop="ratingCount">134</strong> verified creator reviews</span>
+            <span style="font-weight: 800; color: #0f172a;">4.9/5</span>
+            <span>based on <strong>134</strong> verified creator reviews</span>
             <span style="display: inline-block; width: 4px; height: 4px; background: #cbd5e1; border-radius: 50%;"></span>
             <span style="font-weight: 700; color: #16a34a; background: #dcfce7; padding: 2px 8px; border-radius: 999px; font-size: 12px;">Free Tool</span>
           </div>

@@ -305,11 +305,28 @@ export async function initDb() {
         'ratingCount': '134',
         'reviewCount': '134',
         'bestRating': '5',
-        'worstRating': '1'
+        'worstRating': '1',
+        'itemReviewed': {
+          '@type': 'SoftwareApplication',
+          '@id': 'https://zencaption.online/#software',
+          'name': 'Zen Caption - Free AI Caption Generator & Auto Subtitle Maker',
+          'applicationCategory': 'MultimediaApplication',
+          'operatingSystem': 'All',
+          'offers': {
+            '@type': 'Offer',
+            'price': '0',
+            'priceCurrency': 'USD'
+          }
+        }
       },
       'review': [
         {
           '@type': 'Review',
+          'itemReviewed': {
+            '@type': 'SoftwareApplication',
+            '@id': 'https://zencaption.online/#software',
+            'name': 'Zen Caption - Free AI Caption Generator & Auto Subtitle Maker'
+          },
           'author': { '@type': 'Person', 'name': 'David Miller' },
           'datePublished': '2026-09-19',
           'reviewBody': 'Phenomenal free AI caption generator! Burned animated dual-font subtitles into my Instagram Reels in seconds with zero watermark.',
@@ -317,6 +334,11 @@ export async function initDb() {
         },
         {
           '@type': 'Review',
+          'itemReviewed': {
+            '@type': 'SoftwareApplication',
+            '@id': 'https://zencaption.online/#software',
+            'name': 'Zen Caption - Free AI Caption Generator & Auto Subtitle Maker'
+          },
           'author': { '@type': 'Person', 'name': 'Sarah Jenkins' },
           'datePublished': '2026-09-17',
           'reviewBody': 'The best free captions generator customizable for real estate walkthroughs and short-form video. Accurate Whisper AI transcription.',
