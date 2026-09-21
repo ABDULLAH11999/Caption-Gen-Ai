@@ -90,7 +90,7 @@ class SelfieSegmenterService {
    * Generates the foreground person cutout on this.cutoutCanvas from maskObj
    * Person pixels are preserved with original video content; background pixels are made 100% transparent.
    */
-  applyMaskAndCutout(maskObj, video, width, height) {
+  applyMaskAndCutout(maskObj, video, width, height, enhanceQuality = false) {
     const maskW = maskObj.width;
     const maskH = maskObj.height;
 
@@ -154,14 +154,16 @@ class SelfieSegmenterService {
 
     // 2. Retain source pixels only where person mask exists
     cutoutCtx.globalCompositeOperation = "source-in";
+    cutoutCtx.filter = enhanceQuality ? 'contrast(115%) saturate(130%) brightness(96%)' : 'none';
     cutoutCtx.drawImage(video, 0, 0, width, height);
+    cutoutCtx.filter = 'none';
     cutoutCtx.globalCompositeOperation = "source-over"; // Reset blend mode
   }
 
   /**
    * Renders the foreground cutout (person) onto a live display canvas
    */
-  renderCutout(video, targetCanvas) {
+  renderCutout(video, targetCanvas, enhanceQuality = false) {
     if (!this.segmenter || !video || video.readyState < 2) return;
 
     const width = video.videoWidth || 1280;
@@ -196,7 +198,7 @@ class SelfieSegmenterService {
 
         if (!mask) return;
 
-        this.applyMaskAndCutout(mask, video, width, height);
+        this.applyMaskAndCutout(mask, video, width, height, enhanceQuality);
 
         // Composite person cutout over target canvas (Layer 3 over Layer 2 captions)
         targetCtx.clearRect(0, 0, width, height);
@@ -218,7 +220,7 @@ class SelfieSegmenterService {
   /**
    * Draws the foreground cutout directly onto an export canvas context
    */
-  drawCutoutToContext(video, ctx, canvasWidth, canvasHeight) {
+  drawCutoutToContext(video, ctx, canvasWidth, canvasHeight, enhanceQuality = false) {
     if (!this.segmenter || !video || video.readyState < 2) return;
 
     const width = canvasWidth;
@@ -246,7 +248,7 @@ class SelfieSegmenterService {
 
         if (!mask) return;
 
-        this.applyMaskAndCutout(mask, video, width, height);
+        this.applyMaskAndCutout(mask, video, width, height, enhanceQuality);
 
         ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
 

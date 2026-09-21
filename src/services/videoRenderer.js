@@ -454,7 +454,7 @@ export class VideoRenderer {
 
     // 13. Rotoscoped Person Cutout (Layer 3 on top of Captions)
     if (currentSentence.behind && selfieSegmenterService.isReady()) {
-      selfieSegmenterService.drawCutoutToContext(video, ctx, canvasWidth, canvasHeight);
+      selfieSegmenterService.drawCutoutToContext(video, ctx, canvasWidth, canvasHeight, isEnhanced);
     }
   }
 

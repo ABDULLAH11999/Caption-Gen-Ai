@@ -1756,7 +1756,7 @@ export class UserDashboard {
 
     if (currentSentence && currentSentence.behind && selfieSegmenterService.isReady()) {
       this.cutoutCanvas.style.display = 'block';
-      selfieSegmenterService.renderCutout(this.videoElement, this.cutoutCanvas);
+      selfieSegmenterService.renderCutout(this.videoElement, this.cutoutCanvas, this.enhanceVideoQuality);
     } else {
       if (this.cutoutCanvas.style.display !== 'none') {
         this.cutoutCanvas.style.display = 'none';
