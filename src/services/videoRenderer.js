@@ -1,5 +1,5 @@
 // Lossless Native-Resolution Video Caption Burn-In & Export Engine
-import { CAPTION_POSITIONS, FONTS } from '../config.js';
+import { CAPTION_POSITIONS, FONTS, AUTO_ANIMATION_SEQUENCE } from '../config.js';
 import { fixVideoMetadata } from './videoDurationFixer.js';
 import { autoTypographyEngine } from './autoTypographyEngine.js';
 import { selfieSegmenterService } from './selfieSegmenter.js';
@@ -226,7 +226,189 @@ export class VideoRenderer {
     const totalBlockHeight = lines.length * lineHeight;
     const startBlockY = hasCustomPos ? posY : (posY - totalBlockHeight * 0.5 + lineHeight * 0.5);
 
-    // 11. Render caption lines on Layer 2
+    // 11. Compute Dynamic Entrance Animation & Shine Glow Effects
+    let resolvedAnimId = config.animation || 'anim-auto';
+    if (resolvedAnimId === 'anim-auto') {
+      let segCount = 0;
+      const targetIdx = sentences.findIndex(s => s === currentSentence || (s.id !== undefined && s.id === currentSentence.id));
+      for (let i = 0; i < (targetIdx >= 0 ? targetIdx : 0); i++) {
+        const sWords = sentences[i].words || [];
+        const sChars = sWords.reduce((acc, w) => acc + ((w.word || '').length), 0);
+        if (sWords.length > 4 || (sWords.length === 4 && sChars > 22)) {
+          segCount += 2;
+        } else {
+          segCount += 1;
+        }
+      }
+      if (chunkOffset > 0) segCount += 1;
+      resolvedAnimId = AUTO_ANIMATION_SEQUENCE[segCount % AUTO_ANIMATION_SEQUENCE.length];
+    }
+
+    const chunkStartTime = Number(displayWords[0]?.start ?? displayWords[0]?.startTime ?? (currentSentence.start ?? currentSentence.startTime ?? 0));
+    const elapsed = Math.max(0, curTime - chunkStartTime);
+
+    let blockScale = 1.0;
+    let blockOffsetY = 0;
+    let blockOpacity = 1.0;
+    let shineFactor = 0;
+    let flareFactor = 0;
+    let glowColorOverride = null;
+    let extraGlowBlur = 0;
+
+    switch (resolvedAnimId) {
+      case 'anim-neon-shimmer': {
+        const dur = 0.9;
+        const p = Math.min(1.0, elapsed / dur);
+        if (p <= 0.45) {
+          shineFactor = p / 0.45;
+        } else {
+          shineFactor = Math.max(0, (1.0 - p) / 0.55);
+        }
+        blockScale = 0.96 + 0.10 * shineFactor;
+        blockOpacity = 0.25 + 0.75 * Math.min(1.0, p / 0.25);
+        extraGlowBlur = Math.round(36 * shineFactor * scale);
+        if (shineFactor > 0.15) {
+          glowColorOverride = '#00F0FF';
+        }
+        break;
+      }
+      case 'anim-fire-flare': {
+        const dur = 0.85;
+        const p = Math.min(1.0, elapsed / dur);
+        if (p <= 0.40) {
+          flareFactor = p / 0.40;
+        } else {
+          flareFactor = Math.max(0, (1.0 - p) / 0.60);
+        }
+        blockScale = (0.75 + 0.25 * Math.min(1.0, p / 0.4)) + 0.14 * flareFactor;
+        blockOpacity = Math.min(1.0, p / 0.18);
+        extraGlowBlur = Math.round(42 * flareFactor * scale);
+        if (flareFactor > 0.15) {
+          glowColorOverride = '#FF6B00';
+        }
+        break;
+      }
+      case 'anim-zoom-impact': {
+        const dur = 0.35;
+        const p = Math.min(1.0, elapsed / dur);
+        blockScale = 1.0 + 1.2 * Math.pow(1.0 - p, 2.2);
+        blockOpacity = Math.min(1.0, p / 0.12);
+        break;
+      }
+      case 'anim-bounce-drop': {
+        const dur = 0.48;
+        const p = Math.min(1.0, elapsed / dur);
+        if (p <= 0.65) {
+          const t = p / 0.65;
+          blockOffsetY = (-45 + 50 * t) * scale;
+          blockScale = 0.85 + 0.23 * t;
+        } else if (p <= 0.85) {
+          const t = (p - 0.65) / 0.20;
+          blockOffsetY = (5 - 7 * t) * scale;
+          blockScale = 1.08 - 0.10 * t;
+        } else {
+          const t = (p - 0.85) / 0.15;
+          blockOffsetY = (-2 + 2 * t) * scale;
+          blockScale = 0.98 + 0.02 * t;
+        }
+        blockOpacity = Math.min(1.0, p / 0.18);
+        break;
+      }
+      case 'anim-pop': {
+        const dur = 0.32;
+        const p = Math.min(1.0, elapsed / dur);
+        if (p <= 0.60) {
+          const t = p / 0.60;
+          blockScale = 0.65 + 0.50 * t;
+        } else {
+          const t = (p - 0.60) / 0.40;
+          blockScale = 1.15 - 0.15 * t;
+        }
+        blockOpacity = Math.min(1.0, p / 0.15);
+        break;
+      }
+      case 'anim-cinematic-drift': {
+        const dur = 1.4;
+        const p = Math.min(1.0, elapsed / dur);
+        blockOffsetY = (1.0 - p) * 14 * scale;
+        blockScale = 0.92 + 0.08 * p;
+        blockOpacity = Math.min(1.0, p / 0.25);
+        break;
+      }
+      case 'anim-3d-tilt': {
+        const dur = 0.75;
+        const p = Math.min(1.0, elapsed / dur);
+        blockOffsetY = (1.0 - p) * 20 * scale;
+        blockScale = 0.85 + 0.15 * p;
+        blockOpacity = Math.min(1.0, p / 0.22);
+        break;
+      }
+      case 'anim-liquid-gradient': {
+        const dur = 1.1;
+        const p = Math.min(1.0, elapsed / dur);
+        shineFactor = Math.sin(p * Math.PI);
+        blockScale = 0.95 + 0.10 * shineFactor;
+        blockOpacity = Math.min(1.0, p / 0.25);
+        extraGlowBlur = Math.round(24 * shineFactor * scale);
+        if (shineFactor > 0.2) glowColorOverride = '#C084FC';
+        break;
+      }
+    }
+
+    const maxLineWidth = Math.max(...lines.map(l => l.width), 10);
+    const blockCenterX = (textAlign === 'center')
+      ? posX
+      : (textAlign === 'right' ? posX - maxLineWidth / 2 : posX + maxLineWidth / 2);
+    const blockCenterY = startBlockY + totalBlockHeight * 0.5;
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1.0, blockOpacity));
+
+    // Apply block entrance animation transform
+    ctx.translate(blockCenterX, blockCenterY + blockOffsetY);
+    if (blockScale !== 1.0) {
+      ctx.scale(blockScale, blockScale);
+    }
+    ctx.translate(-blockCenterX, -blockCenterY);
+
+    // If intense shine is active (Neon Shimmer or Solar Flare), draw background glow burst
+    if (shineFactor > 0.15) {
+      ctx.save();
+      ctx.shadowColor = '#00F0FF';
+      ctx.shadowBlur = Math.round(40 * shineFactor * scale);
+      lines.forEach((line, lineIdx) => {
+        const lineY = startBlockY + lineIdx * lineHeight;
+        let curX = (textAlign === 'center') ? posX - line.width / 2 : (textAlign === 'right' ? posX - line.width : posX);
+        line.words.forEach(w => {
+          ctx.font = `${w.fontWeight} ${w.fontSize}px ${w.font}`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = 'rgba(0, 240, 255, 0.4)';
+          ctx.fillText(w.word, curX + w.width / 2, lineY);
+          curX += w.width + wordGap;
+        });
+      });
+      ctx.restore();
+    } else if (flareFactor > 0.15) {
+      ctx.save();
+      ctx.shadowColor = '#FF6B00';
+      ctx.shadowBlur = Math.round(45 * flareFactor * scale);
+      lines.forEach((line, lineIdx) => {
+        const lineY = startBlockY + lineIdx * lineHeight;
+        let curX = (textAlign === 'center') ? posX - line.width / 2 : (textAlign === 'right' ? posX - line.width : posX);
+        line.words.forEach(w => {
+          ctx.font = `${w.fontWeight} ${w.fontSize}px ${w.font}`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = 'rgba(255, 107, 0, 0.4)';
+          ctx.fillText(w.word, curX + w.width / 2, lineY);
+          curX += w.width + wordGap;
+        });
+      });
+      ctx.restore();
+    }
+
+    // 12. Render caption lines on Layer 2
     lines.forEach((line, lineIdx) => {
       const lineY = startBlockY + lineIdx * lineHeight;
       let startX = posX;
@@ -252,9 +434,14 @@ export class VideoRenderer {
         ctx.textBaseline = 'middle';
 
         // Shadows & Neon Glow
-        if (w.isSpeaking) {
-          ctx.shadowColor = `${w.color}AA`;
-          ctx.shadowBlur = Math.round(16 * scale);
+        if (glowColorOverride) {
+          ctx.shadowColor = glowColorOverride;
+          ctx.shadowBlur = Math.round((14 * scale) + extraGlowBlur);
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 0;
+        } else if (w.isSpeaking) {
+          ctx.shadowColor = `${w.color}CC`;
+          ctx.shadowBlur = Math.round(18 * scale);
           ctx.shadowOffsetX = 0;
           ctx.shadowOffsetY = Math.round(2 * scale);
         } else {
@@ -271,9 +458,18 @@ export class VideoRenderer {
         ctx.miterLimit = 2;
         ctx.strokeText(w.word, 0, 0);
 
-        // Fill
-        ctx.fillStyle = w.color;
-        ctx.fillText(w.word, 0, 0);
+        // Fill with shine luminance boost
+        if (shineFactor > 0.3) {
+          // Specular luminous core
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillText(w.word, 0, 0);
+          ctx.fillStyle = w.color;
+          ctx.globalAlpha = 0.75;
+          ctx.fillText(w.word, 0, 0);
+        } else {
+          ctx.fillStyle = w.color;
+          ctx.fillText(w.word, 0, 0);
+        }
 
         ctx.restore();
 
@@ -281,7 +477,9 @@ export class VideoRenderer {
       });
     });
 
-    // 12. Rotoscoped Person Cutout (Layer 3 on top of Captions)
+    ctx.restore();
+
+    // 13. Rotoscoped Person Cutout (Layer 3 on top of Captions)
     if (currentSentence.behind && selfieSegmenterService.isReady()) {
       selfieSegmenterService.drawCutoutToContext(video, ctx, canvasWidth, canvasHeight);
     }
