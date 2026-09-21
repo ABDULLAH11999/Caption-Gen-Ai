@@ -195,7 +195,7 @@ export async function initDb() {
         name: 'Free Starter',
         price: 0,
         billing_cycle: 'month',
-        short_desc: 'Full 60 FPS studio with AI video enhancement. 3 video exports per day.',
+        short_desc: 'Full 60 FPS studio with AI video enhancement. 5 video exports per day.',
         features: JSON.stringify([
           { text: '3 Video captions per day', included: true },
           { text: 'All 16 Viral & Luxury Presets', included: true },

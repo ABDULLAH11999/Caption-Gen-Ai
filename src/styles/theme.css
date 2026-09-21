@@ -561,3 +561,115 @@ textarea.form-control {
   color: #64748b;
   margin-top: 8px;
 }
+
+/* ==========================================================================
+   BETA NOTICE TOPBAR BANNER (Single-line, 10s auto-dismiss, one-time view)
+   ========================================================================== */
+.beta-topbar-banner {
+  background: #000000;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 85, 51, 0.35);
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 9px 16px;
+  position: relative;
+  z-index: 1002;
+  overflow: hidden;
+  max-height: 52px;
+  opacity: 1;
+  box-sizing: border-box;
+  transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.35s ease,
+              padding 0.45s ease,
+              border-bottom-color 0.3s ease;
+}
+
+.beta-topbar-banner.hide {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-color: transparent;
+  pointer-events: none;
+}
+
+.beta-topbar-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+  padding-right: 32px;
+}
+
+.beta-topbar-tag {
+  background: var(--primary-coral, #ff5533);
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 10px rgba(255, 85, 51, 0.4);
+}
+
+.beta-topbar-text {
+  color: #ffffff;
+  font-weight: 500;
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.beta-topbar-highlight {
+  color: #ff5533;
+  font-weight: 700;
+}
+
+.beta-topbar-close {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.beta-topbar-close:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+@media (max-width: 768px) {
+  .beta-topbar-banner {
+    max-height: 80px;
+    padding: 8px 12px;
+  }
+  .beta-topbar-inner {
+    padding-right: 28px;
+    gap: 8px;
+  }
+  .beta-topbar-text {
+    white-space: normal;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+}
+

@@ -23,6 +23,7 @@ import { BlogDetailPage } from './components/BlogDetailPage.js';
 import { UserDashboard } from './components/UserDashboard.js';
 import { AdminDashboard } from './components/AdminDashboard.js';
 import { ToolStudioModal } from './components/ToolStudioModal.js';
+import { BetaTopBar } from './components/BetaTopBar.js';
 
 class ZenSaaSApp {
   constructor() {
@@ -32,6 +33,7 @@ class ZenSaaSApp {
     this.settings = {};
 
     // Components
+    this.betaTopBar = null;
     this.navbar = null;
     this.footer = null;
     this.cookieBanner = null;
@@ -82,7 +84,11 @@ class ZenSaaSApp {
       });
       this.authModal.render(this.appRoot);
 
-      // 4. Initialize Navbar
+      // 4. Initialize Beta Topbar Banner (10-second one-time notice above Navbar)
+      this.betaTopBar = new BetaTopBar();
+      this.betaTopBar.render(this.appRoot);
+
+      // 5. Initialize Navbar
       this.navbar = new Navbar({
         onNavigate: (route, params) => this.navigate(route, params),
         onOpenAuth: (mode) => this.authModal.open(mode)
