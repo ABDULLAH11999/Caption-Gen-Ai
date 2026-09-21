@@ -271,36 +271,36 @@ export async function initDb() {
 
   // Seed default site settings
   const defaultSettings = [
-    { key: 'site_name', value: 'Zen Caption AI' },
-    { key: 'site_title', value: 'Zen Caption AI - 100% Free AI Video Caption Generator & Subtitle Maker Online' },
+    { key: 'site_name', value: 'Zen Caption' },
+    { key: 'site_title', value: 'Free AI Caption Generator & Auto Subtitle Maker for Video - Zen Caption' },
     { key: 'site_logo', value: '' },
     { key: 'site_favicon', value: '' },
-    { key: 'meta_desc', value: 'Free caption tool and free video subtitle generator online. Automatically generate, transcribe and add viral dual-font captions, Hormozi-style subtitles, and animated text to TikTok, Instagram Reels, YouTube Shorts, and videos for free with zero watermarks. Fast, accurate Whisper AI speech to text.' },
-    { key: 'meta_keywords', value: 'free caption tool, free caption video, free video subtitle generator, auto caption generator free, add captions to video free, no watermark caption generator, free subtitles generator for video, AI caption generator free, free auto subtitles, Hormozi captions free, viral reels captions free, tiktok subtitles generator free, instagram reels captions generator, youtube shorts auto subtitle, speech to text video subtitle, automatic subtitle generator online free, free closed caption tool, video subtitle maker free, transcribe video free, online video captioner, whisper ai captions free, dynamic word highlight captions, dual font video subtitles, client side video captioning, 60 fps subtitle export, caption video online free no watermark' },
+    { key: 'meta_desc', value: 'Add accurate captions to videos for free with our Auto Subtitle Generator. Automatically transcribe speech to text, generate viral subtitles for TikTok, Instagram Reels & YouTube Shorts. 100% free, no watermark, no sign-up needed.' },
+    { key: 'meta_keywords', value: 'free caption generator video tool, free caption generator tool, auto subtitle generator online, free video caption tool, free subtitle maker no watermark, free caption generator, free caption video, free video subtitle generator, auto caption generator free, add captions to video free, no watermark caption generator, free subtitles generator for video, AI caption generator free, free auto subtitles, Hormozi captions free, viral reels captions free, tiktok subtitles generator free, instagram reels captions generator, youtube shorts auto subtitle, speech to text video subtitle, automatic subtitle generator online free, free closed caption tool, video subtitle maker free, transcribe video free, online video captioner, whisper ai captions free, dynamic word highlight captions, dual font video subtitles, client side video captioning, caption video online free no watermark, kapwing alternative free, veed alternative free, auto subtitle generator 99% accurate, ai caption generator for video free, hardcode subtitles to video free, burned in captions generator, mp4 subtitle generator online, mov caption generator free, zen caption tool, zen caption, zen caption ai, zencaption, free caption tool' },
     { key: 'og_image', value: 'https://zencaption.online/default-blog-cover.jpg' },
-    { key: 'og_title', value: 'Zen Caption AI - 100% Free AI Video Caption Generator & Subtitle Maker' },
-    { key: 'og_desc', value: 'Free caption tool and free video subtitle generator online. Generate viral dual-font captions for TikTok, Shorts & Reels with Whisper AI speech recognition and 60 FPS lossless export. 100% Free, no watermark.' },
+    { key: 'og_title', value: 'Free AI Caption Generator & Auto Subtitle Maker for Video - Zen Caption' },
+    { key: 'og_desc', value: 'Add accurate captions to videos for free with our Auto Subtitle Generator. Automatically transcribe speech to text, generate viral subtitles for TikTok, Instagram Reels & YouTube Shorts. 100% free, no watermark.' },
     { key: 'json_ld', value: JSON.stringify({
       '@context': 'https://schema.org',
       '@type': 'WebApplication',
-      'name': 'Zen Caption AI',
+      'name': 'Zen Caption - Free AI Caption Generator & Auto Subtitle Maker',
       'url': 'https://zencaption.online',
       'applicationCategory': 'MultimediaApplication',
       'operatingSystem': 'All',
-      'description': '100% Free AI video caption tool and subtitle generator online. Create animated viral dual-font captions for TikTok, Instagram Reels, and YouTube Shorts with no watermark.',
+      'description': 'Zen Caption is a 100% free AI caption generator and auto subtitle maker for video. Automatically transcribe speech to text, generate viral captions for TikTok, Instagram Reels & YouTube Shorts with no watermark.',
       'offers': {
         '@type': 'Offer',
         'price': '0',
         'priceCurrency': 'USD'
       },
       'featureList': [
-        'Free Caption Tool',
-        'Free Video Subtitle Generator',
-        'Auto Speech to Text Transcription',
-        'No Watermark Export',
+        'Free AI Caption Generator',
+        'Auto Subtitle Generator',
+        'Offline Whisper AI Speech-to-Text Transcription',
+        '100% Free with No Watermark',
         'Hormozi Dual-Font Caption Styles',
-        'Client-Side Private Processing',
-        '60 FPS Lossless Video Export'
+        'Kinetic Text Animations',
+        'Client-Side Private Processing'
       ]
     }, null, 2) },
     { key: 'header_scripts', value: '' },

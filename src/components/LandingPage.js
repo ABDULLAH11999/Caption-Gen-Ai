@@ -28,7 +28,7 @@ export class LandingPage {
       <!-- 1. HERO BANNER -->
       <section class="hero-section">
         <div class="hero-pill-tag">
-          <span>⚡ Whisper AI &bull; Dual-Font Typography &bull; 60 FPS Export</span>
+          <span>⚡ 100% Free &bull; No Watermark &bull; Auto Subtitles for TikTok, Reels &amp; Shorts</span>
         </div>
 
         <h1 class="hero-title">
@@ -36,7 +36,7 @@ export class LandingPage {
         </h1>
 
         <p class="hero-subtitle">
-          Zen Caption is the #1 100% free caption generator video tool and auto subtitle maker online. Transform ordinary videos into high-retention short-form hits with automated Whisper AI speech recognition, Hormozi-style prominent words, and 16+ viral presets with zero watermarks.
+          Add accurate captions to videos for free with our Auto Subtitle Generator. Automatically transcribe speech to text, generate viral subtitles for TikTok, Instagram Reels &amp; YouTube Shorts with zero watermarks and no sign-up required.
         </p>
 
         <div class="hero-cta-row">
