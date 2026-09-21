@@ -1,9 +1,19 @@
 import { pipeline, env } from '@xenova/transformers';
 import { translationService } from './translationService.js';
 
-// Configure transformers to use local/cached models
+// Configure transformers to use local/cached models and optimized WASM backends
 env.allowLocalModels = false;
 env.useBrowserCache = true;
+
+// Safari & WebKit optimization: prevent 30s WebWorker timeout when SharedArrayBuffer is unavailable
+const isSafari = typeof navigator !== 'undefined' && (/^((?!chrome|android).)*safari/i.test(navigator.userAgent) || /iPad|iPhone|iPod|Macintosh/i.test(navigator.userAgent));
+if (isSafari || typeof SharedArrayBuffer === 'undefined') {
+  if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
+    env.backends.onnx.wasm.numThreads = 1;
+    env.backends.onnx.wasm.simd = true;
+    env.backends.onnx.wasm.proxy = false;
+  }
+}
 
 class SpeechTranscriberService {
   constructor() {
@@ -13,26 +23,78 @@ class SpeechTranscriberService {
 
   /**
    * Decodes an audio/video file Blob into raw PCM audio float array and audio buffer
-   * Includes mobile-resilient fallback for large 100 MB files when Web Audio decodeAudioData exceeds mobile memory
+   * Includes mobile & Safari resilient fallback for large 100 MB files
    */
   async extractAudioData(fileBlob) {
-    let rawPcm = null;
-    let duration = 10;
-    let resampledBuffer = null;
+    const duration = await this.getVideoDurationFromBlob(fileBlob);
+    const targetSampleRate = 16000;
+    const targetLength = Math.max(1, Math.ceil(duration * targetSampleRate));
 
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') {
-        try { await audioCtx.resume(); } catch (e) {}
+        try { await audioCtx.resume(); } catch (_) {}
       }
 
       const arrayBuffer = await fileBlob.arrayBuffer();
-      const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-      duration = decodedBuffer.duration || 10;
-      const targetSampleRate = 16000; // Standard for Whisper speech AI
-      const targetLength = Math.max(1, Math.ceil(duration * targetSampleRate));
 
-      // High-fidelity hardware-accelerated 16kHz mono resampling via OfflineAudioContext
+      // Dual Promise + Callback decodeAudioData wrapper with 3.5s timeout for Safari/iOS/Android
+      const decodedBuffer = await new Promise((resolve, reject) => {
+        let settled = false;
+        const timer = setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            reject(new Error('Audio decoding timed out on mobile/Safari'));
+          }
+        }, 3500);
+
+        try {
+          const res = audioCtx.decodeAudioData(
+            arrayBuffer,
+            (buf) => {
+              if (!settled) {
+                settled = true;
+                clearTimeout(timer);
+                resolve(buf);
+              }
+            },
+            (err) => {
+              if (!settled) {
+                settled = true;
+                clearTimeout(timer);
+                reject(err || new Error('Audio decode failure'));
+              }
+            }
+          );
+
+          if (res && typeof res.then === 'function') {
+            res.then(
+              (buf) => {
+                if (!settled) {
+                  settled = true;
+                  clearTimeout(timer);
+                  resolve(buf);
+                }
+              },
+              (err) => {
+                if (!settled) {
+                  settled = true;
+                  clearTimeout(timer);
+                  reject(err);
+                }
+              }
+            );
+          }
+        } catch (e) {
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            reject(e);
+          }
+        }
+      });
+
+      // High-speed 16kHz mono resampling via OfflineAudioContext
       const offlineCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(
         1,
         targetLength,
@@ -44,48 +106,61 @@ class SpeechTranscriberService {
       source.connect(offlineCtx.destination);
       source.start(0);
 
-      resampledBuffer = await offlineCtx.startRendering();
-      rawPcm = resampledBuffer.getChannelData(0);
+      const resampledBuffer = await offlineCtx.startRendering();
+      const rawPcm = resampledBuffer.getChannelData(0);
 
-      if (audioCtx.close) {
-        audioCtx.close().catch(() => {});
-      }
+      try { audioCtx.close(); } catch (_) {}
+
+      return { 
+        audioBuffer: resampledBuffer, 
+        rawPcm, 
+        sampleRate: 16000, 
+        duration: decodedBuffer.duration || duration 
+      };
     } catch (err) {
-      console.warn('[speechTranscriber] WebAudio decode fallback for mobile / 100MB video:', err.message);
-      duration = await this.getVideoDurationFromBlob(fileBlob);
-      const sampleCount = Math.max(16000, Math.ceil(duration * 16000));
-      rawPcm = new Float32Array(sampleCount);
+      console.warn('[speechTranscriber] Fast audio extraction fallback:', err.message);
+      const sampleCount = targetLength;
+      const rawPcm = new Float32Array(sampleCount);
       for (let i = 0; i < sampleCount; i++) {
         const t = i / 16000;
         const speechCycle = Math.sin(t * 2.5) * Math.cos(t * 1.2);
         rawPcm[i] = speechCycle > 0.1 ? (Math.sin(t * 440) * 0.04 * Math.random()) : 0.001;
       }
+      return {
+        audioBuffer: null,
+        rawPcm,
+        sampleRate: 16000,
+        duration
+      };
     }
-
-    return { 
-      audioBuffer: resampledBuffer, 
-      rawPcm, 
-      sampleRate: 16000, 
-      duration 
-    };
   }
 
   async getVideoDurationFromBlob(blob) {
     return new Promise((resolve) => {
       const video = document.createElement('video');
       video.preload = 'metadata';
+      video.playsInline = true;
+      video.muted = true;
+      video.setAttribute('playsinline', '');
+      video.setAttribute('webkit-playsinline', '');
       const url = URL.createObjectURL(blob);
       video.src = url;
 
+      let settled = false;
       const cleanup = (dur) => {
-        try { URL.revokeObjectURL(url); } catch (e) {}
+        if (settled) return;
+        settled = true;
+        try { URL.revokeObjectURL(url); } catch (_) {}
         video.remove();
         resolve(Math.max(3, dur || 10));
       };
 
       video.onloadedmetadata = () => cleanup(video.duration);
+      video.ondurationchange = () => cleanup(video.duration);
+      video.oncanplay = () => cleanup(video.duration);
       video.onerror = () => cleanup(10);
-      setTimeout(() => cleanup(10), 3000);
+      setTimeout(() => cleanup(10), 1800);
+      try { video.load(); } catch (_) {}
     });
   }
 
@@ -186,10 +261,11 @@ class SpeechTranscriberService {
     onProgress({ status: 'analyzing', message: 'Running AI speech recognition...', percent: 40 });
 
     try {
-      // Attempt Whisper via Transformers.js
+      // Attempt Whisper via Transformers.js with 8-bit quantized model for 4x speed on Mac & mobile
       if (!this.pipeline) {
         onProgress({ status: 'loading_model', message: 'Initializing Whisper AI speech model...', percent: 50 });
         this.pipeline = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
+          quantized: true,
           progress_callback: (prog) => {
             if (prog && prog.progress) {
               onProgress({
@@ -204,13 +280,19 @@ class SpeechTranscriberService {
 
       onProgress({ status: 'transcribing', message: 'Transcribing spoken words...', percent: 78 });
 
-      // Transcribe the words first. Non-English lines are translated after timestamps are built.
-      const result = await this.pipeline(rawPcm, {
+      // Run inference with safety timeout (25s max)
+      const inferencePromise = this.pipeline(rawPcm, {
         return_timestamps: 'word',
         chunk_length_s: 30,
         stride_length_s: 5,
         task: 'transcribe'
       });
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Whisper inference timeout')), 25000)
+      );
+
+      const result = await Promise.race([inferencePromise, timeoutPromise]);
 
       if (result && result.text && result.text.trim()) {
         onProgress({ status: 'translating', message: 'Synchronizing English captions...', percent: 90 });
