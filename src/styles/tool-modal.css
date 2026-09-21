@@ -665,6 +665,37 @@
   color: #475569;
 }
 
+/* Special High-Prominence Styling for Auto Mode (1-6 Sequence Loop) */
+.anim-card-btn[data-anim="anim-auto"] {
+  background: #000000 !important;
+  border: 1.5px solid #ff5533 !important;
+  position: relative;
+}
+
+.anim-card-btn[data-anim="anim-auto"] .anim-card-name {
+  color: #ff5533 !important;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.anim-card-btn[data-anim="anim-auto"] .anim-card-desc {
+  color: #cbd5e1 !important;
+}
+
+.anim-card-btn[data-anim="anim-auto"]:hover {
+  background: #18181b !important;
+  border-color: #ff7755 !important;
+  box-shadow: 0 4px 12px rgba(255, 85, 51, 0.35) !important;
+}
+
+.anim-card-btn[data-anim="anim-auto"].selected {
+  background: #000000 !important;
+  border: 2px solid #ff5533 !important;
+  box-shadow: 0 0 14px rgba(255, 85, 51, 0.5) !important;
+}
+
 /* Preview Column - Sticky right beside controls & animation selection */
 .tool-preview-column {
   display: flex;

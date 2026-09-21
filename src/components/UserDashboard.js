@@ -6,6 +6,7 @@ import {
   APP_CONFIG, 
   CAPTION_POSITIONS, 
   CAPTION_ANIMATIONS, 
+  AUTO_ANIMATION_SEQUENCE,
   CAPTION_TEMPLATES,
   DEFAULT_LANDSCAPE_CONFIG, 
   DEFAULT_PORTRAIT_CONFIG,
@@ -1254,8 +1255,27 @@ export class UserDashboard {
     const sEnd = Number(currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5));
     const subChunkKey = displayWords.map(w => w.word).join('_');
     const animId = cfg.animation || 'anim-pop';
-    const animMeta = CAPTION_ANIMATIONS.find(a => a.id === animId || a.cssClass === animId);
-    const animClass = animMeta ? animMeta.cssClass : (animId.startsWith('anim-') ? animId : 'anim-pop');
+
+    let resolvedAnimId = animId;
+    if (animId === 'anim-auto') {
+      // Deterministically cycle animations 1 to 6 on every segment
+      let segCount = 0;
+      const targetIdx = sentences.findIndex(s => s === currentSentence || (s.id !== undefined && s.id === currentSentence.id));
+      for (let i = 0; i < targetIdx; i++) {
+        const sWords = sentences[i].words || [];
+        const sChars = sWords.reduce((acc, w) => acc + ((w.word || '').length), 0);
+        if (sWords.length > 4 || (sWords.length === 4 && sChars > 22)) {
+          segCount += 2;
+        } else {
+          segCount += 1;
+        }
+      }
+      if (chunkOffset > 0) segCount += 1;
+      resolvedAnimId = AUTO_ANIMATION_SEQUENCE[segCount % AUTO_ANIMATION_SEQUENCE.length];
+    }
+
+    const animMeta = CAPTION_ANIMATIONS.find(a => a.id === resolvedAnimId || a.cssClass === resolvedAnimId);
+    const animClass = animMeta ? animMeta.cssClass : (resolvedAnimId.startsWith('anim-') ? resolvedAnimId : 'anim-pop');
 
     const sKey = `seg_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}`;
 

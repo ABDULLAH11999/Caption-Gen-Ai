@@ -41,8 +41,19 @@ export const CAPTION_POSITIONS = [
   { id: 'bottom-right', label: 'Bottom Right', x: '94%', y: '82%', align: 'right', transform: 'translate(-100%, -50%)' }
 ];
 
-// 22+ Caption Animation Styles
+// 6-Animation Auto Cycle Sequence (Cycles 1 to 6 on every segment)
+export const AUTO_ANIMATION_SEQUENCE = [
+  'anim-zoom-impact',     // 1- Zoom impact
+  'anim-neon-shimmer',    // 2- Neon Shimmer Sweep
+  'anim-bounce-drop',     // 3- Kinetic Bounce Drop
+  'anim-fire-flare',      // 4- Solar Flare Pulse
+  'anim-pop',             // 5- Pop Scale Bounce
+  'anim-cinematic-drift'  // 6- Cinematic Drift
+];
+
+// Caption Animation Styles (Including Auto Mode Cycle)
 export const CAPTION_ANIMATIONS = [
+  { id: 'anim-auto', name: '⚡ Auto Mode (1-6 Loop)', description: 'Auto-cycles 6 viral animations across segments (1 to 6 loop)', cssClass: 'anim-auto' },
   { id: 'anim-3d-tilt', name: '3D Tilt & Spring', description: 'Dynamic 3D perspective swing with spring recoil', cssClass: 'anim-3d-tilt' },
   { id: 'anim-neon-shimmer', name: 'Neon Shimmer Sweep', description: 'Luminous light beam scanning across words', cssClass: 'anim-neon-shimmer' },
   { id: 'anim-bounce-drop', name: 'Kinetic Bounce Drop', description: 'Falling from above with elastic rubber bounce', cssClass: 'anim-bounce-drop' },

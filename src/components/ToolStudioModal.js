@@ -3,6 +3,7 @@ import {
   FONTS, 
   CAPTION_POSITIONS, 
   CAPTION_ANIMATIONS, 
+  AUTO_ANIMATION_SEQUENCE,
   CAPTION_TEMPLATES,
   DEFAULT_LANDSCAPE_CONFIG, 
   DEFAULT_PORTRAIT_CONFIG 
@@ -22,10 +23,12 @@ export class ToolStudioModal {
     this.isOpen = false;
     this.animLoopTimer = null;
     this.previewPhrases = [
-      'this is Emily',
-      'for September',
-      'welcome to California',
-      'creating Viral Reels'
+      '1. Zoom Impact punch',
+      '2. Neon Shimmer sweep',
+      '3. Kinetic Bounce drop',
+      '4. Solar Flare pulse',
+      '5. Pop Scale bounce',
+      '6. Cinematic Drift sway'
     ];
     this.phraseIdx = 0;
     this.activeFontTarget = 'normal'; // 'normal' | 'prominent'
@@ -410,25 +413,14 @@ export class ToolStudioModal {
                 </div>
               </div>
 
-              <!-- 5. Caption Animations (22 styles) -->
+              <!-- 5. Caption Animations (Auto & 22 styles) -->
               <div class="config-section-card">
                 <div class="config-section-title">
-                  <span>5. Caption Animations (22 Styles)</span>
+                  <span>5. Caption Animations (Auto &amp; 22 Styles)</span>
                   <span class="badge badge-purple" id="selected-anim-name">Pop & Bounce</span>
                 </div>
                 <div class="animation-cards-grid" id="animation-cards-grid">
                   <!-- Injected via populateControls() -->
-                </div>
-              </div>
-
-              <!-- 6. Advanced Time Interval Coloring -->
-              <div class="config-section-card">
-                <div class="config-section-title">
-                  <span>6. Dynamic Time-Interval Color Changes</span>
-                  <button class="btn-add-interval" id="btn-add-interval">+ Add Phase</button>
-                </div>
-                <div class="interval-list-container" id="interval-list-container">
-                  <!-- Injected via renderIntervalsList() -->
                 </div>
               </div>
             </div>
@@ -723,7 +715,15 @@ export class ToolStudioModal {
           animGrid.querySelectorAll('.anim-card-btn').forEach(b => b.classList.remove('selected'));
           btn.classList.add('selected');
           const b = this.container.querySelector('#selected-anim-name');
-          if (b && animMeta) b.textContent = animMeta.name;
+          if (b && animMeta) {
+            if (animId === 'anim-auto') {
+              const curSeq = AUTO_ANIMATION_SEQUENCE[this.phraseIdx % AUTO_ANIMATION_SEQUENCE.length];
+              const seqMeta = CAPTION_ANIMATIONS.find(a => a.id === curSeq);
+              b.textContent = `⚡ Auto (#${(this.phraseIdx % 6) + 1}: ${seqMeta?.name || 'Loop'})`;
+            } else {
+              b.textContent = animMeta.name;
+            }
+          }
           this.setActiveConfig({ animation: animId });
           this.triggerPreviewAnimation(animId);
         });
@@ -732,7 +732,13 @@ export class ToolStudioModal {
           const animId = btn.getAttribute('data-anim');
           const animMeta = CAPTION_ANIMATIONS.find(a => a.id === animId);
           const b = this.container.querySelector('#selected-anim-name');
-          if (b && animMeta) b.textContent = `▶ ${animMeta.name}`;
+          if (b && animMeta) {
+            if (animId === 'anim-auto') {
+              b.textContent = `▶ ⚡ Auto Mode (1-6 Loop)`;
+            } else {
+              b.textContent = `▶ ${animMeta.name}`;
+            }
+          }
           this.triggerPreviewAnimation(animId);
         });
 
@@ -740,7 +746,15 @@ export class ToolStudioModal {
           const cur = this.getActiveConfig();
           const animMeta = CAPTION_ANIMATIONS.find(a => a.id === cur.animation);
           const b = this.container.querySelector('#selected-anim-name');
-          if (b && animMeta) b.textContent = animMeta.name;
+          if (b && animMeta) {
+            if (cur.animation === 'anim-auto') {
+              const curSeq = AUTO_ANIMATION_SEQUENCE[this.phraseIdx % AUTO_ANIMATION_SEQUENCE.length];
+              const seqMeta = CAPTION_ANIMATIONS.find(a => a.id === curSeq);
+              b.textContent = `⚡ Auto (#${(this.phraseIdx % 6) + 1}: ${seqMeta?.name || 'Loop'})`;
+            } else {
+              b.textContent = animMeta.name;
+            }
+          }
           this.triggerPreviewAnimation(cur.animation);
         });
       });
@@ -748,7 +762,15 @@ export class ToolStudioModal {
 
     const curAnim = CAPTION_ANIMATIONS.find(a => a.id === config.animation);
     const badgeAnim = this.container.querySelector('#selected-anim-name');
-    if (badgeAnim && curAnim) badgeAnim.textContent = curAnim.name;
+    if (badgeAnim && curAnim) {
+      if (config.animation === 'anim-auto') {
+        const curSeq = AUTO_ANIMATION_SEQUENCE[this.phraseIdx % AUTO_ANIMATION_SEQUENCE.length];
+        const seqMeta = CAPTION_ANIMATIONS.find(a => a.id === curSeq);
+        badgeAnim.textContent = `⚡ Auto (#${(this.phraseIdx % 6) + 1}: ${seqMeta?.name || 'Loop'})`;
+      } else {
+        badgeAnim.textContent = curAnim.name;
+      }
+    }
 
     this.renderIntervalsList();
   }
@@ -951,7 +973,15 @@ export class ToolStudioModal {
         this.container.querySelectorAll('.anim-card-btn').forEach(b => b.classList.remove('selected'));
         animBtn.classList.add('selected');
         const b = this.container.querySelector('#selected-anim-name');
-        if (b && animMeta) b.textContent = animMeta.name;
+        if (b && animMeta) {
+          if (animId === 'anim-auto') {
+            const curSeq = AUTO_ANIMATION_SEQUENCE[this.phraseIdx % AUTO_ANIMATION_SEQUENCE.length];
+            const seqMeta = CAPTION_ANIMATIONS.find(a => a.id === curSeq);
+            b.textContent = `⚡ Auto (#${(this.phraseIdx % 6) + 1}: ${seqMeta?.name || 'Loop'})`;
+          } else {
+            b.textContent = animMeta.name;
+          }
+        }
         this.setActiveConfig({ animation: animId });
         this.triggerPreviewAnimation(animId);
         return;
@@ -1261,12 +1291,29 @@ export class ToolStudioModal {
 
     const config = this.getActiveConfig();
     const activeAnimId = animOverride || config.animation || 'anim-pop';
-    const animMeta = CAPTION_ANIMATIONS.find(a => a.id === activeAnimId);
+
+    const isAuto = (activeAnimId === 'anim-auto' || config.animation === 'anim-auto');
+    const effectiveAnimId = isAuto
+      ? AUTO_ANIMATION_SEQUENCE[this.phraseIdx % AUTO_ANIMATION_SEQUENCE.length]
+      : activeAnimId;
+
+    const animMeta = CAPTION_ANIMATIONS.find(a => a.id === effectiveAnimId);
     const cssClass = animMeta ? animMeta.cssClass : 'anim-pop';
 
-    CAPTION_ANIMATIONS.forEach(a => animTarget.classList.remove(a.cssClass));
+    CAPTION_ANIMATIONS.forEach(a => {
+      if (a.cssClass && a.cssClass !== 'anim-auto') {
+        animTarget.classList.remove(a.cssClass);
+      }
+    });
     void animTarget.offsetWidth;
     animTarget.classList.add(cssClass);
+
+    if (isAuto) {
+      const b = this.container?.querySelector('#selected-anim-name');
+      if (b) {
+        b.textContent = `⚡ Auto (#${(this.phraseIdx % 6) + 1}: ${animMeta?.name || 'Cycle'})`;
+      }
+    }
   }
 
   startAnimationLoop() {

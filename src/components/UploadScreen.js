@@ -1,5 +1,5 @@
 // Screen 2: Video Upload, Multi-Language Identification & Progressive YouTube Caption Workspace
-import { APP_CONFIG, CAPTION_POSITIONS, FONTS } from '../config.js';
+import { APP_CONFIG, CAPTION_POSITIONS, FONTS, AUTO_ANIMATION_SEQUENCE } from '../config.js';
 import { soundFx } from '../services/soundFx.js';
 import { storage } from '../services/storageService.js';
 import { languageIdentifier } from '../services/languageIdentifier.js';
@@ -958,7 +958,12 @@ export class UploadScreen {
         `;
       }).join(' ');
 
-      overlay.className = `caption-live-overlay ${config.animation || 'anim-pop'}`;
+      let animClass = config.animation || 'anim-pop';
+      if (animClass === 'anim-auto') {
+        const sIdx = (this.sentences && currentSentence) ? this.sentences.indexOf(currentSentence) : 0;
+        animClass = AUTO_ANIMATION_SEQUENCE[(sIdx >= 0 ? sIdx : 0) % AUTO_ANIMATION_SEQUENCE.length];
+      }
+      overlay.className = `caption-live-overlay ${animClass}`;
     } else {
       // Fast in-place class toggle
       overlay.querySelectorAll('.caption-word-token').forEach(span => {
