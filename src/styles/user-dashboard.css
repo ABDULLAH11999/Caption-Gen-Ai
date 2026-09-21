@@ -963,9 +963,162 @@ video.video-enhanced {
 }
 
 .caption-segment-anchor {
-  box-sizing: border-box;
-  pointer-events: none;
+  position: absolute !important;
+  box-sizing: border-box !important;
+  pointer-events: auto !important; /* Enable direct interaction */
   z-index: 20;
+  cursor: grab;
+  user-select: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1.5px dashed rgba(99, 102, 241, 0.35);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.caption-segment-anchor:hover,
+.caption-segment-anchor.is-dragging,
+.caption-segment-anchor.is-resizing {
+  border-color: rgba(99, 102, 241, 0.9) !important;
+  background: rgba(99, 102, 241, 0.08) !important;
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.caption-segment-anchor.is-dragging {
+  cursor: grabbing !important;
+  border-color: var(--primary-coral, #ff5533) !important;
+  box-shadow: 0 0 16px rgba(255, 85, 51, 0.4) !important;
+}
+
+/* Floating Toolbar above Draggable Box */
+.caption-drag-toolbar {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(12, 12, 14, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 4px 8px;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateY(4px);
+  white-space: nowrap;
+  z-index: 50;
+}
+
+.caption-segment-anchor:hover .caption-drag-toolbar,
+.caption-segment-anchor.is-dragging .caption-drag-toolbar,
+.caption-segment-anchor.is-resizing .caption-drag-toolbar {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.caption-toolbar-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  cursor: grab;
+}
+
+.caption-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.caption-toolbar-btn.btn-follow-all {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);
+}
+
+.caption-toolbar-btn.btn-follow-all:hover {
+  background: linear-gradient(135deg, #4338ca, #6d28d9);
+  transform: translateY(-1px);
+}
+
+.caption-toolbar-btn.btn-reset-pos {
+  background: rgba(255, 255, 255, 0.14);
+  color: #e2e8f0;
+}
+
+.caption-toolbar-btn.btn-reset-pos:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* Resize Handles */
+.caption-resize-handle {
+  position: absolute;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 40;
+}
+
+.caption-segment-anchor:hover .caption-resize-handle,
+.caption-segment-anchor.is-dragging .caption-resize-handle,
+.caption-segment-anchor.is-resizing .caption-resize-handle {
+  opacity: 1;
+}
+
+/* Right Edge Handle (Adjust Width / Lines) */
+.caption-resize-handle.resize-right {
+  top: 0;
+  right: -7px;
+  width: 14px;
+  height: 100%;
+  cursor: ew-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resize-grip-line {
+  width: 4px;
+  height: 32px;
+  background: #6366f1;
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.8);
+}
+
+/* Bottom-Right Corner Handle */
+.caption-resize-handle.resize-corner {
+  bottom: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resize-grip-dot {
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border: 2px solid #6366f1;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.8);
 }
 
 .caption-anim-segment-wrapper {
@@ -973,8 +1126,8 @@ video.video-enhanced {
   flex-wrap: wrap !important;
   align-items: baseline !important;
   gap: 2px 5px !important;
-  width: auto !important;
-  max-width: 94% !important;
+  width: 100% !important;
+  max-width: 100% !important;
   margin: 0 !important;
   box-sizing: border-box !important;
   overflow: visible !important;
@@ -1003,5 +1156,187 @@ video.video-enhanced {
   transform: scale(1.15) !important;
   z-index: 5 !important;
 }
+
+/* ==========================================================================
+   ROTOSCOPING FOREGROUND CUTOUT CANVAS (LAYER 3)
+   Composites extracted foreground subject/person on top of captions (Layer 2)
+   ========================================================================== */
+#user-cutout-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+  z-index: 30 !important; /* Strictly on top of caption overlay (z-index: 25) */
+  object-fit: contain !important;
+  image-rendering: auto;
+}
+
+/* ==========================================================================
+   PROCESS AGAIN & BEHIND ROTSCOPING CONTROLS
+   ========================================================================== */
+.btn-behind-process {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.28);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.btn-behind-process:hover {
+  background: linear-gradient(135deg, #4338ca, #6d28d9);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+}
+
+.btn-behind-process:active {
+  transform: translateY(0);
+}
+
+.btn-behind-process:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-behind-process.needs-process {
+  animation: pulse-behind-btn 1.6s infinite;
+}
+
+@keyframes pulse-behind-btn {
+  0% {
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(124, 58, 237, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
+  }
+}
+
+.behind-count-pill {
+  font-size: 10px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.24);
+  padding: 2px 7px;
+  border-radius: 12px;
+  letter-spacing: 0.2px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* MINI SEGMENTS LIST WITH BEHIND CHECKBOX ON LEFT */
+.seg-mini-item {
+  display: flex !important;
+  align-items: stretch !important;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #fafbfe;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.seg-mini-item:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.seg-mini-item.has-behind {
+  border-color: #818cf8 !important;
+  background: #f5f7ff !important;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
+}
+
+.seg-mini-behind-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 8px;
+  border-right: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.seg-mini-item.has-behind .seg-mini-behind-col {
+  border-right-color: #c7d2fe;
+}
+
+.seg-behind-checkbox-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  margin: 0;
+}
+
+.chk-segment-behind {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #4f46e5;
+  margin: 0;
+}
+
+.behind-label-text {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  color: #6366f1;
+}
+
+.seg-mini-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.seg-mini-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #64748b;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.seg-pos-mini-pill {
+  font-size: 9px;
+  font-weight: 700;
+  color: #4f46e5;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  padding: 1px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.2px;
+}
+
+.seg-mini-item.has-behind .seg-mini-header {
+  color: #4f46e5;
+}
+
+.seg-text-line {
+  font-weight: 700;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 
 

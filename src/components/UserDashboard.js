@@ -23,6 +23,7 @@ import { translationService } from '../services/translationService.js';
 import { generateDemoVideoBlob } from '../utils/sampleVideoGenerator.js';
 import { autoTypographyEngine } from '../services/autoTypographyEngine.js';
 import { videoColorAnalyzer } from '../services/videoColorAnalyzer.js';
+import { selfieSegmenterService } from '../services/selfieSegmenter.js';
 
 export class UserDashboard {
   constructor(options = {}) {
@@ -41,6 +42,8 @@ export class UserDashboard {
     this.videoBlob = null;
     this.videoDuration = 0;
     this.videoElement = null;
+    this.cutoutCanvas = null;
+    this.rotoscopingLoopRunning = false;
     this.isPlaying = false;
     this.enhanceVideoQuality = true; // default enabled
     this.isProcessing = false;
@@ -586,16 +589,45 @@ export class UserDashboard {
         </div>
 
         <!-- Important Notice regarding Client-Side Hardware Processing -->
-        <div class="client-processing-notice" style="max-width: 800px; margin: 24px auto 0 auto; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; gap: 12px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-          <div style="width: 32px; height: 32px; border-radius: 50%; background: #ffedd5; color: #ea580c; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-          </div>
-          <div style="font-size: 13px; color: #9a3412; line-height: 1.5;">
-            <strong style="color: #7c2d12; font-weight: 800;">⚠ Processing Notice:</strong> All video processing is performed entirely on your local device using your system's CPU, GPU, and RAM. No video data is uploaded to any server. Processing speed and performance depend on your hardware capabilities.
+        <div class="client-processing-notice" style="max-width: 800px; margin: 24px auto 0 auto; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 16px; text-align: center; font-size: 13px; color: #9a3412; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <span>⚠ <strong style="color: #7c2d12;">100% Local:</strong> All processing runs on your device — speed depends on your system.</span>
+          <button id="btn-sysreq-info" title="View System Requirements" style="background: none; border: 1.5px solid #ea580c; color: #ea580c; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 1; padding: 0;">i</button>
+        </div>
+
+        <!-- System Requirements Modal -->
+        <div id="sysreq-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
+          <div style="background:#fff; border-radius:16px; padding:32px 28px; max-width:480px; width:90%; box-shadow:0 24px 60px rgba(0,0,0,0.22); position:relative; font-family:inherit;">
+            <button id="btn-sysreq-close" style="position:absolute; top:14px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8; line-height:1;">×</button>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+              <div style="width:36px;height:36px;border-radius:10px;background:#fff7ed;display:flex;align-items:center;justify-content:center;font-size:18px;">💻</div>
+              <div>
+                <div style="font-size:16px;font-weight:800;color:#0f172a;">System Requirements</div>
+                <div style="font-size:12px;color:#64748b;">For AI caption processing &amp; 60 FPS export</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
+                <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">⚙️ Minimum</div>
+                <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#334155;">
+                  <div style="display:flex;align-items:flex-start;gap:8px;"><span style="min-width:18px;height:18px;border-radius:50%;background:#e2e8f0;color:#475569;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">1</span><div><span style="font-weight:700;color:#0f172a;">CPU</span><br>4-core, 2.0 GHz+</div></div>
+                  <div style="display:flex;align-items:flex-start;gap:8px;"><span style="min-width:18px;height:18px;border-radius:50%;background:#e2e8f0;color:#475569;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">2</span><div><span style="font-weight:700;color:#0f172a;">RAM</span><br>8 GB</div></div>
+                  <div style="display:flex;align-items:flex-start;gap:8px;"><span style="min-width:18px;height:18px;border-radius:50%;background:#e2e8f0;color:#475569;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">3</span><div><span style="font-weight:700;color:#0f172a;">GPU</span><br>Integrated (basic export)</div></div>
+                  <div style="display:flex;align-items:flex-start;gap:8px;"><span style="min-width:18px;height:18px;border-radius:50%;background:#e2e8f0;color:#475569;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">4</span><div><span style="font-weight:700;color:#0f172a;">Browser</span><br>Chrome 110+ / Edge 110+</div></div>
+                </div>
+              </div>
+              <div style="background:#fdf4ff;border:1px solid #e9d5ff;border-radius:12px;padding:16px;">
+                <div style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">⚡ Recommended</div>
+                <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#334155;">
+                  <div style="display:flex;align-items:flex-start;gap:8px;"><span style="min-width:18px;height:18px;border-radius:50%;background:#ede9fe;color:#7c3aed;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">1</span><div><span style="font-weight:700;color:#0f172a;">CPU</span><br>8-core, 3.0 GHz+ (Intel i7 / Ryzen 7)</div></div>
+                  <div style="display:flex;align-items:flex-start;gap:8px;"><span style="min-width:18px;height:18px;border-radius:50%;background:#ede9fe;color:#7c3aed;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">2</span><div><span style="font-weight:700;color:#0f172a;">RAM</span><br>16 GB+</div></div>
+                  <div style="display:flex;align-items:flex-start;gap:8px;"><span style="min-width:18px;height:18px;border-radius:50%;background:#ede9fe;color:#7c3aed;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">3</span><div><span style="font-weight:700;color:#0f172a;">GPU</span><br>Dedicated (NVIDIA / AMD) for 60 FPS</div></div>
+                  <div style="display:flex;align-items:flex-start;gap:8px;"><span style="min-width:18px;height:18px;border-radius:50%;background:#ede9fe;color:#7c3aed;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">4</span><div><span style="font-weight:700;color:#0f172a;">Browser</span><br>Chrome 120+ (GPU acceleration on)</div></div>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;font-size:12px;color:#166534;">
+              💡 <strong>Tip:</strong> Enable GPU acceleration in your browser settings for best 60 FPS export performance.
+            </div>
           </div>
         </div>
       `;
@@ -611,6 +643,18 @@ export class UserDashboard {
 
       wrap.querySelector('#btn-change-template-shortcut')?.addEventListener('click', () => {
         this.switchTab('templates');
+      });
+
+      // System Requirements Info Modal
+      const sysreqBackdrop = wrap.querySelector('#sysreq-modal-backdrop');
+      wrap.querySelector('#btn-sysreq-info')?.addEventListener('click', () => {
+        if (sysreqBackdrop) { sysreqBackdrop.style.display = 'flex'; }
+      });
+      wrap.querySelector('#btn-sysreq-close')?.addEventListener('click', () => {
+        if (sysreqBackdrop) { sysreqBackdrop.style.display = 'none'; }
+      });
+      sysreqBackdrop?.addEventListener('click', (e) => {
+        if (e.target === sysreqBackdrop) sysreqBackdrop.style.display = 'none';
       });
 
       const enhanceChk = wrap.querySelector('#user-enhance-quality');
@@ -680,8 +724,11 @@ export class UserDashboard {
           <div class="video-container ${this.currentMode}" id="user-video-wrapper">
             <video class="studio-video-element" id="user-main-video" playsinline style="width: 100%; height: 100%; object-fit: contain;"></video>
             
-            <!-- Real-Time Caption Overlay -->
-            <div class="caption-live-overlay" id="user-caption-live-overlay" style="position: absolute; inset: 0; pointer-events: none; z-index: 10;"></div>
+            <!-- Real-Time Caption Overlay (Layer 2) -->
+            <div class="caption-live-overlay" id="user-caption-live-overlay"></div>
+
+            <!-- Foreground Rotoscoped Person Cutout (Layer 3) -->
+            <canvas class="cutout-live-canvas" id="user-cutout-canvas" style="display: none;"></canvas>
           </div>
 
           <!-- Controls -->
@@ -736,16 +783,25 @@ export class UserDashboard {
         <aside style="display: flex; flex-direction: column; gap: 16px;">
           <!-- Segments Header Card -->
           <div style="background: #ffffff; border-radius: var(--radius-xl); border: 1px solid var(--border-color); padding: 18px; box-shadow: var(--shadow-sm);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
               <div>
                 <div style="font-size: 13px; font-weight: 800; color: #0c0c0e;">CAPTIONS & WORDS</div>
                 <div style="font-size: 11px; color: #64748b;" id="user-sentence-count">${captionEngine.sentences.length} Line Segments</div>
               </div>
 
-              <!-- BUTTON TO OPEN EDIT LINE SEGMENTS MODAL -->
-              <button class="btn btn-primary" id="btn-open-segments-modal" style="padding: 6px 12px; font-size: 12px;">
-                ✏️ Edit Segments
-              </button>
+              <!-- ACTION BUTTONS: FOLLOW POS TO ALL, PROCESS AGAIN & EDIT SEGMENTS -->
+              <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                <button class="btn btn-outline" id="btn-header-apply-pos-all" title="Apply active segment position & width to ALL segments" style="padding: 6px 10px; font-size: 11px; font-weight: 700; color: #4f46e5; border-color: #c7d2fe; background: #f5f7ff;">
+                  ⚡ Follow Pos to All
+                </button>
+                <button class="btn btn-behind-process" id="btn-process-behind-again" title="Apply Rotoscoping to render checked lines behind subject">
+                  <span>⚡ Process Again</span>
+                  <span id="behind-active-badge" class="behind-count-pill">0 Behind</span>
+                </button>
+                <button class="btn btn-primary" id="btn-open-segments-modal" style="padding: 6px 12px; font-size: 12px;">
+                  ✏️ Edit Segments
+                </button>
+              </div>
             </div>
 
             <div style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;" id="user-segments-mini-list">
@@ -933,6 +989,7 @@ export class UserDashboard {
   // ==========================================================================
   initVideoPlayer(wrap) {
     this.videoElement = wrap.querySelector('#user-main-video');
+    this.cutoutCanvas = wrap.querySelector('#user-cutout-canvas');
     if (!this.videoElement || !this.videoBlob) return;
 
     const url = URL.createObjectURL(this.videoBlob);
@@ -966,6 +1023,8 @@ export class UserDashboard {
       this.updateTimeDisplay();
       this.renderMiniSegmentsList();
       this.updateCaptionOverlay();
+      this.renderCutoutIfActiveBehind();
+      this.startRotoscopingLoop();
     });
 
     this.videoElement.addEventListener('timeupdate', () => {
@@ -974,6 +1033,7 @@ export class UserDashboard {
       }
       this.updateTimeDisplay();
       this.updateCaptionOverlay();
+      this.renderCutoutIfActiveBehind();
       this.highlightActiveSegment();
     });
 
@@ -982,6 +1042,7 @@ export class UserDashboard {
         this.videoElement.play();
         playBtn.textContent = '⏸';
         soundFx.playVideoPlay();
+        this.startRotoscopingLoop();
       } else {
         this.videoElement.pause();
         playBtn.textContent = '▶';
@@ -994,6 +1055,7 @@ export class UserDashboard {
       this.lastRenderedSentenceKey = null;
       this.updateTimeDisplay();
       this.updateCaptionOverlay();
+      this.renderCutoutIfActiveBehind();
       soundFx.playSeek();
     });
 
@@ -1003,6 +1065,7 @@ export class UserDashboard {
       this.lastRenderedSentenceKey = null;
       this.updateTimeDisplay();
       this.updateCaptionOverlay();
+      this.renderCutoutIfActiveBehind();
     });
 
     wrap.querySelector('#user-btn-ff')?.addEventListener('click', () => {
@@ -1011,6 +1074,7 @@ export class UserDashboard {
       this.lastRenderedSentenceKey = null;
       this.updateTimeDisplay();
       this.updateCaptionOverlay();
+      this.renderCutoutIfActiveBehind();
     });
 
     wrap.querySelector('#user-btn-mute')?.addEventListener('click', (e) => {
@@ -1040,6 +1104,11 @@ export class UserDashboard {
       this.switchTab('templates');
     });
 
+    // Process Behind Again Button
+    wrap.querySelector('#btn-process-behind-again')?.addEventListener('click', async () => {
+      await this.handleProcessBehindAgain();
+    });
+
     // SRT / VTT Exports
     wrap.querySelector('#user-btn-srt')?.addEventListener('click', () => {
       soundFx.playSaveSuccess();
@@ -1063,6 +1132,9 @@ export class UserDashboard {
     wrap.querySelector('#btn-open-segments-modal')?.addEventListener('click', () => {
       this.openLineSegmentsModal();
     });
+
+    // Real-Time Draggable & Resizable Caption Setup
+    this.setupCaptionDragAndResize(wrap);
   }
 
   updateTimeDisplay() {
@@ -1282,24 +1354,52 @@ export class UserDashboard {
     const isNewSegment = this.lastRenderedSentenceKey !== sKey;
     this.lastRenderedSentenceKey = sKey;
 
-    // 11. Precise Position from CAPTION_POSITIONS (supports middle-left, top-left, center, etc.)
-    const positionId = cfg.position || 'middle-left';
-    const posMeta = CAPTION_POSITIONS.find(p => p.id === positionId) || CAPTION_POSITIONS[3]; // default middle-left
-    const posX = posMeta.x || '6%';
-    const posY = posMeta.y || '50%';
-    const posTransform = posMeta.transform || 'translate(0, -50%)';
-    const textAlign = posMeta.align || 'left';
+    // 11. Segment-Specific Custom Position & Sizing (Defaults to Middle-Left: 6%, 50%)
+    const defaultPosMeta = CAPTION_POSITIONS.find(p => p.id === 'middle-left') || CAPTION_POSITIONS[3];
+    const hasCustomPos = currentSentence.posX !== undefined && currentSentence.posY !== undefined;
+    const posX = hasCustomPos ? `${currentSentence.posX}%` : (defaultPosMeta.x || '6%');
+    const posY = hasCustomPos ? `${currentSentence.posY}%` : (defaultPosMeta.y || '50%');
+    const posTransform = hasCustomPos ? 'translate(0, 0)' : (defaultPosMeta.transform || 'translate(0, -50%)');
+    const textAlign = defaultPosMeta.align || 'left';
     const justifyAlign = (textAlign === 'left') ? 'flex-start' : (textAlign === 'right' ? 'flex-end' : 'center');
+
+    // Segment-Specific Custom Box Width (Defaults to auto up to 94%)
+    const customWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : 'auto';
+    const customMaxWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : '94%';
 
     let anchor = overlay.querySelector('.caption-segment-anchor');
     let animWrapper = overlay.querySelector('.caption-anim-segment-wrapper');
 
     if (!anchor || !animWrapper || isNewSegment) {
-      // Re-create segment with configured entrance animation and tight natural word spacing (no overflow clipping!)
+      // Re-create segment with draggable handles and tight natural word spacing
       overlay.innerHTML = `
-        <div class="caption-segment-anchor" style="position: absolute; top: ${posY}; left: ${posX}; transform: ${posTransform}; width: auto; max-width: 94%; text-align: ${textAlign}; pointer-events: none; z-index: 20;">
-          <div class="caption-anim-segment-wrapper ${animClass}" style="display: inline-flex; flex-wrap: wrap; justify-content: ${justifyAlign}; align-items: baseline; gap: 2px 5px; width: auto; max-width: 100%; text-transform: uppercase; line-height: 1.05; transform-origin: center center; will-change: transform, opacity;">
+        <div class="caption-segment-anchor" data-sentence-id="${currentSentence.id || ''}" style="position: absolute; top: ${posY}; left: ${posX}; transform: ${posTransform}; width: ${customWidth}; max-width: ${customMaxWidth}; text-align: ${textAlign}; z-index: 20;">
+          
+          <!-- Floating Quick Action Toolbar -->
+          <div class="caption-drag-toolbar" onclick="event.stopPropagation()">
+            <span class="caption-toolbar-pill caption-drag-handle" title="Click and drag anywhere on video to position">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="2"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/></svg>
+              <span>Move</span>
+            </span>
+            <button type="button" class="caption-toolbar-btn btn-follow-all" id="btn-follow-all-segments" title="Apply this position and width to ALL segments">
+              <span>⚡ Apply to All</span>
+            </button>
+            <button type="button" class="caption-toolbar-btn btn-reset-pos" id="btn-reset-segment-pos" title="Reset this segment to default middle-left">
+              <span>↺ Reset</span>
+            </button>
+          </div>
+
+          <!-- Animated Words Container with dynamic word wrapping -->
+          <div class="caption-anim-segment-wrapper ${animClass}" style="display: inline-flex; flex-wrap: wrap; justify-content: ${justifyAlign}; align-items: baseline; gap: 2px 5px; width: 100%; max-width: 100%; text-transform: uppercase; line-height: 1.05; transform-origin: center center; will-change: transform, opacity;">
             ${wordsHtml}
+          </div>
+
+          <!-- Resize Handles for Width & Line Management -->
+          <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines">
+            <div class="resize-grip-line"></div>
+          </div>
+          <div class="caption-resize-handle resize-corner" title="Drag corner to adjust box width">
+            <div class="resize-grip-dot"></div>
           </div>
         </div>
       `;
@@ -1314,6 +1414,8 @@ export class UserDashboard {
       anchor.style.top = posY;
       anchor.style.left = posX;
       anchor.style.transform = posTransform;
+      anchor.style.width = customWidth;
+      anchor.style.maxWidth = customMaxWidth;
       anchor.style.textAlign = textAlign;
       animWrapper.style.justifyContent = justifyAlign;
       animWrapper.innerHTML = wordsHtml;
@@ -1331,16 +1433,45 @@ export class UserDashboard {
       const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
       const item = document.createElement('div');
       item.id = `seg-mini-${idx}`;
-      item.style.cssText = 'padding: 8px 10px; background: #fafbfe; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; cursor: pointer; transition: all 0.15s ease;';
+      item.className = `seg-mini-item ${s.behind ? 'has-behind' : ''}`;
       item.innerHTML = `
-        <div style="display: flex; justify-content: space-between; color: #64748b; font-size: 11px; margin-bottom: 2px;">
-          <span>#${idx + 1}</span>
-          <span>${sStart.toFixed(1)}s - ${sEnd.toFixed(1)}s</span>
+        <div class="seg-mini-behind-col">
+          <label class="seg-behind-checkbox-label" title="Render caption behind the person or main object in video">
+            <input type="checkbox" class="chk-segment-behind" data-idx="${idx}" ${s.behind ? 'checked' : ''} />
+            <span class="behind-label-text">Behind</span>
+          </label>
         </div>
-        <div style="font-weight: 700; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          ${s.text || 'Caption Segment'}
+        <div class="seg-mini-content">
+          <div class="seg-mini-header">
+            <span>#${idx + 1}</span>
+            <span class="seg-pos-mini-pill" title="Segment custom position coordinates">${s.posX !== undefined && s.posY !== undefined ? `${s.posX}%, ${s.posY}%` : 'Mid-L'}</span>
+            <span>${sStart.toFixed(1)}s - ${sEnd.toFixed(1)}s</span>
+          </div>
+          <div class="seg-text-line" title="${s.text || ''}">
+            ${s.text || 'Caption Segment'}
+          </div>
         </div>
       `;
+
+      // Checkbox click/change handler
+      const chk = item.querySelector('.chk-segment-behind');
+      chk?.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+      chk?.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const isChecked = e.target.checked;
+        if (captionEngine.sentences && captionEngine.sentences[idx]) {
+          captionEngine.sentences[idx].behind = isChecked;
+          soundFx.playKeyBeep(isChecked ? 680 : 440);
+          item.classList.toggle('has-behind', isChecked);
+          this.updateBehindCountBadge();
+          if (selfieSegmenterService.isReady()) {
+            this.updateCaptionOverlay();
+            this.renderCutoutIfActiveBehind();
+          }
+        }
+      });
 
       item.addEventListener('click', () => {
         if (this.videoElement) {
@@ -1348,11 +1479,14 @@ export class UserDashboard {
           this.videoElement.currentTime = sStart;
           this.lastRenderedSentenceKey = null;
           this.updateCaptionOverlay();
+          this.renderCutoutIfActiveBehind();
         }
       });
 
       list.appendChild(item);
     });
+
+    this.updateBehindCountBadge();
   }
 
   highlightActiveSegment() {
@@ -1365,10 +1499,356 @@ export class UserDashboard {
         const sStart = Number(s.start ?? s.startTime ?? 0);
         const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
         const isActive = time >= sStart && time <= sEnd;
-        el.style.borderColor = isActive ? 'var(--primary-coral)' : '#e2e8f0';
-        el.style.background = isActive ? 'var(--primary-coral-light)' : '#fafbfe';
+        if (isActive) {
+          el.style.borderColor = 'var(--primary-coral)';
+          el.style.background = 'var(--primary-coral-light)';
+        } else {
+          el.style.borderColor = s.behind ? '#818cf8' : '#e2e8f0';
+          el.style.background = s.behind ? '#f5f7ff' : '#fafbfe';
+        }
       }
     });
+  }
+
+  setupCaptionDragAndResize(wrap) {
+    const videoWrapper = wrap.querySelector('#user-video-wrapper');
+    const overlay = wrap.querySelector('#user-caption-live-overlay');
+    if (!videoWrapper || !overlay) return;
+
+    let isDragging = false;
+    let isResizing = false;
+    let startPointerX = 0;
+    let startPointerY = 0;
+    let initialAnchorLeftPx = 0;
+    let initialAnchorTopPx = 0;
+    let initialWidthPx = 0;
+    let activeSentence = null;
+    let activeAnchor = null;
+
+    // Pointer down for Dragging and Resizing
+    overlay.addEventListener('pointerdown', (e) => {
+      // Don't intercept button clicks inside toolbar
+      if (e.target.closest('button')) return;
+
+      const anchor = e.target.closest('.caption-segment-anchor');
+      if (!anchor) return;
+
+      const time = this.videoElement ? this.videoElement.currentTime : 0;
+      const sentences = captionEngine.sentences || [];
+      activeSentence = sentences.find(s => {
+        const sStart = Number(s.start ?? s.startTime ?? 0);
+        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+        return time >= sStart && time <= sEnd;
+      });
+
+      if (!activeSentence && sentences.length > 0) {
+        activeSentence = sentences[0];
+      }
+      if (!activeSentence) return;
+
+      activeAnchor = anchor;
+      const videoRect = videoWrapper.getBoundingClientRect();
+      const anchorRect = anchor.getBoundingClientRect();
+
+      const isCornerResize = !!e.target.closest('.resize-corner');
+      const isRightResize = !!e.target.closest('.resize-right');
+
+      if (isCornerResize || isRightResize) {
+        // Start resizing width
+        isResizing = true;
+        isDragging = false;
+        startPointerX = e.clientX;
+        initialWidthPx = anchorRect.width;
+        anchor.classList.add('is-resizing');
+        e.preventDefault();
+        e.stopPropagation();
+      } else {
+        // Start dragging
+        isDragging = true;
+        isResizing = false;
+        startPointerX = e.clientX;
+        startPointerY = e.clientY;
+        initialAnchorLeftPx = anchorRect.left - videoRect.left;
+        initialAnchorTopPx = anchorRect.top - videoRect.top;
+        anchor.classList.add('is-dragging');
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      const onPointerMove = (moveEvent) => {
+        if (!activeSentence || !activeAnchor) return;
+        const currentVideoRect = videoWrapper.getBoundingClientRect();
+        if (currentVideoRect.width <= 0 || currentVideoRect.height <= 0) return;
+
+        if (isDragging) {
+          const deltaX = moveEvent.clientX - startPointerX;
+          const deltaY = moveEvent.clientY - startPointerY;
+
+          let newLeftPx = initialAnchorLeftPx + deltaX;
+          let newTopPx = initialAnchorTopPx + deltaY;
+
+          // Clamping within video bounds
+          newLeftPx = Math.max(0, Math.min(currentVideoRect.width - 60, newLeftPx));
+          newTopPx = Math.max(0, Math.min(currentVideoRect.height - 40, newTopPx));
+
+          const xPct = Math.round((newLeftPx / currentVideoRect.width) * 100);
+          const yPct = Math.round((newTopPx / currentVideoRect.height) * 100);
+
+          activeSentence.posX = Math.max(1, Math.min(88, xPct));
+          activeSentence.posY = Math.max(2, Math.min(92, yPct));
+
+          activeAnchor.style.left = `${activeSentence.posX}%`;
+          activeAnchor.style.top = `${activeSentence.posY}%`;
+          activeAnchor.style.transform = 'translate(0, 0)';
+        } else if (isResizing) {
+          const deltaX = moveEvent.clientX - startPointerX;
+          const newWidthPx = Math.max(90, initialWidthPx + deltaX);
+          let widthPct = Math.round((newWidthPx / currentVideoRect.width) * 100);
+          widthPct = Math.max(15, Math.min(96, widthPct));
+
+          activeSentence.boxWidth = widthPct;
+          activeAnchor.style.width = `${widthPct}%`;
+          activeAnchor.style.maxWidth = `${widthPct}%`;
+        }
+      };
+
+      const onPointerUp = () => {
+        if (isDragging || isResizing) {
+          soundFx.playKeyBeep(700);
+          if (activeAnchor) {
+            activeAnchor.classList.remove('is-dragging');
+            activeAnchor.classList.remove('is-resizing');
+          }
+          this.renderMiniSegmentsList();
+          isDragging = false;
+          isResizing = false;
+        }
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
+      };
+
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
+    });
+
+    // Helper to apply current active position & width to ALL segments
+    const applyCurrentPosToAll = () => {
+      const time = this.videoElement ? this.videoElement.currentTime : 0;
+      const sentences = captionEngine.sentences || [];
+      const currentSentence = sentences.find(s => {
+        const sStart = Number(s.start ?? s.startTime ?? 0);
+        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+        return time >= sStart && time <= sEnd;
+      }) || sentences[0];
+
+      if (!currentSentence) return;
+
+      const targetPosX = currentSentence.posX !== undefined ? currentSentence.posX : 6;
+      const targetPosY = currentSentence.posY !== undefined ? currentSentence.posY : 50;
+      const targetBoxWidth = currentSentence.boxWidth || null;
+
+      sentences.forEach(s => {
+        s.posX = targetPosX;
+        s.posY = targetPosY;
+        s.boxWidth = targetBoxWidth;
+      });
+
+      soundFx.playSaveSuccess();
+      this.showToast(`⚡ Position (${targetPosX}%, ${targetPosY}%) & width (${targetBoxWidth ? targetBoxWidth + '%' : 'Auto'}) applied to ALL segments!`, 'success');
+      this.lastRenderedSentenceKey = null;
+      this.updateCaptionOverlay();
+      this.renderMiniSegmentsList();
+    };
+
+    // Overlay toolbar click actions
+    overlay.addEventListener('click', (e) => {
+      const followAllBtn = e.target.closest('#btn-follow-all-segments');
+      const resetBtn = e.target.closest('#btn-reset-segment-pos');
+
+      if (followAllBtn) {
+        e.stopPropagation();
+        e.preventDefault();
+        applyCurrentPosToAll();
+        return;
+      }
+
+      if (resetBtn) {
+        e.stopPropagation();
+        e.preventDefault();
+        const time = this.videoElement ? this.videoElement.currentTime : 0;
+        const sentences = captionEngine.sentences || [];
+        const currentSentence = sentences.find(s => {
+          const sStart = Number(s.start ?? s.startTime ?? 0);
+          const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+          return time >= sStart && time <= sEnd;
+        }) || sentences[0];
+
+        if (currentSentence) {
+          currentSentence.posX = 6;
+          currentSentence.posY = 50;
+          currentSentence.boxWidth = null;
+          soundFx.playKeyBeep(450);
+          this.showToast('Position reset to default Middle-Left.', 'info');
+          this.lastRenderedSentenceKey = null;
+          this.updateCaptionOverlay();
+          this.renderMiniSegmentsList();
+        }
+      }
+    });
+
+    // Sidebar header apply pos to all button
+    wrap.querySelector('#btn-header-apply-pos-all')?.addEventListener('click', () => {
+      applyCurrentPosToAll();
+    });
+  }
+
+  updateBehindCountBadge() {
+    const btn = this.container?.querySelector('#btn-process-behind-again');
+    const badge = this.container?.querySelector('#behind-active-badge');
+    const sentences = captionEngine.sentences || [];
+    const count = sentences.filter(s => s.behind).length;
+    if (badge) {
+      badge.textContent = `${count} Behind`;
+    }
+    if (btn) {
+      if (count > 0 && !selfieSegmenterService.isReady()) {
+        btn.classList.add('needs-process');
+      } else {
+        btn.classList.remove('needs-process');
+      }
+    }
+  }
+
+  startRotoscopingLoop() {
+    if (this.rotoscopingLoopRunning) return;
+    this.rotoscopingLoopRunning = true;
+
+    const step = () => {
+      if (!this.videoElement || !this.container?.isConnected) {
+        this.rotoscopingLoopRunning = false;
+        return;
+      }
+
+      if (!this.videoElement.paused && !this.videoElement.ended) {
+        this.renderCutoutIfActiveBehind();
+      }
+
+      if ('requestVideoFrameCallback' in this.videoElement) {
+        this.videoElement.requestVideoFrameCallback(step);
+      } else {
+        requestAnimationFrame(step);
+      }
+    };
+
+    if ('requestVideoFrameCallback' in this.videoElement) {
+      this.videoElement.requestVideoFrameCallback(step);
+    } else {
+      requestAnimationFrame(step);
+    }
+  }
+
+  renderCutoutIfActiveBehind() {
+    if (!this.videoElement) return;
+    if (!this.cutoutCanvas) {
+      this.cutoutCanvas = this.container?.querySelector('#user-cutout-canvas');
+    }
+    if (!this.cutoutCanvas) return;
+
+    const time = this.videoElement.currentTime || 0;
+    const sentences = captionEngine.sentences || [];
+    let currentSentence = sentences.find(s => {
+      const sStart = Number(s.start ?? s.startTime ?? 0);
+      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+      return time >= sStart && time <= sEnd;
+    });
+
+    if (!currentSentence && sentences.length > 0) {
+      currentSentence = sentences.find(s => {
+        const sStart = Number(s.start ?? s.startTime ?? 0);
+        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+        return time >= sStart && time <= (sEnd + 1.2);
+      });
+    }
+
+    if (currentSentence && currentSentence.behind && selfieSegmenterService.isReady()) {
+      this.cutoutCanvas.style.display = 'block';
+      selfieSegmenterService.renderCutout(this.videoElement, this.cutoutCanvas);
+    } else {
+      if (this.cutoutCanvas.style.display !== 'none') {
+        this.cutoutCanvas.style.display = 'none';
+        const ctx = this.cutoutCanvas.getContext('2d');
+        if (ctx && this.cutoutCanvas.width > 0 && this.cutoutCanvas.height > 0) {
+          ctx.clearRect(0, 0, this.cutoutCanvas.width, this.cutoutCanvas.height);
+        }
+      }
+    }
+  }
+
+  async handleProcessBehindAgain() {
+    if (!this.videoElement) {
+      this.showToast('Please upload or select a video first.', 'info');
+      return;
+    }
+
+    const btn = this.container.querySelector('#btn-process-behind-again');
+    const sentences = captionEngine.sentences || [];
+    const behindCount = sentences.filter(s => s.behind).length;
+
+    if (behindCount === 0) {
+      this.showToast('Please check "Behind" on at least one caption segment first.', 'info');
+      return;
+    }
+
+    // 1. Save video playback state
+    const savedTime = this.videoElement.currentTime || 0;
+    const wasPlaying = !this.videoElement.paused;
+    if (wasPlaying) {
+      this.videoElement.pause();
+    }
+
+    // 2. Button loading state
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.remove('needs-process');
+      btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;">⏳</span> Loading AI Rotoscoping...`;
+    }
+    soundFx.playProcessStart();
+
+    try {
+      // 3. Initialize Selfie Segmenter
+      await selfieSegmenterService.init((pct, msg) => {
+        if (btn) {
+          btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;">⏳</span> ${msg}`;
+        }
+      });
+
+      // 4. Restore video playback state
+      this.videoElement.currentTime = savedTime;
+      if (wasPlaying) {
+        await this.videoElement.play().catch(() => {});
+      }
+
+      // 5. Update UI, overlay, and render cutout for active frame
+      this.lastRenderedSentenceKey = null;
+      this.updateCaptionOverlay();
+      this.renderCutoutIfActiveBehind();
+      this.renderMiniSegmentsList();
+      this.startRotoscopingLoop();
+
+      soundFx.playSaveSuccess();
+      this.showToast(`✨ Processed! ${behindCount} segment(s) will render behind the person/object.`, 'success');
+    } catch (err) {
+      console.error('Process Behind error:', err);
+      this.showToast('Rotoscoping initialization failed: ' + err.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span>⚡ Process Again</span> <span id="behind-active-badge" class="behind-count-pill">${behindCount} Behind</span>`;
+        this.updateBehindCountBadge();
+      }
+    }
   }
 
   async burnVideoCaptions() {
@@ -1530,6 +2010,11 @@ export class UserDashboard {
             #${idx + 1}
           </div>
 
+          <label class="modal-behind-toggle" title="Render caption behind the person or main object in video" style="display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800; color: #4f46e5; cursor: pointer; background: #eef2ff; padding: 4px 8px; border-radius: 6px; border: 1px solid #c7d2fe; flex-shrink: 0;">
+            <input type="checkbox" class="modal-chk-behind" data-idx="${idx}" ${seg.behind ? 'checked' : ''} style="cursor: pointer; accent-color: #4f46e5; margin: 0;">
+            <span>Behind</span>
+          </label>
+
           <div class="segment-timing-inputs">
             <span>Start</span>
             <input type="number" step="0.1" min="0" class="segment-time-input" data-field="start" data-idx="${idx}" value="${segStart.toFixed(1)}">
@@ -1562,6 +2047,14 @@ export class UserDashboard {
           });
         });
 
+        // Behind checkbox handler
+        row.querySelector('.modal-chk-behind')?.addEventListener('change', (e) => {
+          const i = Number(e.target.dataset.idx);
+          if (tempSegments[i]) {
+            tempSegments[i].behind = e.target.checked;
+          }
+        });
+
         // Delete row with unique sound
         row.querySelector('.btn-remove-segment')?.addEventListener('click', (e) => {
           soundFx.playSegmentDelete();
@@ -1590,7 +2083,8 @@ export class UserDashboard {
         startTime: start,
         endTime: end,
         text: 'New caption line segment',
-        words: []
+        words: [],
+        behind: false
       });
       renderRows();
 
@@ -1623,6 +2117,8 @@ export class UserDashboard {
       captionEngine.setSentences(tempSegments);
       this.renderMiniSegmentsList();
       this.updateCaptionOverlay();
+      this.renderCutoutIfActiveBehind();
+      this.updateBehindCountBadge();
       const countBadge = this.container.querySelector('#user-sentence-count');
       if (countBadge) countBadge.textContent = `${captionEngine.sentences.length} Line Segments`;
       this.showToast('Line segments updated and synchronized!', 'success');

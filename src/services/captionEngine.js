@@ -355,7 +355,11 @@ export class CaptionEngine {
           startTime: parseFloat(cStart.toFixed(2)),
           endTime: parseFloat(cEnd.toFixed(2)),
           text: cText,
-          words: chunkWords
+          words: chunkWords,
+          posX: s.posX !== undefined ? s.posX : (s.x !== undefined ? s.x : 6),
+          posY: s.posY !== undefined ? s.posY : (s.y !== undefined ? s.y : 50),
+          boxWidth: s.boxWidth || s.width || null,
+          behind: !!s.behind
         });
       }
     });
@@ -396,7 +400,11 @@ export class CaptionEngine {
         end: parseFloat(end.toFixed(2)),
         startTime: parseFloat(start.toFixed(2)),
         endTime: parseFloat(end.toFixed(2)),
-        words
+        words,
+        posX: s.posX !== undefined ? s.posX : (s.x !== undefined ? s.x : 6),
+        posY: s.posY !== undefined ? s.posY : (s.y !== undefined ? s.y : 50),
+        boxWidth: s.boxWidth || s.width || null,
+        behind: !!s.behind
       };
     });
 
@@ -555,7 +563,11 @@ export class CaptionEngine {
       fullText: activeSentence.text,
       words: processedWords,
       visibleWords: visibleWords.length > 0 ? visibleWords : [processedWords[0]], // show at least first word at start
-      activeWordIndex: currentWordIndex
+      activeWordIndex: currentWordIndex,
+      behind: !!activeSentence.behind,
+      posX: activeSentence.posX !== undefined ? activeSentence.posX : 6,
+      posY: activeSentence.posY !== undefined ? activeSentence.posY : 50,
+      boxWidth: activeSentence.boxWidth || null
     };
   }
 

@@ -224,7 +224,6 @@ export class ToolStudioModal {
                 <button type="button" class="cust-nav-pill active" data-filter="all">⚡ All Options</button>
                 <button type="button" class="cust-nav-pill" data-filter="colors">🎨 Colors &amp; Strokes</button>
                 <button type="button" class="cust-nav-pill" data-filter="fonts">🔤 Fonts &amp; Sizing</button>
-                <button type="button" class="cust-nav-pill" data-filter="position">📍 Position</button>
                 <button type="button" class="cust-nav-pill" data-filter="animations">🎬 Animations</button>
               </div>
 
@@ -247,30 +246,6 @@ export class ToolStudioModal {
                 </label>
               </div>
 
-              <!-- 1. Caption Position (9 Locations) -->
-              <div class="config-section-card" data-section="all position">
-                <div class="config-section-title">
-                  <span>📍 Caption Position (9 Locations)</span>
-                  <span class="badge badge-purple" id="selected-pos-name">Middle Left</span>
-                </div>
-                <div class="position-grid-7" id="position-grid-7">
-                  <!-- Row 1: Top Left, Top, Top Right -->
-                  <button class="pos-btn" data-pos="top-left"><span class="pos-arrow">↖</span> Top-L</button>
-                  <button class="pos-btn" data-pos="top"><span class="pos-arrow">↑</span> Top</button>
-                  <button class="pos-btn" data-pos="top-right"><span class="pos-arrow">↗</span> Top-R</button>
-
-                  <!-- Row 2: Middle Left, Middle, Middle Right -->
-                  <button class="pos-btn" data-pos="middle-left"><span class="pos-arrow">←</span> Mid-L</button>
-                  <button class="pos-btn" data-pos="middle"><span class="pos-arrow">●</span> Center</button>
-                  <button class="pos-btn" data-pos="middle-right"><span class="pos-arrow">→</span> Mid-R</button>
-
-                  <!-- Row 3: Bottom Left, Bottom, Bottom Right -->
-                  <button class="pos-btn" data-pos="bottom-left"><span class="pos-arrow">↙</span> Btm-L</button>
-                  <button class="pos-btn" data-pos="bottom"><span class="pos-arrow">↓</span> Bottom</button>
-                  <button class="pos-btn" data-pos="bottom-right"><span class="pos-arrow">↘</span> Btm-R</button>
-                </div>
-              </div>
-
               <!-- 2. Caption Size (1 - 100, default 30) -->
               <div class="config-section-card" data-section="all fonts">
                 <div class="config-section-title">
@@ -290,7 +265,7 @@ export class ToolStudioModal {
               <!-- 3. Dual Font Family Selection -->
               <div class="config-section-card" data-section="all fonts">
                 <div class="config-section-title">
-                  <span>3. Caption Fonts</span>
+                  <span>1. Caption Fonts</span>
                   <div style="display:flex; gap:6px; flex-wrap:wrap;">
                     <span class="badge badge-cyan" id="selected-normal-font-name">Normal: Inter</span>
                     <span class="badge badge-purple" id="selected-prominent-font-name">Prominent: Syne</span>
@@ -314,7 +289,7 @@ export class ToolStudioModal {
               <!-- 4. Modern Dual Color & Stroke Pro Grid -->
               <div class="config-section-card" data-section="all colors">
                 <div class="config-section-title">
-                  <span>4. Colors &amp; Stroke Styling</span>
+                  <span>2. Colors &amp; Stroke Styling</span>
                   <span class="badge badge-coral">Pro Dual Typography</span>
                 </div>
 
@@ -442,7 +417,7 @@ export class ToolStudioModal {
               <!-- 5. Caption Animations (Auto & 22 styles) -->
               <div class="config-section-card" data-section="all animations">
                 <div class="config-section-title">
-                  <span>5. Caption Animations (Auto &amp; 22 Styles)</span>
+                  <span>3. Caption Animations (Auto &amp; 22 Styles)</span>
                   <span class="badge badge-purple" id="selected-anim-name">Pop & Bounce</span>
                 </div>
                 <div class="animation-cards-grid" id="animation-cards-grid">
@@ -639,17 +614,6 @@ export class ToolStudioModal {
       badgeEnhance.textContent = isEnhanced ? 'ACTIVE (HD+)' : 'OFF';
       badgeEnhance.className = `badge ${isEnhanced ? 'badge-green' : 'badge-cyan'}`;
     }
-
-    // Position Grid
-    this.container.querySelectorAll('.pos-btn[data-pos]').forEach(btn => {
-      if (btn.getAttribute('data-pos') === config.position) {
-        btn.classList.add('selected');
-      } else {
-        btn.classList.remove('selected');
-      }
-    });
-    const posName = this.container.querySelector('#selected-pos-name');
-    if (posName) posName.textContent = (config.position || 'middle-left').toUpperCase();
 
     // Size Slider
     const sizeSlider = this.container.querySelector('#caption-size-slider');
@@ -1013,19 +977,6 @@ export class ToolStudioModal {
         }
         this.renderFontGrid();
         this.updatePreview();
-        return;
-      }
-
-      // Position selection
-      const posBtn = e.target.closest('.pos-btn[data-pos]');
-      if (posBtn) {
-        soundFx.playKeyBeep(620);
-        const posId = posBtn.getAttribute('data-pos');
-        this.container.querySelectorAll('.pos-btn[data-pos]').forEach(b => b.classList.remove('selected'));
-        posBtn.classList.add('selected');
-        const b = this.container.querySelector('#selected-pos-name');
-        if (b) b.textContent = posId.toUpperCase();
-        this.setActiveConfig({ position: posId });
         return;
       }
 

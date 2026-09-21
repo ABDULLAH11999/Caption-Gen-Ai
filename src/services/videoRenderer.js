@@ -2,6 +2,7 @@
 import { CAPTION_POSITIONS } from '../config.js';
 import { fixVideoMetadata } from './videoDurationFixer.js';
 import { autoTypographyEngine } from './autoTypographyEngine.js';
+import { selfieSegmenterService } from './selfieSegmenter.js';
 
 export class VideoRenderer {
   constructor() {
@@ -92,6 +93,12 @@ export class VideoRenderer {
           break;
       }
 
+      // Override with segment-specific custom position if set
+      if (captionState.posX !== undefined && captionState.posY !== undefined) {
+        posX = (canvasWidth * Number(captionState.posX)) / 100;
+        posY = (canvasHeight * Number(captionState.posY)) / 100;
+      }
+
       // Cache luminance per sentence to prevent costly synchronous GPU readbacks on every frame
       let isLightBackground = false;
       const lumKey = captionState.id || (captionState.visibleWords && captionState.visibleWords[0] ? captionState.visibleWords[0].word : 'default');
@@ -121,7 +128,9 @@ export class VideoRenderer {
       const baseScale = Math.min(canvasWidth, canvasHeight);
       const userFontSize = config.fontSize !== undefined ? config.fontSize : 30;
       const baseFontSize = Math.max(16, Math.round(userFontSize * (baseScale / 720) * 1.15));
-      const maxLineWidth = canvasWidth * 0.86;
+      const maxLineWidth = captionState.boxWidth
+        ? (canvasWidth * Number(captionState.boxWidth)) / 100
+        : (canvasWidth * 0.86);
 
       // 3. Layout words into lines
       const lines = [];
@@ -237,6 +246,11 @@ export class VideoRenderer {
         });
       });
 
+      // If segment is marked "behind" and selfieSegmenter is ready, render person cutout on top of captions
+      if (captionState && captionState.behind && selfieSegmenterService.isReady()) {
+        selfieSegmenterService.drawCutoutToContext(video, ctx, canvasWidth, canvasHeight);
+      }
+
       return;
     }
 
@@ -296,6 +310,12 @@ export class VideoRenderer {
         break;
     }
 
+    // Override with segment-specific custom position if set
+    if (captionState.posX !== undefined && captionState.posY !== undefined) {
+      posX = (canvasWidth * Number(captionState.posX)) / 100;
+      posY = (canvasHeight * Number(captionState.posY)) / 100;
+    }
+
     // 4. Calculate responsive font size relative to video dimensions
     // Scale 1 - 100 with default 30 corresponds to ~4% of min video dimension
     const baseScale = Math.min(canvasWidth, canvasHeight);
@@ -306,10 +326,12 @@ export class VideoRenderer {
     ctx.font = `${fontWeight} ${fontSizePx}px ${fontFamily}, -apple-system, sans-serif`;
     ctx.textBaseline = 'middle';
 
-    // 5. Wrap words into lines strictly staying inside 84% canvas width
+    // 5. Wrap words into lines strictly staying inside max line width
     const words = captionState.visibleWords;
     const spacing = fontSizePx * 0.28;
-    const maxLineWidth = canvasWidth * 0.84;
+    const maxLineWidth = captionState.boxWidth
+      ? (canvasWidth * Number(captionState.boxWidth)) / 100
+      : (canvasWidth * 0.84);
 
     const lines = [];
     let curLine = [];
@@ -387,6 +409,11 @@ export class VideoRenderer {
         currentX += w.width + spacing;
       });
     });
+
+    // If segment is marked "behind" and selfieSegmenter is ready, render person cutout on top of captions
+    if (captionState && captionState.behind && selfieSegmenterService.isReady()) {
+      selfieSegmenterService.drawCutoutToContext(video, ctx, canvasWidth, canvasHeight);
+    }
   }
 
   /**
@@ -611,9 +638,15 @@ export class VideoRenderer {
               isProminent: isLast || (idx % 3 === 2)
             };
           });
-          return { visibleWords };
+          return {
+            visibleWords,
+            behind: !!curSentence.behind,
+            posX: curSentence.posX,
+            posY: curSentence.posY,
+            boxWidth: curSentence.boxWidth
+          };
         }
-        return { visibleWords: [] };
+        return { visibleWords: [], behind: false };
       }
     };
 
@@ -622,6 +655,15 @@ export class VideoRenderer {
       enhanceQuality: !!enhanceQuality,
       enhanceVideoQuality: !!enhanceQuality
     };
+
+    // Pre-initialize rotoscoping segmenter if any segment has "behind" checked
+    if (sentences && sentences.some(s => s.behind)) {
+      try {
+        await selfieSegmenterService.init();
+      } catch (err) {
+        console.warn('Rotoscoping initialization warning for export:', err);
+      }
+    }
 
     try {
       const exportedBlob = await this.exportVideo(video, captionEngineInstance, effectiveConfig, (percent) => {

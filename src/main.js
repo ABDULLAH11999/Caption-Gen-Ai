@@ -480,6 +480,7 @@ class ZenSaaSApp {
 
 function bootstrapZenSaaS() {
   const app = new ZenSaaSApp();
+  window.__zenApp = app;
   app.init().catch(err => {
     console.error('[ZenSaaSApp] Boot error:', err);
   });

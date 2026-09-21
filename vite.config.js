@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   server: {
-    port: 5173,
+    port: 5174,
     open: false,
     cors: true,
     proxy: {
@@ -18,6 +18,9 @@ export default defineConfig({
     watch: {
       ignored: ['**/video-for-testrun/**', '**/node_modules/**', '**/scratch/**']
     }
+  },
+  optimizeDeps: {
+    exclude: ['@mediapipe/tasks-vision']
   },
   build: {
     target: 'esnext',
