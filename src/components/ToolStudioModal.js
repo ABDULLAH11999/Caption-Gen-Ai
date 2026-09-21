@@ -517,7 +517,7 @@ export class ToolStudioModal {
               -webkit-text-stroke: ${normalStroke}px ${c.normalOutlineColor || '#000000'};
               paint-order: stroke fill;
               -webkit-paint-order: stroke fill;
-              text-shadow: 0 2px 6px rgba(0,0,0,0.85);
+              text-shadow: none !important;
             ">${sampleNormal}</span>
             <span class="template-preview-prominent" style="
               color: ${c.prominentColor || '#FFE600'};
@@ -525,7 +525,7 @@ export class ToolStudioModal {
               -webkit-text-stroke: ${prominentStroke}px ${c.prominentOutlineColor || '#000000'};
               paint-order: stroke fill;
               -webkit-paint-order: stroke fill;
-              text-shadow: 0 0 16px ${c.prominentColor}aa, 0 2px 6px rgba(0,0,0,0.95);
+              text-shadow: none !important;
             ">${sampleProminent}</span>
           </div>
 
@@ -1297,7 +1297,7 @@ export class ToolStudioModal {
           font-style: ${w.fontStyle};
           font-weight: ${w.fontWeight};
           letter-spacing: ${w.letterSpacing};
-          text-shadow: ${w.shadow};
+          text-shadow: none !important;
           -webkit-text-stroke: ${w.stroke};
           paint-order: stroke fill;
           display: inline-block;

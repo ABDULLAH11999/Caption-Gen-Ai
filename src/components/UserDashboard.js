@@ -762,8 +762,10 @@ export class UserDashboard {
               </div>
 
               <div class="player-export-btns">
-                <button class="btn btn-outline btn-compact-action" id="user-btn-srt">.SRT</button>
-                <button class="btn btn-outline btn-compact-action" id="user-btn-vtt">.VTT</button>
+                <div class="player-export-secondary-row">
+                  <button class="btn btn-outline btn-compact-action" id="user-btn-srt">.SRT</button>
+                  <button class="btn btn-outline btn-compact-action" id="user-btn-vtt">.VTT</button>
+                </div>
                 <button class="btn btn-primary btn-burn-captions" id="user-btn-burn">
                   <div class="burn-btn-content">
                     <span>🎥 Burn Captions (60 FPS Export)</span>
@@ -1273,9 +1275,6 @@ export class UserDashboard {
       }
 
       const fontWeight = isSpeaking ? 900 : (isProminent ? 800 : 700);
-      const textShadow = isSpeaking
-        ? `0 0 16px ${color}88, 0 2px 8px rgba(0,0,0,0.98), 0 0 3px #000000`
-        : `0 2px 6px rgba(0,0,0,0.95), 0 0 2px #000000`;
 
       const strokeWidth = isProminent
         ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.5)
@@ -1287,8 +1286,8 @@ export class UserDashboard {
       const wordScale = isSpeaking ? 'scale(1.15)' : 'scale(1)';
       const wordZIndex = isSpeaking ? 5 : 1;
       const transitionTiming = isSpeaking
-        ? 'transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), text-shadow 0.2s ease, filter 0.2s ease'
-        : 'transform 0.18s ease-out, text-shadow 0.18s ease';
+        ? 'transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s ease'
+        : 'transform 0.18s ease-out';
 
       return `
         <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''}" style="
@@ -1305,7 +1304,7 @@ export class UserDashboard {
           visibility: visible !important;
           line-height: 1.05;
           letter-spacing: 0.2px;
-          text-shadow: ${textShadow};
+          text-shadow: none !important;
           -webkit-text-stroke: ${strokeWidth}px ${strokeColor};
           paint-order: stroke fill;
           -webkit-paint-order: stroke fill;
@@ -1561,6 +1560,9 @@ export class UserDashboard {
         anchor.classList.add('is-resizing');
         e.preventDefault();
         e.stopPropagation();
+        if (anchor.setPointerCapture) {
+          try { anchor.setPointerCapture(e.pointerId); } catch (_) {}
+        }
       } else {
         // Start dragging
         isDragging = true;
@@ -1572,10 +1574,18 @@ export class UserDashboard {
         anchor.classList.add('is-dragging');
         e.preventDefault();
         e.stopPropagation();
+        if (anchor.setPointerCapture) {
+          try { anchor.setPointerCapture(e.pointerId); } catch (_) {}
+        }
       }
 
       const onPointerMove = (moveEvent) => {
         if (!activeSentence || !activeAnchor) return;
+        if (!isDragging && !isResizing) return;
+        
+        moveEvent.preventDefault();
+        moveEvent.stopPropagation();
+
         const currentVideoRect = videoWrapper.getBoundingClientRect();
         if (currentVideoRect.width <= 0 || currentVideoRect.height <= 0) return;
 
@@ -1611,7 +1621,10 @@ export class UserDashboard {
         }
       };
 
-      const onPointerUp = () => {
+      const onPointerUp = (upEvent) => {
+        if (upEvent && upEvent.pointerId && activeAnchor && activeAnchor.releasePointerCapture) {
+          try { activeAnchor.releasePointerCapture(upEvent.pointerId); } catch (_) {}
+        }
         if (isDragging || isResizing) {
           soundFx.playKeyBeep(700);
           if (activeAnchor) {
@@ -1627,7 +1640,7 @@ export class UserDashboard {
         window.removeEventListener('pointercancel', onPointerUp);
       };
 
-      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointermove', onPointerMove, { passive: false });
       window.addEventListener('pointerup', onPointerUp);
       window.addEventListener('pointercancel', onPointerUp);
     });

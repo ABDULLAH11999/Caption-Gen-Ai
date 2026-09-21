@@ -867,7 +867,7 @@ export class UploadScreen {
                 font-style: ${w.fontStyle};
                 font-weight: ${w.fontWeight};
                 letter-spacing: ${w.letterSpacing};
-                text-shadow: ${w.shadow};
+                text-shadow: none !important;
                 -webkit-text-stroke: ${w.stroke};
                 paint-order: stroke fill;
               ">
@@ -947,7 +947,7 @@ export class UploadScreen {
               font-style: ${w.fontStyle};
               font-weight: ${w.fontWeight};
               letter-spacing: ${w.letterSpacing};
-              text-shadow: ${w.shadow};
+              text-shadow: none !important;
               -webkit-text-stroke: ${w.stroke};
               paint-order: stroke fill;
               display: inline-block;

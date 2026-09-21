@@ -371,44 +371,7 @@ export class VideoRenderer {
     }
     ctx.translate(-blockCenterX, -blockCenterY);
 
-    // If intense shine is active (Neon Shimmer or Solar Flare), draw background glow burst
-    if (shineFactor > 0.15) {
-      ctx.save();
-      ctx.shadowColor = '#00F0FF';
-      ctx.shadowBlur = Math.round(40 * shineFactor * scale);
-      lines.forEach((line, lineIdx) => {
-        const lineY = startBlockY + lineIdx * lineHeight;
-        let curX = (textAlign === 'center') ? posX - line.width / 2 : (textAlign === 'right' ? posX - line.width : posX);
-        line.words.forEach(w => {
-          ctx.font = `${w.fontWeight} ${w.fontSize}px ${w.font}`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = 'rgba(0, 240, 255, 0.4)';
-          ctx.fillText(w.word, curX + w.width / 2, lineY);
-          curX += w.width + wordGap;
-        });
-      });
-      ctx.restore();
-    } else if (flareFactor > 0.15) {
-      ctx.save();
-      ctx.shadowColor = '#FF6B00';
-      ctx.shadowBlur = Math.round(45 * flareFactor * scale);
-      lines.forEach((line, lineIdx) => {
-        const lineY = startBlockY + lineIdx * lineHeight;
-        let curX = (textAlign === 'center') ? posX - line.width / 2 : (textAlign === 'right' ? posX - line.width : posX);
-        line.words.forEach(w => {
-          ctx.font = `${w.fontWeight} ${w.fontSize}px ${w.font}`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = 'rgba(255, 107, 0, 0.4)';
-          ctx.fillText(w.word, curX + w.width / 2, lineY);
-          curX += w.width + wordGap;
-        });
-      });
-      ctx.restore();
-    }
-
-    // 12. Render caption lines on Layer 2
+    // 12. Render caption lines on Layer 2 (Crisp stroke and fill without blurry drop shadows)
     lines.forEach((line, lineIdx) => {
       const lineY = startBlockY + lineIdx * lineHeight;
       let startX = posX;
@@ -433,25 +396,13 @@ export class VideoRenderer {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // Shadows & Neon Glow
-        if (glowColorOverride) {
-          ctx.shadowColor = glowColorOverride;
-          ctx.shadowBlur = Math.round((14 * scale) + extraGlowBlur);
-          ctx.shadowOffsetX = 0;
-          ctx.shadowOffsetY = 0;
-        } else if (w.isSpeaking) {
-          ctx.shadowColor = `${w.color}CC`;
-          ctx.shadowBlur = Math.round(18 * scale);
-          ctx.shadowOffsetX = 0;
-          ctx.shadowOffsetY = Math.round(2 * scale);
-        } else {
-          ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-          ctx.shadowBlur = Math.round(6 * scale);
-          ctx.shadowOffsetX = 0;
-          ctx.shadowOffsetY = Math.round(2 * scale);
-        }
+        // Disable blurry drop shadows
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
 
-        // Stroke
+        // Crisp Outline Stroke
         ctx.lineWidth = w.strokeWidth;
         ctx.strokeStyle = w.strokeColor;
         ctx.lineJoin = 'round';
