@@ -32,7 +32,7 @@ export class UserDashboard {
     this.openAuthModal = options.openAuthModal || (() => {});
     this.toolStudio = options.toolStudio || null;
 
-    this.activeTab = 'templates'; // 'templates' | 'apply' | 'quota'
+    this.activeTab = 'apply'; // 'templates' | 'apply' | 'quota'
     this.currentMode = 'landscape'; // 'landscape' | 'portrait'
     this.selectedTemplateId = 'september-pop';
     this.userCustomTemplates = {}; // templateId -> custom config
