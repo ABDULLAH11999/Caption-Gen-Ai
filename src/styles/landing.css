@@ -384,7 +384,7 @@
 }
 
 .mockup-screen-area {
-  background: linear-gradient(180deg, #18181f 0%, #0c0c0e 100%);
+  background: #000000;
   border-radius: var(--radius-md);
   height: 380px;
   position: relative;
@@ -402,7 +402,8 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
 }
 
 .mockup-caption-line {
