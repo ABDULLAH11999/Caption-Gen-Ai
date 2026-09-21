@@ -41,6 +41,222 @@ export class VideoRenderer {
     return found ? found.family : `'${fontId}', -apple-system, sans-serif`;
   }
 
+  easeOutBack(t) {
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+  }
+
+  getAnimationFrameState(animId, elapsed, scale) {
+    const aliases = {
+      'anim-left-right': 'anim-slide-left-right',
+      'anim-right-left': 'anim-slide-right-left',
+      'anim-top-bottom': 'anim-slide-top-bottom',
+      'anim-bottom-top': 'anim-slide-bottom-top'
+    };
+    animId = aliases[animId] || animId;
+
+    const state = {
+      blockScale: 1,
+      blockOffsetX: 0,
+      blockOffsetY: 0,
+      blockOpacity: 1,
+      blockRotation: 0,
+      blur: 0,
+      brightness: 1,
+      glow: 0,
+      glowColor: null,
+      shine: 0,
+      shimmerX: null,
+      waveRotation: 0,
+      glitchX: 0,
+      glitchY: 0,
+      typewriterProgress: 1
+    };
+
+    const clamp = (v) => Math.max(0, Math.min(1, v));
+
+    switch (animId) {
+      case 'anim-slide-left-right': {
+        const p = clamp(elapsed / 0.4);
+        state.blockOffsetX = (1 - p) * -40 * scale;
+        state.blockOpacity = p;
+        break;
+      }
+      case 'anim-slide-right-left': {
+        const p = clamp(elapsed / 0.4);
+        state.blockOffsetX = (1 - p) * 40 * scale;
+        state.blockOpacity = p;
+        break;
+      }
+      case 'anim-slide-top-bottom': {
+        const p = clamp(elapsed / 0.38);
+        state.blockOffsetY = (1 - p) * -30 * scale;
+        state.blockOpacity = p;
+        break;
+      }
+      case 'anim-slide-bottom-top': {
+        const p = clamp(elapsed / 0.38);
+        state.blockOffsetY = (1 - p) * 30 * scale;
+        state.blockOpacity = p;
+        break;
+      }
+      case 'anim-blink': {
+        const p = clamp(elapsed / 0.7);
+        const pulse = Math.abs(Math.sin(p * Math.PI * 2));
+        state.blockOpacity = elapsed < 0.7 ? Math.max(0.25, pulse) : 1;
+        state.brightness = elapsed < 0.7 ? 1.2 + 0.8 * pulse : 1;
+        state.glow = elapsed < 0.7 ? 16 * pulse * scale : 0;
+        state.glowColor = '#FFFFFF';
+        break;
+      }
+      case 'anim-typewriter': {
+        state.typewriterProgress = clamp(elapsed / 0.4);
+        state.blockOpacity = 0.5 + 0.5 * state.typewriterProgress;
+        break;
+      }
+      case 'anim-karaoke-glow': {
+        const pulse = 0.5 + 0.5 * Math.sin(elapsed * Math.PI * 5);
+        state.glow = (8 + 12 * pulse) * scale;
+        break;
+      }
+      case 'anim-wave': {
+        const p = clamp(elapsed / 0.5);
+        state.waveRotation = Math.sin(p * Math.PI * 2) * 4 * (1 - p);
+        break;
+      }
+      case 'anim-fade': {
+        state.blockOpacity = clamp(elapsed / 0.4);
+        break;
+      }
+      case 'anim-blur': {
+        const p = clamp(elapsed / 0.4);
+        state.blockOpacity = p;
+        state.blur = (1 - p) * 12 * scale;
+        break;
+      }
+      case 'anim-neon-pulse': {
+        const pulse = 0.5 + 0.5 * Math.sin(elapsed * Math.PI * 1.7);
+        state.glow = (10 + 24 * pulse) * scale;
+        state.glowColor = '#00F0FF';
+        break;
+      }
+      case 'anim-glitch': {
+        const phase = Math.floor(elapsed * 18) % 4;
+        state.glitchX = ([0, -2, 2, -1][phase] || 0) * scale;
+        state.glitchY = ([0, 1, -1, -1][phase] || 0) * scale;
+        break;
+      }
+      case 'anim-flip3d': {
+        const p = clamp(elapsed / 0.5);
+        state.blockOpacity = p;
+        state.blockScale = 0.82 + 0.18 * this.easeOutBack(p);
+        state.blockOffsetY = (1 - p) * 8 * scale;
+        break;
+      }
+      case 'anim-neon-shimmer': {
+        const p = clamp(elapsed / 0.9);
+        const shine = p <= 0.45 ? p / 0.45 : Math.max(0, (1 - p) / 0.55);
+        state.shine = shine;
+        state.shimmerX = p;
+        state.blockScale = 0.96 + 0.1 * shine;
+        state.blockOpacity = 0.25 + 0.75 * Math.min(1, p / 0.25);
+        state.glow = 36 * shine * scale;
+        state.glowColor = '#00F0FF';
+        state.brightness = 1 + 1.2 * shine;
+        break;
+      }
+      case 'anim-fire-flare': {
+        const p = clamp(elapsed / 0.85);
+        const flare = p <= 0.4 ? p / 0.4 : Math.max(0, (1 - p) / 0.6);
+        state.shine = flare;
+        state.blockScale = (0.75 + 0.25 * Math.min(1, p / 0.4)) + 0.14 * flare;
+        state.blockOpacity = Math.min(1, p / 0.18);
+        state.glow = 42 * flare * scale;
+        state.glowColor = '#FF6B00';
+        state.brightness = 1 + 0.7 * flare;
+        break;
+      }
+      case 'anim-zoom-impact': {
+        const p = clamp(elapsed / 0.35);
+        state.blockScale = 1 + 1.2 * Math.pow(1 - p, 2.2);
+        state.blockOpacity = Math.min(1, p / 0.12);
+        break;
+      }
+      case 'anim-bounce-drop': {
+        const p = clamp(elapsed / 0.48);
+        if (p <= 0.65) {
+          const t = p / 0.65;
+          state.blockOffsetY = (-45 + 50 * t) * scale;
+          state.blockScale = 0.85 + 0.23 * t;
+        } else if (p <= 0.85) {
+          const t = (p - 0.65) / 0.2;
+          state.blockOffsetY = (5 - 7 * t) * scale;
+          state.blockScale = 1.08 - 0.10 * t;
+        } else {
+          const t = (p - 0.85) / 0.15;
+          state.blockOffsetY = (-2 + 2 * t) * scale;
+          state.blockScale = 0.98 + 0.02 * t;
+        }
+        state.blockOpacity = Math.min(1, p / 0.18);
+        break;
+      }
+      case 'anim-pop': {
+        const p = clamp(elapsed / 0.32);
+        if (p <= 0.6) state.blockScale = 0.65 + 0.5 * (p / 0.6);
+        else state.blockScale = 1.15 - 0.15 * ((p - 0.6) / 0.4);
+        state.blockOpacity = Math.min(1, p / 0.15);
+        break;
+      }
+      case 'anim-cinematic-drift': {
+        const p = clamp(elapsed / 1.4);
+        state.blockOffsetY = (1 - p) * 14 * scale;
+        state.blockScale = 0.92 + 0.08 * p;
+        state.blockOpacity = Math.min(1, p / 0.25);
+        break;
+      }
+      case 'anim-3d-tilt': {
+        const p = clamp(elapsed / 0.75);
+        state.blockOffsetY = (1 - p) * 20 * scale;
+        state.blockRotation = (1 - p) * -6;
+        state.blockScale = 0.85 + 0.15 * p;
+        state.blockOpacity = Math.min(1, p / 0.22);
+        break;
+      }
+      case 'anim-elastic-snap': {
+        const p = clamp(elapsed / 0.7);
+        if (p <= 0.65) {
+          state.blockScale = 0.35 + 0.8 * this.easeOutBack(p / 0.65);
+          state.blockRotation = -8 + 10 * (p / 0.65);
+        } else if (p <= 0.85) {
+          const t = (p - 0.65) / 0.2;
+          state.blockScale = 1.15 - 0.18 * t;
+          state.blockRotation = 2 - 3 * t;
+        } else {
+          const t = (p - 0.85) / 0.15;
+          state.blockScale = 0.97 + 0.03 * t;
+          state.blockRotation = -1 + t;
+        }
+        state.blockOpacity = Math.min(1, p / 0.18);
+        break;
+      }
+      case 'anim-liquid-gradient': {
+        const p = clamp(elapsed / 1.1);
+        const shine = Math.sin(p * Math.PI);
+        state.shine = shine;
+        state.shimmerX = p;
+        state.blockScale = 0.95 + 0.1 * shine;
+        state.blockOpacity = Math.min(1, p / 0.25);
+        state.glow = 24 * shine * scale;
+        state.glowColor = '#C084FC';
+        state.brightness = 1 + 0.35 * shine;
+        break;
+      }
+    }
+
+    return state;
+  }
+
   /**
    * Renders the current frame on a canvas with pristine quality and styled captions
    * Matches live preview video display 100% pixel-perfect
@@ -228,7 +444,7 @@ export class VideoRenderer {
     styledWords.forEach((sw) => {
       ctx.font = `${sw.fontWeight} ${sw.fontSize}px ${sw.font}`;
       const rawWidth = ctx.measureText(sw.word).width;
-      const wordWidth = rawWidth * sw.wordScale;
+      const wordWidth = rawWidth;
       const testWidth = curLineWidth + (curLine.length > 0 ? wordGap : 0) + wordWidth;
 
       if (testWidth > customMaxWidth && curLine.length > 0) {
@@ -269,113 +485,7 @@ export class VideoRenderer {
     const chunkStartTime = Number(displayWords[0]?.start ?? displayWords[0]?.startTime ?? (currentSentence.start ?? currentSentence.startTime ?? 0));
     const elapsed = Math.max(0, curTime - chunkStartTime);
 
-    let blockScale = 1.0;
-    let blockOffsetY = 0;
-    let blockOpacity = 1.0;
-    let shineFactor = 0;
-    let flareFactor = 0;
-    let glowColorOverride = null;
-    let extraGlowBlur = 0;
-
-    switch (resolvedAnimId) {
-      case 'anim-neon-shimmer': {
-        const dur = 0.9;
-        const p = Math.min(1.0, elapsed / dur);
-        if (p <= 0.45) {
-          shineFactor = p / 0.45;
-        } else {
-          shineFactor = Math.max(0, (1.0 - p) / 0.55);
-        }
-        blockScale = 0.96 + 0.10 * shineFactor;
-        blockOpacity = 0.25 + 0.75 * Math.min(1.0, p / 0.25);
-        extraGlowBlur = Math.round(36 * shineFactor * scale);
-        if (shineFactor > 0.15) {
-          glowColorOverride = '#00F0FF';
-        }
-        break;
-      }
-      case 'anim-fire-flare': {
-        const dur = 0.85;
-        const p = Math.min(1.0, elapsed / dur);
-        if (p <= 0.40) {
-          flareFactor = p / 0.40;
-        } else {
-          flareFactor = Math.max(0, (1.0 - p) / 0.60);
-        }
-        blockScale = (0.75 + 0.25 * Math.min(1.0, p / 0.4)) + 0.14 * flareFactor;
-        blockOpacity = Math.min(1.0, p / 0.18);
-        extraGlowBlur = Math.round(42 * flareFactor * scale);
-        if (flareFactor > 0.15) {
-          glowColorOverride = '#FF6B00';
-        }
-        break;
-      }
-      case 'anim-zoom-impact': {
-        const dur = 0.35;
-        const p = Math.min(1.0, elapsed / dur);
-        blockScale = 1.0 + 1.2 * Math.pow(1.0 - p, 2.2);
-        blockOpacity = Math.min(1.0, p / 0.12);
-        break;
-      }
-      case 'anim-bounce-drop': {
-        const dur = 0.48;
-        const p = Math.min(1.0, elapsed / dur);
-        if (p <= 0.65) {
-          const t = p / 0.65;
-          blockOffsetY = (-45 + 50 * t) * scale;
-          blockScale = 0.85 + 0.23 * t;
-        } else if (p <= 0.85) {
-          const t = (p - 0.65) / 0.20;
-          blockOffsetY = (5 - 7 * t) * scale;
-          blockScale = 1.08 - 0.10 * t;
-        } else {
-          const t = (p - 0.85) / 0.15;
-          blockOffsetY = (-2 + 2 * t) * scale;
-          blockScale = 0.98 + 0.02 * t;
-        }
-        blockOpacity = Math.min(1.0, p / 0.18);
-        break;
-      }
-      case 'anim-pop': {
-        const dur = 0.32;
-        const p = Math.min(1.0, elapsed / dur);
-        if (p <= 0.60) {
-          const t = p / 0.60;
-          blockScale = 0.65 + 0.50 * t;
-        } else {
-          const t = (p - 0.60) / 0.40;
-          blockScale = 1.15 - 0.15 * t;
-        }
-        blockOpacity = Math.min(1.0, p / 0.15);
-        break;
-      }
-      case 'anim-cinematic-drift': {
-        const dur = 1.4;
-        const p = Math.min(1.0, elapsed / dur);
-        blockOffsetY = (1.0 - p) * 14 * scale;
-        blockScale = 0.92 + 0.08 * p;
-        blockOpacity = Math.min(1.0, p / 0.25);
-        break;
-      }
-      case 'anim-3d-tilt': {
-        const dur = 0.75;
-        const p = Math.min(1.0, elapsed / dur);
-        blockOffsetY = (1.0 - p) * 20 * scale;
-        blockScale = 0.85 + 0.15 * p;
-        blockOpacity = Math.min(1.0, p / 0.22);
-        break;
-      }
-      case 'anim-liquid-gradient': {
-        const dur = 1.1;
-        const p = Math.min(1.0, elapsed / dur);
-        shineFactor = Math.sin(p * Math.PI);
-        blockScale = 0.95 + 0.10 * shineFactor;
-        blockOpacity = Math.min(1.0, p / 0.25);
-        extraGlowBlur = Math.round(24 * shineFactor * scale);
-        if (shineFactor > 0.2) glowColorOverride = '#C084FC';
-        break;
-      }
-    }
+    const animState = this.getAnimationFrameState(resolvedAnimId, elapsed, scale);
 
     const maxLineWidth = Math.max(...lines.map(l => l.width), 10);
     const blockCenterX = (textAlign === 'center')
@@ -384,16 +494,31 @@ export class VideoRenderer {
     const blockCenterY = startBlockY + totalBlockHeight * 0.5;
 
     ctx.save();
-    ctx.globalAlpha = Math.max(0, Math.min(1.0, blockOpacity));
+    ctx.globalAlpha = Math.max(0, Math.min(1.0, animState.blockOpacity));
+    if (animState.blur > 0 || animState.brightness !== 1) {
+      ctx.filter = `blur(${animState.blur.toFixed(2)}px) brightness(${animState.brightness.toFixed(2)})`;
+    }
 
     // Apply block entrance animation transform
-    ctx.translate(blockCenterX, blockCenterY + blockOffsetY);
-    if (blockScale !== 1.0) {
-      ctx.scale(blockScale, blockScale);
+    ctx.translate(blockCenterX + animState.blockOffsetX, blockCenterY + animState.blockOffsetY);
+    if (animState.blockRotation) {
+      ctx.rotate((animState.blockRotation * Math.PI) / 180);
+    }
+    if (animState.blockScale !== 1.0) {
+      ctx.scale(animState.blockScale, animState.blockScale);
     }
     ctx.translate(-blockCenterX, -blockCenterY);
 
-    // 12. Render caption lines on Layer 2 (Crisp stroke and fill without blurry drop shadows)
+    if (animState.typewriterProgress < 1) {
+      const clipLeft = textAlign === 'center'
+        ? blockCenterX - maxLineWidth / 2
+        : (textAlign === 'right' ? posX - maxLineWidth : posX);
+      ctx.beginPath();
+      ctx.rect(clipLeft - 4 * scale, startBlockY - lineHeight, (maxLineWidth + 8 * scale) * animState.typewriterProgress, totalBlockHeight + lineHeight * 1.4);
+      ctx.clip();
+    }
+
+    // 12. Render caption lines on Layer 2 with preview-matching glow and shimmer effects
     lines.forEach((line, lineIdx) => {
       const lineY = startBlockY + lineIdx * lineHeight;
       let startX = posX;
@@ -410,6 +535,9 @@ export class VideoRenderer {
         const centerY = lineY;
 
         ctx.translate(centerX, centerY);
+        if (animState.waveRotation) {
+          ctx.rotate((animState.waveRotation * Math.PI) / 180);
+        }
         if (w.wordScale !== 1.0) {
           ctx.scale(w.wordScale, w.wordScale);
         }
@@ -418,11 +546,24 @@ export class VideoRenderer {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // Disable blurry drop shadows
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur = 0;
+        const speakingPulse = w.isSpeaking ? (0.5 + 0.5 * Math.sin(curTime * Math.PI * 5)) : 0;
+        const wordGlow = Math.max(animState.glow || 0, w.isSpeaking ? (8 + 12 * speakingPulse) * scale : 0);
+        const glowColor = animState.glowColor || w.color;
+
+        ctx.shadowColor = wordGlow > 0 ? glowColor : 'transparent';
+        ctx.shadowBlur = wordGlow;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
+
+        if (resolvedAnimId === 'anim-glitch') {
+          ctx.save();
+          ctx.globalAlpha = 0.65;
+          ctx.fillStyle = '#00F0FF';
+          ctx.fillText(w.word, -2 * scale + animState.glitchX, animState.glitchY);
+          ctx.fillStyle = '#FF4DA6';
+          ctx.fillText(w.word, 2 * scale + animState.glitchX, -animState.glitchY);
+          ctx.restore();
+        }
 
         // Crisp Outline Stroke
         ctx.lineWidth = w.strokeWidth;
@@ -431,13 +572,20 @@ export class VideoRenderer {
         ctx.miterLimit = 2;
         ctx.strokeText(w.word, 0, 0);
 
-        // Fill with shine luminance boost
-        if (shineFactor > 0.3) {
-          // Specular luminous core
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillText(w.word, 0, 0);
-          ctx.fillStyle = w.color;
-          ctx.globalAlpha = 0.75;
+        if (animState.shine > 0.12) {
+          const band = animState.shimmerX ?? 0.5;
+          const grad = ctx.createLinearGradient(-w.rawWidth / 2, 0, w.rawWidth / 2, 0);
+          const a = Math.max(0, band - 0.22);
+          const b = Math.max(0, band - 0.04);
+          const c = Math.min(1, band + 0.08);
+          const d = Math.min(1, band + 0.24);
+          grad.addColorStop(0, w.color);
+          grad.addColorStop(a, w.color);
+          grad.addColorStop(b, '#FFFFFF');
+          grad.addColorStop(c, '#FFE6FF');
+          grad.addColorStop(d, w.color);
+          grad.addColorStop(1, w.color);
+          ctx.fillStyle = grad;
           ctx.fillText(w.word, 0, 0);
         } else {
           ctx.fillStyle = w.color;
@@ -466,6 +614,10 @@ export class VideoRenderer {
     this.isRendering = true;
 
     try {
+      if (typeof selfieSegmenterService.resetCache === 'function') {
+        selfieSegmenterService.resetCache();
+      }
+
       const originalTime = videoElement.currentTime;
       const originalPaused = videoElement.paused;
       videoElement.pause();
@@ -485,6 +637,10 @@ export class VideoRenderer {
       const sentences = Array.isArray(captionEngineInstance?.sentences)
         ? captionEngineInstance.sentences
         : (Array.isArray(captionEngineInstance) ? captionEngineInstance : []);
+
+      if (typeof document !== 'undefined' && document.fonts?.ready) {
+        try { await document.fonts.ready; } catch (_) {}
+      }
 
       // Create high-res render canvas
       const offscreenCanvas = document.createElement('canvas');

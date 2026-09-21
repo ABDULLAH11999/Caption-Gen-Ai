@@ -14,6 +14,11 @@ class SelfieSegmenterService {
     this.maskCtx = this.maskCanvas.getContext('2d');
     this.maskImageData = null;
     this.lastTimestamp = -1;
+    this.isSegmenting = false;
+    this.lastSegmentVideoTime = -Infinity;
+    this.lastSegmentWallTime = 0;
+    this.lastCutoutWidth = 0;
+    this.lastCutoutHeight = 0;
   }
 
   /**
@@ -84,6 +89,40 @@ class SelfieSegmenterService {
 
   isReady() {
     return this.isInitialized && !!this.segmenter;
+  }
+
+  resetCache() {
+    this.isSegmenting = false;
+    this.lastSegmentVideoTime = -Infinity;
+    this.lastSegmentWallTime = 0;
+    this.lastCutoutWidth = 0;
+    this.lastCutoutHeight = 0;
+    if (this.cutoutCtx && this.cutoutCanvas.width && this.cutoutCanvas.height) {
+      this.cutoutCtx.clearRect(0, 0, this.cutoutCanvas.width, this.cutoutCanvas.height);
+    }
+  }
+
+  drawCachedCutout(ctx, width, height) {
+    if (!ctx || !this.lastCutoutWidth || !this.lastCutoutHeight) return false;
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
+    return true;
+  }
+
+  shouldSegment(video, fps = 12) {
+    const videoTime = Number(video?.currentTime || 0);
+    const now = performance.now();
+    const minVideoDelta = 1 / Math.max(1, fps);
+    const minWallDelta = 1000 / Math.max(1, fps);
+
+    if (this.isSegmenting) return false;
+    if (Math.abs(videoTime - this.lastSegmentVideoTime) < minVideoDelta && (now - this.lastSegmentWallTime) < minWallDelta) {
+      return false;
+    }
+
+    this.lastSegmentVideoTime = videoTime;
+    this.lastSegmentWallTime = now;
+    return true;
   }
 
   /**
@@ -180,6 +219,8 @@ class SelfieSegmenterService {
     }
 
     const targetCtx = targetCanvas.getContext('2d');
+    this.drawCachedCutout(targetCtx, width, height);
+    if (!this.shouldSegment(video, 12)) return;
 
     let timestamp = performance.now();
     if (timestamp <= this.lastTimestamp) {
@@ -188,31 +229,38 @@ class SelfieSegmenterService {
     this.lastTimestamp = timestamp;
 
     try {
+      this.isSegmenting = true;
       this.segmenter.segmentForVideo(video, timestamp, (result) => {
-        let mask = null;
-        if (result.confidenceMasks && result.confidenceMasks.length > 0) {
-          mask = result.confidenceMasks.length >= 2 ? result.confidenceMasks[1] : result.confidenceMasks[0];
-        } else if (result.categoryMask) {
-          mask = result.categoryMask;
-        }
+        try {
+          let mask = null;
+          if (result.confidenceMasks && result.confidenceMasks.length > 0) {
+            mask = result.confidenceMasks.length >= 2 ? result.confidenceMasks[1] : result.confidenceMasks[0];
+          } else if (result.categoryMask) {
+            mask = result.categoryMask;
+          }
 
-        if (!mask) return;
+          if (!mask) return;
 
-        this.applyMaskAndCutout(mask, video, width, height, enhanceQuality);
+          this.applyMaskAndCutout(mask, video, width, height, enhanceQuality);
+          this.lastCutoutWidth = width;
+          this.lastCutoutHeight = height;
 
-        // Composite person cutout over target canvas (Layer 3 over Layer 2 captions)
-        targetCtx.clearRect(0, 0, width, height);
-        targetCtx.drawImage(this.cutoutCanvas, 0, 0, width, height);
-
-        // Free mask memory immediately
-        if (result.confidenceMasks) {
-          result.confidenceMasks.forEach(m => { try { m.close(); } catch (_) {} });
-        }
-        if (result.categoryMask) {
-          try { result.categoryMask.close(); } catch (_) {}
+          // Composite person cutout over target canvas (Layer 3 over Layer 2 captions)
+          targetCtx.clearRect(0, 0, width, height);
+          targetCtx.drawImage(this.cutoutCanvas, 0, 0, width, height);
+        } finally {
+          this.isSegmenting = false;
+          // Free mask memory immediately
+          if (result.confidenceMasks) {
+            result.confidenceMasks.forEach(m => { try { m.close(); } catch (_) {} });
+          }
+          if (result.categoryMask) {
+            try { result.categoryMask.close(); } catch (_) {}
+          }
         }
       });
     } catch (err) {
+      this.isSegmenting = false;
       console.error('Rotoscoping render error:', err);
     }
   }
@@ -231,6 +279,11 @@ class SelfieSegmenterService {
       this.cutoutCanvas.height = height;
     }
 
+    if (this.lastCutoutWidth && this.lastCutoutHeight) {
+      ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
+    }
+    if (!this.shouldSegment(video, 15)) return;
+
     let timestamp = performance.now();
     if (timestamp <= this.lastTimestamp) {
       timestamp = this.lastTimestamp + 1;
@@ -238,28 +291,35 @@ class SelfieSegmenterService {
     this.lastTimestamp = timestamp;
 
     try {
+      this.isSegmenting = true;
       this.segmenter.segmentForVideo(video, timestamp, (result) => {
-        let mask = null;
-        if (result.confidenceMasks && result.confidenceMasks.length > 0) {
-          mask = result.confidenceMasks.length >= 2 ? result.confidenceMasks[1] : result.confidenceMasks[0];
-        } else if (result.categoryMask) {
-          mask = result.categoryMask;
-        }
+        try {
+          let mask = null;
+          if (result.confidenceMasks && result.confidenceMasks.length > 0) {
+            mask = result.confidenceMasks.length >= 2 ? result.confidenceMasks[1] : result.confidenceMasks[0];
+          } else if (result.categoryMask) {
+            mask = result.categoryMask;
+          }
 
-        if (!mask) return;
+          if (!mask) return;
 
-        this.applyMaskAndCutout(mask, video, width, height, enhanceQuality);
+          this.applyMaskAndCutout(mask, video, width, height, enhanceQuality);
+          this.lastCutoutWidth = width;
+          this.lastCutoutHeight = height;
 
-        ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
-
-        if (result.confidenceMasks) {
-          result.confidenceMasks.forEach(m => { try { m.close(); } catch (_) {} });
-        }
-        if (result.categoryMask) {
-          try { result.categoryMask.close(); } catch (_) {}
+          ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
+        } finally {
+          this.isSegmenting = false;
+          if (result.confidenceMasks) {
+            result.confidenceMasks.forEach(m => { try { m.close(); } catch (_) {} });
+          }
+          if (result.categoryMask) {
+            try { result.categoryMask.close(); } catch (_) {}
+          }
         }
       });
     } catch (e) {
+      this.isSegmenting = false;
       console.error('drawCutoutToContext error:', e);
     }
   }

@@ -1805,6 +1805,7 @@ export class UserDashboard {
           btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;">⏳</span> ${msg}`;
         }
       });
+      selfieSegmenterService.resetCache();
 
       // 4. Restore video playback state
       this.videoElement.currentTime = savedTime;
