@@ -855,41 +855,6 @@ export class UserDashboard {
     }
   }
 
-  async handleVideoFile(file) {
-    if (!file) return;
-
-    const fileSizeMB = file.size / (1024 * 1024);
-    if (fileSizeMB > APP_CONFIG.MAX_FILE_SIZE_MB) {
-      this.showToast(`Video size (${fileSizeMB.toFixed(1)} MB) exceeds maximum allowed ${APP_CONFIG.MAX_FILE_SIZE_MB} MB limit.`, 'error');
-      return;
-    }
-
-    soundFx.playProcessStart();
-    this.isProcessing = true;
-    this.processingCancelled = false;
-    this.processingProgress = 20;
-    this.processingStatus = 'Reading video file and parsing audio track...';
-    this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
-
-    try {
-      await this.sleep(300);
-      if (this.processingCancelled) return;
-
-      this.updateProcessingProgress(35, 'Extracting 16kHz audio waveform for Whisper AI...');
-      await this.sleep(300);
-      if (this.processingCancelled) return;
-
-      this.updateProcessingProgress(55, 'Running speech recognition & detecting language...');
-      await this.processVideoBlob(file);
-    } catch (err) {
-      if (!this.processingCancelled) {
-        this.showToast('Video processing error: ' + err.message, 'error');
-        this.isProcessing = false;
-        this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
-      }
-    }
-  }
-
   updateProcessingProgress(percent, status) {
     this.processingProgress = percent;
     this.processingStatus = status;
@@ -909,25 +874,53 @@ export class UserDashboard {
     this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
   }
 
+  async handleVideoFile(file) {
+    if (!file) return;
+
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > APP_CONFIG.MAX_FILE_SIZE_MB) {
+      this.showToast(`Video size (${fileSizeMB.toFixed(1)} MB) exceeds maximum allowed ${APP_CONFIG.MAX_FILE_SIZE_MB} MB limit.`, 'error');
+      return;
+    }
+
+    soundFx.playProcessStart();
+    this.isProcessing = true;
+    this.processingCancelled = false;
+    this.processingProgress = 15;
+    this.processingStatus = 'Reading video file & metadata...';
+    this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
+
+    try {
+      await this.sleep(200);
+      if (this.processingCancelled) return;
+
+      await this.processVideoBlob(file);
+    } catch (err) {
+      if (!this.processingCancelled) {
+        this.showToast('Video processing error: ' + err.message, 'error');
+        this.isProcessing = false;
+        this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
+      }
+    }
+  }
+
   async processVideoBlob(blob) {
     this.videoBlob = blob;
 
     if (this.processingCancelled) return;
-    this.updateProcessingProgress(75, 'Calculating word-by-word timestamp alignments...');
-    await this.sleep(350);
-
-    if (this.processingCancelled) return;
-    this.updateProcessingProgress(90, 'Synchronizing caption overlays with active template...');
 
     // Transcribe audio using offline speech transcriber
     try {
       const transcribeResult = await speechTranscriber.transcribeVideoBlob(blob, (status, pct) => {
         if (this.processingCancelled) return;
-        const mapped = Math.floor(60 + (pct * 0.3));
+        const mapped = Math.min(96, Math.max(20, Math.round(pct)));
         this.updateProcessingProgress(mapped, status);
       });
 
       if (this.processingCancelled) return;
+
+      this.updateProcessingProgress(98, 'Synchronizing typography with active template...');
+      await this.sleep(200);
 
       if (transcribeResult && transcribeResult.sentences && transcribeResult.sentences.length > 0) {
         captionEngine.setSentences(transcribeResult.sentences);
