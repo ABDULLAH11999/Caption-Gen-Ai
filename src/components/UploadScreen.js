@@ -958,7 +958,7 @@ export class UploadScreen {
         `;
       }).join(' ');
 
-      let animClass = config.animation || 'anim-pop';
+      let animClass = config.animation || 'anim-auto';
       if (animClass === 'anim-auto') {
         const sIdx = (this.sentences && currentSentence) ? this.sentences.indexOf(currentSentence) : 0;
         animClass = AUTO_ANIMATION_SEQUENCE[(sIdx >= 0 ? sIdx : 0) % AUTO_ANIMATION_SEQUENCE.length];
