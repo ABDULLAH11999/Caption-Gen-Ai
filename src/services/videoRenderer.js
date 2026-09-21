@@ -362,7 +362,7 @@ export class VideoRenderer {
 
     // 7. Typography and responsive sizing relative to video resolution
     const isPortrait = canvasHeight > canvasWidth;
-    const baseRefWidth = isPortrait ? 380 : 680;
+    const baseRefWidth = isPortrait ? 430 : 760;
     const scale = canvasWidth / baseRefWidth;
 
     const previewFontSize = isPortrait ? 25 : ((config.fontSize && Number(config.fontSize) <= 30) ? Number(config.fontSize) : 28);
@@ -431,15 +431,16 @@ export class VideoRenderer {
     let posY = hasCustomPos ? (canvasHeight * Number(currentSentence.posY)) / 100 : (canvasHeight * 0.50);
 
     const textAlign = hasCustomPos ? 'left' : (defaultPosMeta.align || 'left');
-    const customMaxWidth = currentSentence.boxWidth
-      ? (canvasWidth * Number(currentSentence.boxWidth)) / 100
-      : (canvasWidth * 0.94);
+    const segmentBoxWidth = Number(currentSentence.boxWidth || currentSentence.width || 0);
+    const customMaxWidth = segmentBoxWidth > 0
+      ? (canvasWidth * segmentBoxWidth) / 100
+      : (canvasWidth * (isPortrait ? 0.64 : 0.94));
 
     // 10. Wrap words into lines based on custom box width
     const lines = [];
     let curLine = [];
     let curLineWidth = 0;
-    const wordGap = Math.round(baseFontSize * 0.22);
+    const wordGap = Math.round(baseFontSize * 0.36);
 
     styledWords.forEach((sw) => {
       ctx.font = `${sw.fontWeight} ${sw.fontSize}px ${sw.font}`;
@@ -546,8 +547,11 @@ export class VideoRenderer {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        const speakingPulse = w.isSpeaking ? (0.5 + 0.5 * Math.sin(curTime * Math.PI * 5)) : 0;
-        const wordGlow = Math.max(animState.glow || 0, w.isSpeaking ? (8 + 12 * speakingPulse) * scale : 0);
+        const speakingPulse = (resolvedAnimId === 'anim-karaoke-glow' && w.isSpeaking)
+          ? (0.5 + 0.5 * Math.sin(curTime * Math.PI * 5))
+          : 0;
+        const karaokeGlow = speakingPulse > 0 ? (8 + 12 * speakingPulse) * scale : 0;
+        const wordGlow = Math.max(animState.glow || 0, karaokeGlow);
         const glowColor = animState.glowColor || w.color;
 
         ctx.shadowColor = wordGlow > 0 ? glowColor : 'transparent';
