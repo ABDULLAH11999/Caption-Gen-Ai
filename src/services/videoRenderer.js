@@ -10,6 +10,28 @@ export class VideoRenderer {
     this.progressCallback = null;
   }
 
+  seekVideoTo(video, time) {
+    return new Promise((resolve) => {
+      if (!video) {
+        resolve();
+        return;
+      }
+
+      const done = () => {
+        video.removeEventListener('seeked', done);
+        resolve();
+      };
+
+      video.addEventListener('seeked', done, { once: true });
+      try {
+        video.currentTime = Math.max(0, time || 0);
+      } catch (_) {
+        done();
+      }
+      setTimeout(done, 1200);
+    });
+  }
+
   /**
    * Helper to resolve font family from font ID or name
    */
@@ -535,15 +557,26 @@ export class VideoRenderer {
         recorder.onerror = reject;
       });
 
+      // Reset video to start
+      await this.seekVideoTo(videoElement, 0);
+
+      const renderCapturedFrame = (time) => {
+        const safeTime = Math.max(0, Math.min(duration, Number(time) || 0));
+        this.renderFrame(ctx, videoElement, safeTime, config, width, height, sentences);
+        if (videoTrack && typeof videoTrack.requestFrame === 'function') {
+          videoTrack.requestFrame();
+        }
+      };
+
+      // Prime captureStream with an enhanced first frame before recording starts.
+      renderCapturedFrame(0);
+
       recorder.start(100);
 
-      // Reset video to start
-      videoElement.currentTime = 0;
-      await new Promise(r => {
-        videoElement.onseeked = r;
-      });
+      // Record an immediate frame at t=0 so enhancement never begins late.
+      renderCapturedFrame(0);
 
-      videoElement.play();
+      await videoElement.play();
 
       let renderInterval = null;
 
@@ -555,6 +588,7 @@ export class VideoRenderer {
           clearInterval(renderInterval);
           renderInterval = null;
         }
+        renderCapturedFrame(Math.min(duration, videoElement.currentTime || duration));
         videoElement.pause();
         if (recorder.state !== 'inactive') {
           recorder.stop();
@@ -576,11 +610,7 @@ export class VideoRenderer {
         if (onProgress) onProgress(progress);
 
         // Render frame with 100% preview-matching caption styles
-        this.renderFrame(ctx, videoElement, curTime, config, width, height, sentences);
-
-        if (videoTrack && typeof videoTrack.requestFrame === 'function') {
-          videoTrack.requestFrame();
-        }
+        renderCapturedFrame(curTime);
 
         if (videoElement.ended || curTime >= duration) {
           finishExport();
@@ -613,6 +643,7 @@ export class VideoRenderer {
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
     video.crossOrigin = 'anonymous';
+    video.classList.toggle('video-enhanced', !!enhanceQuality);
     const videoUrl = URL.createObjectURL(videoBlob);
     video.src = videoUrl;
 

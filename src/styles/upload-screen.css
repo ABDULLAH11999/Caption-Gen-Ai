@@ -285,7 +285,7 @@
   height: 100%;
   object-fit: contain;
   display: block;
-  transition: filter 0.3s ease;
+  transition: none;
 }
 
 /* Video Quality Enhancement Mode */
@@ -1152,4 +1152,3 @@
     padding: 2px 6px;
   }
 }
-
