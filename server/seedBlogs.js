@@ -323,10 +323,10 @@ const ADDITIONAL_TOPICS = [
     keywords: 'future of video editing, webassembly video, webgpu video editor, browser ai tools'
   },
   {
-    title: 'How Real Estate Agents Use Subtitled Reels to Sell Properties Faster',
+    title: 'Free AI Instagram Caption Generator for Real Estate: Sell Properties Faster',
     slug: 'how-real-estate-agents-use-subtitled-reels-to-sell-properties-faster',
-    excerpt: 'Luxury home walkthroughs, neighborhood tours, and key feature callouts with elegant aesthetic subtitles.',
-    keywords: 'real estate reels captions, property tour subtitles, realtor video marketing, luxury home video'
+    excerpt: 'How to use a free AI Instagram caption generator for real estate to showcase luxury home walkthroughs, neighborhood tours, and listing price callouts with customizable subtitles.',
+    keywords: 'free ai instagram caption generator for real estate, real estate reels captions, property tour subtitles, realtor video marketing, free captions generator customizable, luxury home video subtitles'
   },
   {
     title: 'Common Captioning Mistakes That Kill Video Retention',

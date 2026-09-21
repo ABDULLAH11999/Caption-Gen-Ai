@@ -113,7 +113,15 @@ export class LandingPage {
               <div class="how-step-icon">🚀</div>
               <div class="how-step-content">
                 <h3>Zero-Lag GPU Video Rendering</h3>
-                <p>Direct3D and OpenGL canvas shaders render in under 0.02ms per frame, producing silky-smooth 60 FPS exported videos ready for WhatsApp, Instagram, and TikTok.</p>
+                <p>Direct3D and OpenGL canvas shaders render in under 0.02ms per frame, producing silky-smooth video exports ready for WhatsApp, Instagram, and TikTok.</p>
+              </div>
+            </div>
+
+            <div class="how-step-item">
+              <div class="how-step-icon">🏡</div>
+              <div class="how-step-content">
+                <h3>Free AI Instagram Caption Generator for Real Estate</h3>
+                <p>Highlight luxury properties, listing walkthroughs, and realtor reels with clean aesthetic subtitles. Fully customizable with elegant typography, price callouts, and high-contrast outlines.</p>
               </div>
             </div>
           </div>
@@ -141,7 +149,7 @@ export class LandingPage {
                 <div class="mockup-timeline-track">
                   <div class="mockup-timeline-progress"></div>
                 </div>
-                <span class="badge badge-coral" style="font-size: 11px;">60 FPS HD+</span>
+                <span class="badge badge-coral" style="font-size: 11px;">1080p HD</span>
               </div>
             </div>
           </div>
@@ -152,8 +160,8 @@ export class LandingPage {
       <section class="section-wrap" id="templates">
         <div class="section-header-center">
           <span class="badge badge-coral" style="margin-bottom: 12px;">Preset Library</span>
-          <h2 class="section-heading">16+ Ready-Made Creator Presets</h2>
-          <p class="section-subheading">One click to apply proven typographic styles crafted for YouTube Shorts, Reels, and TikTok.</p>
+          <h2 class="section-heading">16+ Ready-Made Creator Presets &amp; Customizable Styles</h2>
+          <p class="section-subheading">A 100% free captions generator customizable for TikTok, YouTube Shorts, Real Estate, and Instagram Reels.</p>
         </div>
 
         <div class="templates-showcase-grid" id="templates-grid">
@@ -190,9 +198,19 @@ export class LandingPage {
  
            <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
              <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Is Zen Caption Tool completely free?</h3>
-             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Yes! Zen Caption Tool provides 100% free video captioning with no watermarks, no mandatory credit card, and smooth 60 FPS lossless video export.</p>
+             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Yes! Zen Caption Tool provides 100% free video captioning with no watermarks, no mandatory credit card, and smooth high-definition video export.</p>
            </div>
  
+           <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
+             <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Can I use Zen Caption as a Free AI Instagram Caption Generator for Real Estate?</h3>
+             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Yes! Zen Caption is the premier free AI Instagram caption generator for real estate agents and property creators. Easily customize elegant luxury fonts, highlight property features, add neighborhood price callouts, and burn high-contrast subtitles into Instagram Reels, TikTok walkthroughs, and YouTube Shorts with zero watermark.</p>
+           </div>
+
+           <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
+             <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Is Zen Caption a customizable free captions generator?</h3>
+             <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">Yes. Zen Caption is a 100% free captions generator customizable for any video style. You can customize font families, colors, outline strokes, shadow glow, word-by-word highlight colors, safe-zone positioning, and 22+ kinetic animations.</p>
+           </div>
+
            <div class="faq-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; text-align: left;">
              <h3 style="font-size: 17px; font-weight: 800; color: #0c0c0e; margin-bottom: 8px;">Does Zen Caption Tool upload my video to a remote server?</h3>
              <p style="font-size: 14px; color: #64748b; line-height: 1.6; margin: 0;">No. Zen Caption Tool operates 100% client-side inside your web browser using WebAssembly and WebGPU. Your video files, transcripts, and exports remain private on your device.</p>
