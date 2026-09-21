@@ -15,7 +15,7 @@ export class CookieBanner {
       <div class="cookie-banner-content">
         <div class="cookie-icon">🍪</div>
         <div class="cookie-text">
-          <span>We use minimal local storage and performance cookies to remember your caption preferences and ensure zero-lag 60 FPS video exports.</span>
+          <span>We use cookies to save your preferences and improve your experience.</span>
           <a href="/cookies" class="cookie-policy-link" id="btn-cookie-policy">Cookie Policy</a>
         </div>
       </div>
