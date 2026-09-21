@@ -16,35 +16,17 @@ env.backends.onnx.wasm.proxy = false;
 class SpeechTranscriberService {
   constructor() {
     this.pipeline = null;
-    this.isLoading = false;
+    this.pipelinePromise = null;
+    this.modelId = 'Xenova/whisper-tiny';
   }
 
   /**
-   * Decodes an audio file Blob into raw PCM audio float array and audio buffer.
-   * Video files bypass WebKit decodeAudioData to avoid mobile browser thread deadlocks.
+   * Decodes an audio/video file Blob into raw PCM audio float array and audio buffer.
    */
   async extractAudioData(fileBlob) {
     const duration = await this.getVideoDurationFromBlob(fileBlob);
     const targetSampleRate = 16000;
     const targetLength = Math.max(1, Math.ceil(duration * targetSampleRate));
-
-    // AudioContext.decodeAudioData in WebKit/Safari deadlocks when given video containers (MP4/MOV).
-    // Only attempt decodeAudioData for genuine audio files.
-    const isAudioOnly = fileBlob.type && fileBlob.type.startsWith('audio/');
-    if (!isAudioOnly) {
-      const rawPcm = new Float32Array(targetLength);
-      for (let i = 0; i < targetLength; i++) {
-        const t = i / 16000;
-        const speechCycle = Math.sin(t * 2.5) * Math.cos(t * 1.2);
-        rawPcm[i] = speechCycle > 0.1 ? (Math.sin(t * 440) * 0.04 * Math.random()) : 0.001;
-      }
-      return {
-        audioBuffer: null,
-        rawPcm,
-        sampleRate: 16000,
-        duration
-      };
-    }
 
     try {
       const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
@@ -64,10 +46,10 @@ class SpeechTranscriberService {
             settled = true;
             reject(new Error('Audio decoding timed out'));
           }
-        }, 1000);
+        }, 45000);
 
         try {
-          audioCtx.decodeAudioData(
+          const res = audioCtx.decodeAudioData(
             arrayBuffer,
             (buf) => {
               if (!settled) {
@@ -84,6 +66,25 @@ class SpeechTranscriberService {
               }
             }
           );
+
+          if (res && typeof res.then === 'function') {
+            res.then(
+              (buf) => {
+                if (!settled) {
+                  settled = true;
+                  clearTimeout(timer);
+                  resolve(buf);
+                }
+              },
+              (err) => {
+                if (!settled) {
+                  settled = true;
+                  clearTimeout(timer);
+                  reject(err);
+                }
+              }
+            );
+          }
         } catch (e) {
           if (!settled) {
             settled = true;
@@ -116,16 +117,10 @@ class SpeechTranscriberService {
         duration: decodedBuffer.duration || duration 
       };
     } catch (err) {
-      console.warn('[speechTranscriber] Fast audio extraction fallback:', err.message);
-      const rawPcm = new Float32Array(targetLength);
-      for (let i = 0; i < targetLength; i++) {
-        const t = i / 16000;
-        const speechCycle = Math.sin(t * 2.5) * Math.cos(t * 1.2);
-        rawPcm[i] = speechCycle > 0.1 ? (Math.sin(t * 440) * 0.04 * Math.random()) : 0.001;
-      }
+      console.warn('[speechTranscriber] Audio extraction fallback:', err.message);
       return {
         audioBuffer: null,
-        rawPcm,
+        rawPcm: null,
         sampleRate: 16000,
         duration
       };
@@ -156,7 +151,7 @@ class SpeechTranscriberService {
       video.ondurationchange = () => cleanup(video.duration);
       video.oncanplay = () => cleanup(video.duration);
       video.onerror = () => cleanup(10);
-      setTimeout(() => cleanup(10), 1000);
+      setTimeout(() => cleanup(10), 8000);
       try { video.load(); } catch (_) {}
     });
   }
@@ -178,7 +173,11 @@ class SpeechTranscriberService {
   /**
    * Fast Voice Activity Detector (VAD) that finds speech timestamps from audio energy
    */
-  detectSpeechSegments(rawPcm, sampleRate = 16000, minSilenceDuration = 0.45, minSpeechDuration = 0.5) {
+  detectSpeechSegments(rawPcm, sampleRate = 16000, minSilenceDuration = 0.25, minSpeechDuration = 0.25) {
+    if (!rawPcm || rawPcm.length === 0) {
+      return [{ start: 0.5, end: 10 }];
+    }
+
     const windowSize = Math.floor(sampleRate * 0.05); // 50ms window
     const energyProfile = [];
 
@@ -196,9 +195,11 @@ class SpeechTranscriberService {
       });
     }
 
-    // Dynamic threshold based on average energy
-    const avgEnergy = energyProfile.reduce((acc, p) => acc + p.rms, 0) / (energyProfile.length || 1);
-    const threshold = Math.max(0.012, avgEnergy * 0.7);
+    const sortedEnergy = energyProfile.map(p => p.rms).sort((a, b) => a - b);
+    const percentile = (p) => sortedEnergy[Math.min(sortedEnergy.length - 1, Math.max(0, Math.floor(sortedEnergy.length * p)))] || 0;
+    const noiseFloor = percentile(0.2);
+    const speechPeak = percentile(0.9);
+    const threshold = Math.max(0.008, noiseFloor + (speechPeak - noiseFloor) * 0.28);
 
     const segments = [];
     let inSpeech = false;
@@ -224,8 +225,8 @@ class SpeechTranscriberService {
           const speechEnd = time;
           if (speechEnd - speechStart >= minSpeechDuration) {
             segments.push({
-              start: parseFloat(speechStart.toFixed(2)),
-              end: parseFloat(speechEnd.toFixed(2))
+              start: parseFloat(Math.max(0, speechStart - 0.08).toFixed(2)),
+              end: parseFloat(Math.min(rawPcm.length / sampleRate, speechEnd + 0.08).toFixed(2))
             });
           }
           inSpeech = false;
@@ -237,101 +238,98 @@ class SpeechTranscriberService {
       const lastTime = energyProfile[energyProfile.length - 1].time;
       if (lastTime - speechStart >= minSpeechDuration) {
         segments.push({
-          start: parseFloat(speechStart.toFixed(2)),
-          end: parseFloat(lastTime.toFixed(2))
+          start: parseFloat(Math.max(0, speechStart - 0.08).toFixed(2)),
+          end: parseFloat(Math.min(rawPcm.length / sampleRate, lastTime + 0.08).toFixed(2))
         });
       }
     }
 
-    return segments.length > 0 ? segments : [{ start: 0.5, end: rawPcm.length / sampleRate }];
+    if (segments.length === 0) return [{ start: 0.5, end: rawPcm.length / sampleRate }];
+
+    const merged = [];
+    segments.forEach((seg) => {
+      const prev = merged[merged.length - 1];
+      if (prev && seg.start - prev.end <= 0.25) {
+        prev.end = seg.end;
+      } else {
+        merged.push({ ...seg });
+      }
+    });
+
+    return merged.map(seg => ({
+      start: parseFloat(seg.start.toFixed(2)),
+      end: parseFloat(seg.end.toFixed(2))
+    }));
   }
 
   /**
-   * Transcribes the audio file using local in-browser Whisper or Web Speech
+   * Transcribes the audio file using neural in-browser Whisper AI
    */
   async transcribeAudio(fileBlob, onProgress = () => {}) {
-    onProgress({ status: 'extracting', message: 'Analyzing video audio cadence & rhythm...', percent: 30 });
+    onProgress({ status: 'extracting', message: 'Decoding audio tracks...', percent: 20 });
 
-    const isMobileDevice = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android|Mobile|Silk/i.test(navigator.userAgent);
     const duration = await this.getVideoDurationFromBlob(fileBlob);
-
-    onProgress({ status: 'analyzing', message: 'Detecting spoken speech cadence...', percent: 60 });
-
-    // On iPhone / iPad / Android mobile devices: deliver instant speech-cadence sync under 1 second
-    if (isMobileDevice) {
-      await new Promise(r => setTimeout(r, 300));
-      onProgress({ status: 'complete', message: 'Captions generated & synchronized!', percent: 100 });
-      return this.createVoiceAlignedSentences(null, duration);
-    }
-
     const { rawPcm } = await this.extractAudioData(fileBlob);
-    const speechSegments = this.detectSpeechSegments(rawPcm, 16000);
 
-    onProgress({ status: 'loading_model', message: 'Initializing speech AI recognition...', percent: 70 });
+    if (rawPcm && rawPcm.length > 0) {
+      const speechSegments = this.detectSpeechSegments(rawPcm, 16000);
 
-    try {
-      // Attempt Whisper via Transformers.js with 8-bit quantized model and strict timeout
-      if (!this.pipeline) {
-        const pipelinePromise = pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
-          quantized: true,
-          progress_callback: (prog) => {
-            if (prog && prog.progress) {
-              onProgress({
-                status: 'loading_model',
-                message: `Loading speech model (${Math.round(prog.progress)}%)...`,
-                percent: Math.min(85, 70 + Math.round(prog.progress * 0.15))
-              });
-            }
+      onProgress({ status: 'loading_model', message: 'Loading Whisper speech recognition model...', percent: 45 });
+
+      try {
+        if (!this.pipeline) {
+          if (!this.pipelinePromise) {
+            this.pipelinePromise = pipeline('automatic-speech-recognition', this.modelId, {
+              quantized: true,
+              progress_callback: (prog) => {
+                const progress = Number(prog?.progress ?? 0);
+                if (Number.isFinite(progress) && progress > 0) {
+                  onProgress({
+                    status: 'loading_model',
+                    message: `Loading Whisper model (${Math.round(progress)}%)...`,
+                    percent: Math.min(75, 45 + Math.round(progress * 0.3))
+                  });
+                }
+              }
+            });
           }
+
+          this.pipeline = await this.pipelinePromise;
+        }
+
+        onProgress({ status: 'transcribing', message: 'Transcribing spoken words with Whisper...', percent: 80 });
+
+        const result = await this.pipeline(rawPcm, {
+          return_timestamps: 'word',
+          chunk_length_s: 30,
+          stride_length_s: 5,
+          task: 'transcribe'
         });
 
-        // Strict 4s timeout for pipeline model initialization
-        const pipelineTimeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Whisper model initialization timed out')), 4000)
-        );
+        if (result && result.text && result.text.trim()) {
+          onProgress({ status: 'translating', message: 'Synchronizing English captions...', percent: 92 });
+          const rawSentences = this.formatWhisperResultToSentences(result, duration, speechSegments);
 
-        this.pipeline = await Promise.race([pipelinePromise, pipelineTimeout]);
-      }
-
-      onProgress({ status: 'transcribing', message: 'Transcribing spoken words...', percent: 85 });
-
-      // Run inference with 5s safety timeout
-      const inferencePromise = this.pipeline(rawPcm, {
-        return_timestamps: 'word',
-        chunk_length_s: 30,
-        stride_length_s: 5,
-        task: 'transcribe'
-      });
-
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Whisper inference timeout')), 5000)
-      );
-
-      const result = await Promise.race([inferencePromise, timeoutPromise]);
-
-      if (result && result.text && result.text.trim()) {
-        onProgress({ status: 'translating', message: 'Synchronizing English captions...', percent: 95 });
-        const rawSentences = this.formatWhisperResultToSentences(result, duration, speechSegments);
-
-        // Guarantee 100% fluent English captions with word-level sync
-        const englishSentences = await translationService.translateSentencesToEnglish(rawSentences, (tp) => {
-          onProgress({
-            status: 'translating',
-            message: `Refining English captions (${tp.current}/${tp.total})...`,
-            percent: Math.min(98, 95 + Math.round((tp.current / tp.total) * 3))
+          // Guarantee 100% fluent English captions with word-level sync
+          const englishSentences = await translationService.translateSentencesToEnglish(rawSentences, (tp) => {
+            onProgress({
+              status: 'translating',
+              message: `Refining captions (${tp.current}/${tp.total})...`,
+              percent: Math.min(98, 92 + Math.round((tp.current / tp.total) * 6))
+            });
           });
-        });
 
-        onProgress({ status: 'complete', message: 'Captions generated & synchronized!', percent: 100 });
-        return englishSentences;
+          onProgress({ status: 'complete', message: 'Captions generated & synchronized!', percent: 100 });
+          return englishSentences;
+        }
+      } catch (err) {
+        if (!this.pipeline) this.pipelinePromise = null;
+        console.warn('[speechTranscriber] Whisper inference fallback:', err.message);
       }
-    } catch (err) {
-      console.warn('[speechTranscriber] Speech recognition model fallback:', err.message);
     }
 
-    // Voice cadence fallback (never hangs, returns synchronized subtitles in <2s)
-    onProgress({ status: 'complete', message: 'Speech cadence synchronized!', percent: 100 });
-    return this.createVoiceAlignedSentences(speechSegments, duration);
+    onProgress({ status: 'complete', message: 'No speech transcript detected.', percent: 100 });
+    return [];
   }
 
   normalizeTranscriptText(text) {
@@ -595,13 +593,10 @@ class SpeechTranscriberService {
    */
   createVoiceAlignedSentences(speechSegments, duration) {
     const defaultPhrases = [
-      'The performance you see is the',
-      'result of Zen AI Engine',
-      'Notice the seamless performance and speed',
-      'Transforming content creation into viral reach',
-      'Every single detail is designed with precision',
-      'Smart typography that adapts to every scene',
-      'Captions synchronized with your voice cadence',
+      'Transform your videos with automated viral captions',
+      'Dual font typography with 60 FPS GPU lossless export',
+      'Captions synchronized with natural speaking cadence',
+      'Customize words fonts and animations in workspace',
       'Ready to create your next viral masterpiece'
     ];
 

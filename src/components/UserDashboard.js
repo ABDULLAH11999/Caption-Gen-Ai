@@ -927,38 +927,8 @@ export class UserDashboard {
       if (transcribeResult && transcribeResult.sentences && transcribeResult.sentences.length > 0) {
         captionEngine.setSentences(transcribeResult.sentences);
       } else {
-        // Fallback demo sentences if audio was silent
-        captionEngine.setSentences([
-          {
-            id: 's-1',
-            start: 0.2,
-            end: 2.8,
-            text: 'Transform your videos with automated viral captions',
-            words: [
-              { word: 'Transform', start: 0.2, end: 0.6 },
-              { word: 'your', start: 0.6, end: 0.9 },
-              { word: 'videos', start: 0.9, end: 1.4 },
-              { word: 'with', start: 1.4, end: 1.7 },
-              { word: 'automated', start: 1.7, end: 2.2 },
-              { word: 'viral', start: 2.2, end: 2.5 },
-              { word: 'captions', start: 2.5, end: 2.8 }
-            ]
-          },
-          {
-            id: 's-2',
-            start: 3.0,
-            end: 5.6,
-            text: 'Dual-font typography with 60 FPS GPU lossless export',
-            words: [
-              { word: 'Dual-font', start: 3.0, end: 3.5 },
-              { word: 'typography', start: 3.5, end: 4.1 },
-              { word: 'with', start: 4.1, end: 4.4 },
-              { word: '60 FPS', start: 4.4, end: 4.9 },
-              { word: 'GPU', start: 4.9, end: 5.2 },
-              { word: 'export', start: 5.2, end: 5.6 }
-            ]
-          }
-        ]);
+        captionEngine.setSentences([]);
+        this.showToast('No speech transcript was detected. Use Edit Segments to add words manually.', 'info');
       }
 
       this.updateProcessingProgress(100, 'Transcription complete! Loading workspace...');

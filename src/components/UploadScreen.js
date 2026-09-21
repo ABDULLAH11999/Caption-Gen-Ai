@@ -593,7 +593,7 @@ export class UploadScreen {
   async loadShowcaseTestVideo() {
     this.showToast('Loading Zen AI Showcase Video...', 'info');
     try {
-      const resp = await fetch('/video-for-testrun/Introducing_Zen_AI_engine_showcase_20260918124609.mp4');
+      const resp = await fetch('/video-for-testrun/test-run.mp4');
       if (!resp.ok) throw new Error('Showcase video file not found on server');
       const blob = await resp.blob();
 
@@ -611,10 +611,10 @@ export class UploadScreen {
         this.videoDuration = this.videoElement.duration || 10.0;
         this.updateTimeDisplay(0, this.videoDuration);
         const filenameTag = this.container.querySelector('#video-filename-tag');
-        if (filenameTag) filenameTag.textContent = 'Introducing_Zen_AI_engine_showcase.mp4';
+        if (filenameTag) filenameTag.textContent = 'test-run.mp4';
 
         // Run full real AI speech transcription across all spoken lines
-        await this.runRealAudioTranscription(blob, 'Introducing_Zen_AI_engine_showcase.mp4');
+        await this.runRealAudioTranscription(blob, 'test-run.mp4');
       };
     } catch (e) {
       console.error('Error loading showcase video:', e);
