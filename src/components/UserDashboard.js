@@ -1332,7 +1332,7 @@ export class UserDashboard {
     const sStart = Number(currentSentence.start ?? currentSentence.startTime ?? 0);
     const sEnd = Number(currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5));
     const subChunkKey = displayWords.map(w => w.word).join('_');
-    const animId = cfg.animation || 'anim-pop';
+    const animId = cfg.animation || 'anim-auto';
 
     let resolvedAnimId = animId;
     if (animId === 'anim-auto') {
