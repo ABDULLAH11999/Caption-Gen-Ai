@@ -104,7 +104,7 @@ export const CAPTION_TEMPLATES = [
       prominentOutlineWidth: 3.5,
       shadowColor: 'rgba(0,0,0,0.95)',
       shadowBlur: 10,
-      animation: 'anim-bounce-drop',
+      animation: 'anim-auto',
       uppercase: false,
       karaokeHighlightColor: '#FF4DA6',
       enableLastWordColor: true,
