@@ -789,25 +789,25 @@ export class UserDashboard {
         <aside style="display: flex; flex-direction: column; gap: 16px;">
           <!-- Segments Header Card -->
           <div style="background: #ffffff; border-radius: var(--radius-xl); border: 1px solid var(--border-color); padding: 18px; box-shadow: var(--shadow-sm);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 8px;">
               <div>
                 <div style="font-size: 13px; font-weight: 800; color: #0c0c0e;">CAPTIONS & WORDS</div>
                 <div style="font-size: 11px; color: #64748b;" id="user-sentence-count">${captionEngine.sentences.length} Line Segments</div>
               </div>
+            </div>
 
-              <!-- ACTION BUTTONS: FOLLOW POS TO ALL, PROCESS AGAIN & EDIT SEGMENTS -->
-              <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                <button class="btn btn-outline" id="btn-header-apply-pos-all" title="Apply active segment position & width to ALL segments" style="padding: 6px 10px; font-size: 11px; font-weight: 700; color: #4f46e5; border-color: #c7d2fe; background: #f5f7ff;">
-                  ⚡ Follow Pos to All
-                </button>
-                <button class="btn btn-behind-process" id="btn-process-behind-again" title="Apply Rotoscoping to render checked lines behind subject">
-                  <span>⚡ Process Again</span>
-                  <span id="behind-active-badge" class="behind-count-pill">0 Behind</span>
-                </button>
-                <button class="btn btn-primary" id="btn-open-segments-modal" style="padding: 6px 12px; font-size: 12px;">
-                  ✏️ Edit Segments
-                </button>
-              </div>
+            <!-- ACTION BUTTONS: FOLLOW POS TO ALL, PROCESS AGAIN (BLACK BG) & EDIT SEGMENTS (EQUAL SIZE) -->
+            <div class="segments-header-actions-stack">
+              <button class="btn btn-seg-action btn-action-follow-pos" id="btn-header-apply-pos-all" title="Apply active segment position & width to ALL segments">
+                <span>⚡ Follow Pos to All</span>
+              </button>
+              <button class="btn btn-seg-action btn-behind-process" id="btn-process-behind-again" title="Apply Rotoscoping to render checked lines behind subject">
+                <span>⚡ Process Again</span>
+                <span id="behind-active-badge" class="behind-count-pill">0 Behind</span>
+              </button>
+              <button class="btn btn-seg-action btn-action-edit-seg" id="btn-open-segments-modal" title="Edit subtitle texts and timestamps">
+                <span>✏️ Edit Segments</span>
+              </button>
             </div>
 
             <div style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;" id="user-segments-mini-list">

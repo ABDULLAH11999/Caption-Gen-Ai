@@ -1173,66 +1173,128 @@ video.video-enhanced {
 }
 
 /* ==========================================================================
-   PROCESS AGAIN & BEHIND ROTSCOPING CONTROLS
+   SEGMENTS HEADER ACTION BUTTONS (EQUAL SIZE & BLACK PROCESS AGAIN BG)
    ========================================================================== */
+.segments-header-actions-stack {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100% !important;
+  margin-bottom: 14px !important;
+}
+
+.btn-seg-action {
+  width: 100% !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  border-radius: var(--radius-md, 8px) !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* 1. Follow Pos to All Button */
+.btn-action-follow-pos {
+  background: #f5f7ff !important;
+  color: #4f46e5 !important;
+  border: 1px solid #c7d2fe !important;
+}
+
+.btn-action-follow-pos:hover {
+  background: #eef2ff !important;
+  border-color: #a5b4fc !important;
+  color: #4338ca !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.15);
+}
+
+.btn-action-follow-pos:active {
+  transform: translateY(0);
+}
+
+/* 2. Process Again Button (Sleek Pure Black Background) */
 .btn-behind-process {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
-  color: #ffffff;
-  border: none;
-  border-radius: var(--radius-md, 8px);
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.28);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  white-space: nowrap;
+  background: #0c0c0e !important;
+  color: #ffffff !important;
+  border: 1px solid #27272a !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }
 
 .btn-behind-process:hover {
-  background: linear-gradient(135deg, #4338ca, #6d28d9);
+  background: #18181b !important;
+  border-color: #3f3f46 !important;
+  color: #ffffff !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
 }
 
 .btn-behind-process:active {
+  background: #000000 !important;
   transform: translateY(0);
 }
 
 .btn-behind-process:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
   transform: none;
 }
 
 .btn-behind-process.needs-process {
-  animation: pulse-behind-btn 1.6s infinite;
+  animation: pulse-behind-btn-dark 1.6s infinite !important;
 }
 
-@keyframes pulse-behind-btn {
+@keyframes pulse-behind-btn-dark {
   0% {
-    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.6);
+    box-shadow: 0 0 0 0 rgba(12, 12, 14, 0.6);
   }
   70% {
-    box-shadow: 0 0 0 8px rgba(124, 58, 237, 0);
+    box-shadow: 0 0 0 8px rgba(12, 12, 14, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
+    box-shadow: 0 0 0 0 rgba(12, 12, 14, 0);
   }
 }
 
 .behind-count-pill {
   font-size: 10px;
   font-weight: 800;
-  background: rgba(255, 255, 255, 0.24);
-  padding: 2px 7px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  padding: 2px 8px;
   border-radius: 12px;
-  letter-spacing: 0.2px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.3px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  display: inline-flex;
+  align-items: center;
 }
+
+/* 3. Edit Segments Button (Coral / Primary) */
+.btn-action-edit-seg {
+  background: linear-gradient(135deg, var(--primary-coral, #ff5533), #e04424) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(255, 85, 51, 0.28) !important;
+}
+
+.btn-action-edit-seg:hover {
+  background: linear-gradient(135deg, #ff4422, #c83b1e) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(255, 85, 51, 0.4) !important;
+}
+
+.btn-action-edit-seg:active {
+  transform: translateY(0);
+}
+
 
 /* MINI SEGMENTS LIST WITH BEHIND CHECKBOX ON LEFT */
 .seg-mini-item {
