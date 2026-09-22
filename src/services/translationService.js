@@ -1,104 +1,433 @@
-// Real-Time Multi-Language Translation Service
-// Translates Hindi, Urdu, Spanish, and 50+ languages into fluent, synchronized English captions.
+// Intelligent Multi-Language Transliteration & Transcript Service
+// 1. Keeps English transcript 100% untouched and pristine.
+// 2. Transliterates Urdu (Nastaliq) and Hindi (Devanagari) into natural Roman Urdu / Roman Hindi (Latin English alphabets, e.g., "Kese ho Guys", "Is tarah se").
+// 3. Preserves already-spoken Roman Urdu / Roman Hindi without translating away spoken words.
 
 import { languageIdentifier } from './languageIdentifier.js';
 
 class TranslationService {
   constructor() {
     this.cache = new Map();
+
+    // High-frequency curated dictionary for natural Roman Urdu & Hindi phrasing
+    this.urduHindiPhraseMap = [
+      // Common Greetings & Multi-word Expressions
+      { pattern: /کیسے\s+ہو\s+گائ[یز]/gi, replacement: 'Kese ho Guys' },
+      { pattern: /کیسے\s+ہیں\s+آپ/gi, replacement: 'Kaise hain aap' },
+      { pattern: /کیا\s+حال\s+ہے/gi, replacement: 'Kya haal hai' },
+      { pattern: /اس\s+طرح\s+سے/gi, replacement: 'Is tarah se' },
+      { pattern: /اس\s+طرح/gi, replacement: 'Is tarah' },
+      { pattern: /آپ\s+سب/gi, replacement: 'Aap sab' },
+      { pattern: /السلام\s*علیکم/gi, replacement: 'Assalam o Alaikum' },
+      { pattern: /وعلیکم\s*السلام/gi, replacement: 'Walaikum Assalam' },
+      { pattern: /انشاء\s*اللہ/gi, replacement: 'Inshallah' },
+      { pattern: /ماشاء\s*اللہ/gi, replacement: 'Mashallah' },
+      { pattern: /الحمد\s*للہ/gi, replacement: 'Alhamdulillah' },
+
+      { pattern: /कैसे\s+हो\s+गाइ[ज़स]/gi, replacement: 'Kese ho Guys' },
+      { pattern: /क्या\s+हाल\s+है/gi, replacement: 'Kya haal hai' },
+      { pattern: /इस\s+तरह\s+से/gi, replacement: 'Is tarah se' },
+      { pattern: /इस\s+तरह/gi, replacement: 'Is tarah' },
+      { pattern: /आप\s+सभी/gi, replacement: 'Aap sabhi' },
+      { pattern: /आप\s+सब/gi, replacement: 'Aap sab' },
+      { pattern: /नमस्ते\s+दोस्तों/gi, replacement: 'Namaste dosto' },
+      { pattern: /स्वागत\s+है/gi, replacement: 'Swagat hai' }
+    ];
+
+    this.urduWordsMap = {
+      'کیسے': 'Kese',
+      'کیسا': 'Kaisa',
+      'کیسی': 'Kaisi',
+      'ہو': 'ho',
+      'گائز': 'Guys',
+      'گاۓ': 'Guys',
+      'کیا': 'kya',
+      'کیوں': 'kyun',
+      'کب': 'kab',
+      'کہاں': 'kahan',
+      'کون': 'kaun',
+      'کچھ': 'kuch',
+      'کوئی': 'koi',
+      'آپ': 'Aap',
+      'آپکا': 'Aapka',
+      'آپکی': 'Aapki',
+      'آپکے': 'Aapke',
+      'تم': 'tum',
+      'تمہارا': 'tumhara',
+      'تمہاری': 'tumhari',
+      'ہم': 'hum',
+      'ہمارا': 'humara',
+      'ہمارے': 'humare',
+      'میں': 'main',
+      'میرا': 'mera',
+      'میری': 'meri',
+      'میرے': 'mere',
+      'یہ': 'yeh',
+      'وہ': 'woh',
+      'اس': 'is',
+      'اسکا': 'iska',
+      'اسکی': 'iski',
+      'اسکے': 'iske',
+      'ان': 'in',
+      'انکا': 'inka',
+      'طرح': 'tarah',
+      'سے': 'se',
+      'بہت': 'bohot',
+      'اچھا': 'acha',
+      'اچھی': 'achi',
+      'اچھے': 'ache',
+      'بھائی': 'bhai',
+      'دوست': 'dost',
+      'دوستو': 'dosto',
+      'شکریہ': 'shukriya',
+      'مہربانی': 'meherbani',
+      'زندگی': 'zindagi',
+      'پیار': 'pyaar',
+      'بات': 'baat',
+      'نہیں': 'nahi',
+      'نہ': 'na',
+      'ہاں': 'haan',
+      'ہے': 'hai',
+      'ہیں': 'hain',
+      'تھا': 'tha',
+      'تھی': 'thi',
+      'تھے': 'the',
+      'گا': 'ga',
+      'گی': 'gi',
+      'گے': 'ge',
+      'کریں': 'karein',
+      'کرو': 'karo',
+      'کرنا': 'karna',
+      'کر': 'kar',
+      'رہا': 'raha',
+      'رہی': 'rahi',
+      'رہے': 'rahe',
+      'دیکھیں': 'dekhein',
+      'دیکھو': 'dekho',
+      'سنیں': 'sunein',
+      'سنو': 'suno',
+      'بتائیں': 'batayein',
+      'بتاؤ': 'batao',
+      'سمجھیں': 'samjhein',
+      'سمجھو': 'samjho',
+      'ویڈیو': 'video',
+      'چینل': 'channel',
+      'لائیک': 'like',
+      'سبسکرائب': 'subscribe',
+      'شیئر': 'share',
+      'سلام': 'salam',
+      'سب': 'sab',
+      'ٹھیک': 'theek',
+      'صحیح': 'sahi',
+      'ضرور': 'zaroor',
+      'لیکن': 'lekin',
+      'مگر': 'magar',
+      'اگر': 'agar',
+      'اور': 'aur',
+      'بھی': 'bhi',
+      'کا': 'ka',
+      'کی': 'ki',
+      'کے': 'ke',
+      'کو': 'ko',
+      'نے': 'ne',
+      'تک': 'tak',
+      'پر': 'par',
+      'پاس': 'paas',
+      'ساتھ': 'saath',
+      'پہلے': 'pehle',
+      'بعد': 'baad',
+      'آج': 'aaj',
+      'کل': 'kal'
+    };
+
+    this.hindiWordsMap = {
+      'कैसे': 'Kese',
+      'कैसा': 'Kaisa',
+      'कैसी': 'Kaisi',
+      'हो': 'ho',
+      'गाइज': 'Guys',
+      'गाइज़': 'Guys',
+      'गाइस': 'Guys',
+      'नमस्ते': 'Namaste',
+      'दोस्तों': 'dosto',
+      'दोस्त': 'dost',
+      'क्या': 'kya',
+      'क्यों': 'kyun',
+      'कब': 'kab',
+      'कहाँ': 'kahan',
+      'कहा': 'kahan',
+      'कौन': 'kaun',
+      'कुछ': 'kuch',
+      'कोई': 'koi',
+      'हाल': 'haal',
+      'है': 'hai',
+      'हैं': 'hain',
+      'था': 'tha',
+      'थी': 'thi',
+      'थे': 'the',
+      'होगा': 'hoga',
+      'होगी': 'hogi',
+      'होंगे': 'honge',
+      'आप': 'Aap',
+      'आपका': 'Aapka',
+      'आपकी': 'Aapki',
+      'आपके': 'Aapke',
+      'तुम': 'tum',
+      'तुम्हारा': 'tumhara',
+      'तुम्हारी': 'tumhari',
+      'हम': 'hum',
+      'हमारा': 'humara',
+      'हमारी': 'humari',
+      'हमारे': 'humare',
+      'मैं': 'main',
+      'मेरा': 'mera',
+      'मेरी': 'meri',
+      'मेरे': 'mere',
+      'यह': 'yeh',
+      'वह': 'woh',
+      'इस': 'is',
+      'इसका': 'iska',
+      'इसकी': 'iski',
+      'इसके': 'iske',
+      'तरह': 'tarah',
+      'से': 'se',
+      'बहुत': 'bohot',
+      'अच्छा': 'acha',
+      'अच्छी': 'achi',
+      'अच्छे': 'ache',
+      'भाई': 'bhai',
+      'करो': 'karo',
+      'करना': 'karna',
+      'करें': 'karein',
+      'कर': 'kar',
+      'रहा': 'raha',
+      'रही': 'rahi',
+      'रहे': 'rahe',
+      'सब': 'sab',
+      'सबको': 'sabko',
+      'वीडियो': 'video',
+      'लाइक': 'like',
+      'शेयर': 'share',
+      'सब्सक्राइब': 'subscribe',
+      'चैनल': 'channel',
+      'शुक्रिया': 'shukriya',
+      'धन्यवाद': 'dhanyawad',
+      'स्वागत': 'swagat',
+      'बात': 'baat',
+      'नहीं': 'nahi',
+      'हाँ': 'haan',
+      'भी': 'bhi',
+      'और': 'aur',
+      'लेकिन': 'lekin',
+      'मगर': 'magar',
+      'क्योंकि': 'kyunki',
+      'अगर': 'agar',
+      'तो': 'to',
+      'जाओ': 'jao',
+      'आओ': 'aao',
+      'देखो': 'dekho',
+      'सुनो': 'suno',
+      'बोलो': 'bolo',
+      'समझो': 'samjho',
+      'आज': 'aaj',
+      'कल': 'kal',
+      'पर': 'par',
+      'तक': 'tak',
+      'साथ': 'saath',
+      'पास': 'paas'
+    };
+
+    // Devanagari character map for full fallback
+    this.devanagariVowels = {
+      'अ': 'a', 'आ': 'aa', 'इ': 'i', 'ई': 'ee', 'उ': 'u', 'ऊ': 'oo', 'ऋ': 'ri',
+      'ए': 'e', 'ऐ': 'ai', 'ओ': 'o', 'औ': 'au', 'अं': 'an', 'अः': 'ah'
+    };
+
+    this.devanagariConsonants = {
+      'क': 'k', 'ख': 'kh', 'ग': 'g', 'घ': 'gh', 'ङ': 'ng',
+      'च': 'ch', 'छ': 'chh', 'ज': 'j', 'झ': 'jh', 'ञ': 'ny',
+      'ट': 't', 'ठ': 'th', 'ड': 'd', 'ढ': 'dh', 'ण': 'n',
+      'त': 't', 'थ': 'th', 'द': 'd', 'ध': 'dh', 'न': 'n',
+      'प': 'p', 'फ': 'f', 'ब': 'b', 'भ': 'bh', 'म': 'm',
+      'य': 'y', 'र': 'r', 'ल': 'l', 'व': 'v',
+      'श': 'sh', 'ष': 'sh', 'स': 's', 'ह': 'h',
+      'क़': 'q', 'ख़': 'kh', 'ग़': 'gh', 'ज़': 'z', 'ड़': 'r', 'ढ़': 'rh', 'फ़': 'f'
+    };
+
+    this.devanagariMatras = {
+      'ा': 'aa', 'ि': 'i', 'ी': 'ee', 'ु': 'u', 'ू': 'oo', 'ृ': 'ri',
+      'े': 'e', 'ै': 'ai', 'ो': 'o', 'ौ': 'au', 'ं': 'n', 'ँ': 'n', 'ः': 'h'
+    };
+
+    // Urdu character map for fallback
+    this.urduCharMap = {
+      'ا': 'a', 'آ': 'aa', 'ب': 'b', 'پ': 'p', 'ت': 't', 'ٹ': 't', 'ث': 's',
+      'ج': 'j', 'چ': 'ch', 'ح': 'h', 'خ': 'kh', 'د': 'd', 'ڈ': 'd', 'ذ': 'z',
+      'ر': 'r', 'ڑ': 'r', 'ز': 'z', 'ژ': 'zh', 'س': 's', 'ش': 'sh', 'ص': 's',
+      'ض': 'z', 'ط': 't', 'ظ': 'z', 'ع': 'a', 'غ': 'gh', 'ف': 'f', 'ق': 'q',
+      'ک': 'k', 'گ': 'g', 'ل': 'l', 'م': 'm', 'ن': 'n', 'ں': 'n', 'و': 'o',
+      'ہ': 'h', 'ھ': 'h', 'ء': '', 'ی': 'i', 'ے': 'e', 'ۂ': 'h', 'ۃ': 't'
+    };
   }
 
   /**
-   * Checks if text is already mostly standard English
+   * Checks if text contains non-Latin scripts (Urdu, Hindi, Cyrillic, CJK, etc.)
    */
-  isEnglishText(text) {
-    if (!text || !text.trim()) return true;
-
-    // Check for non-Latin alphabets (Devanagari, Arabic/Urdu, Cyrillic, CJK, etc.)
-    if (/[\u0900-\u097F]/.test(text)) return false; // Hindi Devanagari
-    if (/[\u0600-\u06FF]/.test(text)) return false; // Urdu / Arabic
-    if (/[\u0400-\u04FF]/.test(text)) return false; // Russian Cyrillic
-    if (/[\u3040-\u30FF\u4E00-\u9FAF]/.test(text)) return false; // Chinese/Japanese
-    if (/[\uAC00-\uD7AF]/.test(text)) return false; // Korean
-
-    // Common Romanized Urdu/Hindi keywords:
-    const romanUrduHindi = /\b(kya|kyun|kaise|karo|karna|raha|rahi|rahe|hota|hoti|hote|mera|meri|mere|tera|teri|tere|aapka|aapki|aapke|humara|humari|shukriya|zaroor|accha|acha|bhai|dost|zindagi|pyaar|baat|yeh|woh|kuch|nahi|haan|hain|bhi|aur|lekin|magar|bohot|boht)\b/i;
-    if (romanUrduHindi.test(text)) return false;
-
-    // Common Spanish keywords (excluding common English words like 'video', 'como', 'bien'):
-    const spanish = /\b(hola|gracias|amigo|por favor|buenos dias|buenas tardes|buenas noches|estamos|subtitulos|ahora pero|todos)\b/i;
-    if (spanish.test(text) || /[áéíóúñ¿¡]/.test(text)) return false;
-
-    return true;
+  hasNonLatinScript(text) {
+    if (!text) return false;
+    return /[\u0600-\u06FF\u0900-\u097F\u0400-\u04FF\u3040-\u30FF\u4E00-\u9FAF\uAC00-\uD7AF]/.test(text);
   }
 
   /**
-   * Translates a string of text into English.
-   * Uses high-speed direct translation with offline fallback.
+   * Deterministic local transliteration of Devanagari Hindi into Roman Hindi
    */
-  async translateText(text, sourceLang = 'auto') {
+  transliterateDevanagari(text) {
+    let result = text;
+    // 1. Replace multi-word and known words
+    for (const [hindi, roman] of Object.entries(this.hindiWordsMap)) {
+      result = result.replace(new RegExp(hindi, 'g'), roman);
+    }
+
+    // 2. Character-level fallback for remaining Devanagari characters
+    let output = '';
+    for (let i = 0; i < result.length; i++) {
+      const ch = result[i];
+      const nextCh = result[i + 1] || '';
+
+      if (this.devanagariVowels[ch]) {
+        output += this.devanagariVowels[ch];
+      } else if (this.devanagariConsonants[ch]) {
+        const cons = this.devanagariConsonants[ch];
+        if (nextCh === '्') {
+          // Halant (half consonant)
+          output += cons;
+          i++; // skip halant
+        } else if (this.devanagariMatras[nextCh]) {
+          output += cons + this.devanagariMatras[nextCh];
+          i++; // skip matra
+        } else if (this.devanagariConsonants[nextCh] || this.devanagariVowels[nextCh]) {
+          output += cons + 'a';
+        } else {
+          output += cons;
+        }
+      } else if (this.devanagariMatras[ch]) {
+        output += this.devanagariMatras[ch];
+      } else {
+        output += ch;
+      }
+    }
+
+    return output.replace(/\s+/g, ' ').trim();
+  }
+
+  /**
+   * Deterministic local transliteration of Urdu Nastaliq into Roman Urdu
+   */
+  transliterateUrdu(text) {
+    let result = text;
+    // 1. Replace known phrases and words
+    for (const [urdu, roman] of Object.entries(this.urduWordsMap)) {
+      result = result.replace(new RegExp(urdu, 'g'), roman);
+    }
+
+    // 2. Character-level fallback for remaining Urdu characters
+    let output = '';
+    for (let i = 0; i < result.length; i++) {
+      const ch = result[i];
+      if (this.urduCharMap[ch] !== undefined) {
+        output += this.urduCharMap[ch];
+      } else {
+        output += ch;
+      }
+    }
+
+    return output.replace(/\s+/g, ' ').trim();
+  }
+
+  /**
+   * Transliterates text into Roman English alphabet (Roman Urdu / Roman Hindi)
+   * while preserving English 100% untouched.
+   */
+  async transliterateToRoman(text) {
     const trimmed = (text || '').trim();
     if (!trimmed) return '';
+
+    const hasUrdu = /[\u0600-\u06FF]/.test(trimmed);
+    const hasHindi = /[\u0900-\u097F]/.test(trimmed);
+
+    // If already in Latin / English alphabet, return as is (preserves English & Roman Urdu/Hindi)
+    if (!hasUrdu && !hasHindi) {
+      return trimmed;
+    }
 
     if (this.cache.has(trimmed)) {
       return this.cache.get(trimmed);
     }
 
-    // Try Google Translate GTX public endpoint
+    // Check curated phrases first
+    let mappedText = trimmed;
+    for (const rule of this.urduHindiPhraseMap) {
+      mappedText = mappedText.replace(rule.pattern, rule.replacement);
+    }
+
+    if (!hasUrdu && !hasHindi && mappedText !== trimmed) {
+      this.cache.set(trimmed, mappedText);
+      return mappedText;
+    }
+
+    // Try Google Transliteration / Romanization API (dt=rm returns pure Latin phonetic romanization)
     try {
-      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=en&dt=t&q=${encodeURIComponent(trimmed)}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=rm&q=${encodeURIComponent(trimmed)}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(3500) });
       if (res.ok) {
         const data = await res.json();
-        if (data && data[0] && Array.isArray(data[0])) {
-          const translated = data[0].map(item => item[0]).filter(Boolean).join('').trim();
-          if (translated) {
-            this.cache.set(trimmed, translated);
-            return translated;
-          }
+        const romanized = (data && data[0] && data[0][1] && data[0][1][3]) ||
+                          (data && data[0] && data[0][0] && data[0][0][3]);
+        if (romanized && typeof romanized === 'string' && romanized.trim()) {
+          const polished = romanized.trim()
+            .replace(/\b(gaiz|giz|gize)\b/gi, 'Guys')
+            .replace(/\b(kise)\b/gi, 'Kese')
+            .replace(/\b(kaise)\b/gi, 'Kaise')
+            .replace(/\b(tarah|tara)\b/gi, 'tarah')
+            .replace(/\b(kia|kiya)\b/gi, 'kya')
+            .replace(/\b(doston)\b/gi, 'dosto');
+
+          this.cache.set(trimmed, polished);
+          return polished;
         }
       }
     } catch (err) {
-      console.warn('Google Translate API fallback:', err.message);
+      console.warn('Google Romanization API fallback:', err.message);
     }
 
-    // Secondary fallback: MyMemory Translation API
-    try {
-      const pair = sourceLang && sourceLang !== 'auto' ? `${sourceLang}|en` : 'autodetect|en';
-      const mmUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(trimmed)}&langpair=${pair}`;
-      const mmRes = await fetch(mmUrl, { signal: AbortSignal.timeout(4000) });
-      if (mmRes.ok) {
-        const mmData = await mmRes.json();
-        if (mmData && mmData.responseData && mmData.responseData.translatedText) {
-          const translated = mmData.responseData.translatedText.trim();
-          if (translated && !translated.includes('MYMEMORY WARNING')) {
-            this.cache.set(trimmed, translated);
-            return translated;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('MyMemory Translate fallback:', err.message);
+    // Offline deterministic transliteration fallback
+    let localResult = trimmed;
+    if (hasUrdu) {
+      localResult = this.transliterateUrdu(localResult);
+    }
+    if (hasHindi) {
+      localResult = this.transliterateDevanagari(localResult);
     }
 
-    // Offline / Local Rule-based translation & transliteration for common Hindi/Urdu/Spanish terms
-    const localTranslation = this.fallbackLocalTranslate(trimmed);
-    this.cache.set(trimmed, localTranslation);
-    return localTranslation;
+    const finalResult = localResult.replace(/\s+/g, ' ').trim();
+    this.cache.set(trimmed, finalResult);
+    return finalResult;
   }
 
   /**
-   * Translates a list of timed sentence blocks to English, preserving voice timestamps.
+   * Refines sentence transcript blocks:
+   * - Leaves standard English sentences 100% intact.
+   * - Transliterates Urdu / Hindi speech to Roman Urdu / Roman Hindi in English alphabets.
+   * - Preserves speech timings and word synchronizations.
    */
   async translateSentencesToEnglish(sentences, onProgress = () => {}) {
     if (!sentences || sentences.length === 0) return [];
 
-    const translatedSentences = [];
+    const processedSentences = [];
     const total = sentences.length;
 
     for (let i = 0; i < total; i++) {
       const s = sentences[i];
-      const isEnglish = this.isEnglishText(s.text);
 
       onProgress({
         current: i + 1,
@@ -106,8 +435,12 @@ class TranslationService {
         percent: Math.round(((i + 1) / total) * 100)
       });
 
-      if (isEnglish) {
-        translatedSentences.push({
+      const rawText = s.text || '';
+      const hasNonLatin = this.hasNonLatinScript(rawText);
+
+      // If text is already in Latin/English alphabet (English or Roman Urdu/Hindi), keep it 100% intact
+      if (!hasNonLatin) {
+        processedSentences.push({
           ...s,
           originalLanguage: s.language || 'en',
           language: 'en'
@@ -115,25 +448,23 @@ class TranslationService {
         continue;
       }
 
-      const detectedLang = languageIdentifier.detectTextLanguage(s.text);
-      const translatedText = await this.translateText(s.text, detectedLang);
+      // If Urdu or Hindi script detected, transliterate into Roman Urdu / Hindi in English alphabets
+      const romanText = await this.transliterateToRoman(rawText);
+      const newWords = this.realignWords(romanText, s.startTime, s.endTime);
 
-      // Rebuild words array with synchronized timings
-      const newWords = this.realignWords(translatedText, s.startTime, s.endTime);
-
-      translatedSentences.push({
+      processedSentences.push({
         id: s.id,
         startTime: s.startTime,
         endTime: s.endTime,
-        originalText: s.text,
-        originalLanguage: detectedLang,
+        originalText: rawText,
+        originalLanguage: languageIdentifier.detectTextLanguage(rawText),
         language: 'en',
-        text: translatedText,
+        text: romanText,
         words: newWords
       });
     }
 
-    return translatedSentences;
+    return processedSentences;
   }
 
   /**
@@ -141,7 +472,7 @@ class TranslationService {
    * guaranteeing YouTube-style word-by-word streaming sync.
    */
   realignWords(translatedText, startTime, endTime) {
-    const tokens = translatedText.trim().split(/\s+/).filter(Boolean);
+    const tokens = (translatedText || '').trim().split(/\s+/).filter(Boolean);
     if (tokens.length === 0) return [];
 
     const totalDuration = Math.max(0.4, endTime - startTime);
@@ -156,66 +487,6 @@ class TranslationService {
         end: wEnd
       };
     });
-  }
-
-  /**
-   * Local rule-based translation for common Urdu, Hindi, and Spanish phrases
-   * used when internet connection is lost.
-   */
-  fallbackLocalTranslate(text) {
-    const dictionary = {
-      // Urdu / Hindi common phrases & words
-      'namaste': 'hello',
-      'kya': 'what',
-      'hai': 'is',
-      'hain': 'are',
-      'kaise': 'how',
-      'ho': 'are you',
-      'aap': 'you',
-      'tum': 'you',
-      'hum': 'we',
-      'mera': 'my',
-      'meri': 'my',
-      'naam': 'name',
-      'bhai': 'brother',
-      'dost': 'friend',
-      'shukriya': 'thank you',
-      'dhanyawad': 'thank you',
-      'zaroor': 'certainly',
-      'bohot': 'very',
-      'acha': 'good',
-      'accha': 'good',
-      'haan': 'yes',
-      'nahi': 'no',
-      'kuch': 'something',
-      'video': 'video',
-      'dekhein': 'watch',
-      'banao': 'create',
-
-      // Spanish common phrases & words
-      'hola': 'hello',
-      'gracias': 'thank you',
-      'amigo': 'friend',
-      'amigos': 'friends',
-      'por favor': 'please',
-      'buenos dias': 'good morning',
-      'buenas noches': 'good evening',
-      'como estas': 'how are you',
-      'muy bien': 'very good',
-      'estamos': 'we are',
-      'crear': 'create',
-      'subtitulos': 'subtitles',
-      'mundo': 'world',
-      'todos': 'everyone'
-    };
-
-    let result = text;
-    Object.keys(dictionary).forEach(key => {
-      const reg = new RegExp(`\\b${key}\\b`, 'gi');
-      result = result.replace(reg, dictionary[key]);
-    });
-
-    return result;
   }
 }
 
