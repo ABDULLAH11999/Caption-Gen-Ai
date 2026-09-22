@@ -47,6 +47,18 @@ class SpeechTranscriberService {
     const duration = await this.getVideoDurationFromBlob(fileBlob);
     const targetSampleRate = 16000;
     const targetLength = Math.max(1, Math.ceil(duration * targetSampleRate));
+    const isAppleMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isVideoContainer = !fileBlob.type || fileBlob.type.startsWith('video/') || /mp4|quicktime|mov|webm/i.test(fileBlob.type);
+
+    if (isAppleMobile && isVideoContainer) {
+      console.warn('[speechTranscriber] Skipping browser audio decode for iPhone/iPad video container.');
+      return {
+        audioBuffer: null,
+        rawPcm: null,
+        sampleRate: 16000,
+        duration
+      };
+    }
 
     try {
       const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
@@ -66,7 +78,7 @@ class SpeechTranscriberService {
             settled = true;
             reject(new Error('Audio decoding timed out'));
           }
-        }, 45000);
+        }, isAppleMobile ? 8000 : 45000);
 
         try {
           const res = audioCtx.decodeAudioData(

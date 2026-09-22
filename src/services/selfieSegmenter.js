@@ -12,6 +12,8 @@ class SelfieSegmenterService {
     this.cutoutCtx = this.cutoutCanvas.getContext('2d');
     this.maskCanvas = document.createElement('canvas');
     this.maskCtx = this.maskCanvas.getContext('2d');
+    this.segmentCanvas = document.createElement('canvas');
+    this.segmentCtx = this.segmentCanvas.getContext('2d', { alpha: false });
     this.maskImageData = null;
     this.lastTimestamp = -1;
     this.isSegmenting = false;
@@ -107,6 +109,25 @@ class SelfieSegmenterService {
     ctx.clearRect(0, 0, width, height);
     ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
     return true;
+  }
+
+  getSegmentationSource(video, width, height, maxSide = 384) {
+    const longestSide = Math.max(width, height);
+    if (!this.segmentCtx || longestSide <= maxSide) return video;
+
+    const scale = maxSide / longestSide;
+    const segW = Math.max(1, Math.round(width * scale));
+    const segH = Math.max(1, Math.round(height * scale));
+
+    if (this.segmentCanvas.width !== segW || this.segmentCanvas.height !== segH) {
+      this.segmentCanvas.width = segW;
+      this.segmentCanvas.height = segH;
+    }
+
+    this.segmentCtx.imageSmoothingEnabled = true;
+    this.segmentCtx.imageSmoothingQuality = 'medium';
+    this.segmentCtx.drawImage(video, 0, 0, segW, segH);
+    return this.segmentCanvas;
   }
 
   shouldSegment(video, fps = 12) {
@@ -220,7 +241,10 @@ class SelfieSegmenterService {
 
     const targetCtx = targetCanvas.getContext('2d');
     this.drawCachedCutout(targetCtx, width, height);
-    if (!this.shouldSegment(video, 12)) return;
+    const previewMaskFps = (video.paused || video.seeking) ? 8 : 2;
+    const previewMaskSize = (video.paused || video.seeking) ? 320 : 192;
+    if (!this.shouldSegment(video, previewMaskFps)) return;
+    const segmentSource = this.getSegmentationSource(video, width, height, previewMaskSize);
 
     let timestamp = performance.now();
     if (timestamp <= this.lastTimestamp) {
@@ -230,7 +254,7 @@ class SelfieSegmenterService {
 
     try {
       this.isSegmenting = true;
-      this.segmenter.segmentForVideo(video, timestamp, (result) => {
+      this.segmenter.segmentForVideo(segmentSource, timestamp, (result) => {
         try {
           let mask = null;
           if (result.confidenceMasks && result.confidenceMasks.length > 0) {
@@ -282,7 +306,8 @@ class SelfieSegmenterService {
     if (this.lastCutoutWidth && this.lastCutoutHeight) {
       ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
     }
-    if (!this.shouldSegment(video, 15)) return;
+    if (!this.shouldSegment(video, 8)) return;
+    const segmentSource = this.getSegmentationSource(video, width, height, 384);
 
     let timestamp = performance.now();
     if (timestamp <= this.lastTimestamp) {
@@ -292,7 +317,7 @@ class SelfieSegmenterService {
 
     try {
       this.isSegmenting = true;
-      this.segmenter.segmentForVideo(video, timestamp, (result) => {
+      this.segmenter.segmentForVideo(segmentSource, timestamp, (result) => {
         try {
           let mask = null;
           if (result.confidenceMasks && result.confidenceMasks.length > 0) {
