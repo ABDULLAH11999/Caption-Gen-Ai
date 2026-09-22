@@ -73,6 +73,155 @@ export class UserDashboard {
     await this.loadQuotaData();
   }
 
+  getSystemRequirementsProfile() {
+    const nav = typeof navigator !== 'undefined' ? navigator : {};
+    const ua = nav.userAgent || '';
+    const platform = nav.platform || '';
+    const isTouchMac = /Macintosh/i.test(ua) && Number(nav.maxTouchPoints || 0) > 1;
+
+    if (/Android/i.test(ua)) {
+      return {
+        badge: 'Android detected',
+        title: 'Android Requirements',
+        sub: 'Best for short MP4/WebM clips in Chrome or Samsung Internet.',
+        minimum: [
+          'Android 10 or newer',
+          'Chrome 110+ / Samsung Internet 20+',
+          '6 GB RAM or more',
+          'Snapdragon 730 / Dimensity 800 class chip',
+          'Use 720p or short 1080p videos for smoother export'
+        ],
+        recommended: [
+          'Android 13 or newer',
+          'Latest Chrome with hardware acceleration',
+          '8 GB RAM or more',
+          'Snapdragon 8 Gen / Dimensity 9000 class chip',
+          'Keep 3 GB free storage and close heavy apps'
+        ]
+      };
+    }
+
+    if (/iPhone|iPad|iPod/i.test(ua) || isTouchMac) {
+      return {
+        badge: 'iPhone/iPad detected',
+        title: 'iPhone Requirements',
+        sub: 'Safari works best for Apple mobile video files and portrait clips.',
+        minimum: [
+          'iPhone XS / XR or newer',
+          'iOS 16 or newer',
+          'Safari or Chrome latest version',
+          'Use MP4/MOV clips under the upload limit',
+          'Keep Low Power Mode off while exporting'
+        ],
+        recommended: [
+          'iPhone 13 or newer',
+          'iOS 17 or newer',
+          'Latest Safari with enough free storage',
+          '1080p clips for fastest caption preview',
+          'Keep the screen awake during 60 FPS export'
+        ]
+      };
+    }
+
+    if (/Windows NT|Win32|Win64|WOW64/i.test(ua + platform)) {
+      return {
+        badge: 'Windows PC detected',
+        title: 'Windows Requirements',
+        sub: 'Chrome or Edge gives the most reliable AI caption and 60 FPS export path.',
+        minimum: [
+          'Windows 10 or newer',
+          'Chrome 110+ / Edge 110+',
+          '4-core CPU, 2.0 GHz+',
+          '8 GB RAM',
+          'Integrated GPU with hardware acceleration enabled'
+        ],
+        recommended: [
+          'Windows 11',
+          'Latest Chrome or Edge',
+          '6-core or 8-core CPU',
+          '16 GB RAM or more',
+          'Dedicated NVIDIA / AMD / Intel Arc GPU'
+        ]
+      };
+    }
+
+    if (/Macintosh|Mac OS X|MacIntel/i.test(ua + platform)) {
+      return {
+        badge: 'Mac detected',
+        title: 'Mac Requirements',
+        sub: 'Apple Silicon Macs are recommended for fastest local AI processing.',
+        minimum: [
+          'macOS 12 Monterey or newer',
+          'Safari 16+ / Chrome 110+',
+          'Apple M1 or Intel i5 4-core',
+          '8 GB unified memory / RAM',
+          'Use 1080p clips for best browser stability'
+        ],
+        recommended: [
+          'macOS 14 Sonoma or newer',
+          'Apple M1/M2/M3/M4 or better',
+          '16 GB unified memory or more',
+          'Latest Safari or Chrome',
+          'Plenty of free storage for exported video'
+        ]
+      };
+    }
+
+    return {
+      badge: 'Browser detected',
+      title: 'Device Requirements',
+      sub: 'Fallback requirements for modern phones, tablets, laptops, and desktops.',
+      minimum: [
+        'Modern browser from 2023 or newer',
+        '4-core CPU or recent mobile chip',
+        '8 GB RAM if available',
+        'Hardware video decoding support',
+        'Use short 720p or 1080p clips first'
+      ],
+      recommended: [
+        'Latest Chrome, Edge, or Safari',
+        '8-core CPU or recent flagship mobile chip',
+        '16 GB RAM on desktop / 8 GB on mobile',
+        'GPU acceleration enabled',
+        'Stable power and 3 GB free storage'
+      ]
+    };
+  }
+
+  renderSystemRequirementsModal() {
+    const profile = this.getSystemRequirementsProfile();
+    const list = (items) => items.map(item => `<li>${item}</li>`).join('');
+
+    return `
+      <div id="sysreq-modal-backdrop" class="sysreq-modal-backdrop" aria-hidden="true">
+        <div class="sysreq-modal-inner" role="dialog" aria-modal="true" aria-labelledby="sysreq-title">
+          <button id="btn-sysreq-close" class="sysreq-close-btn" aria-label="Close system requirements">x</button>
+          <div class="sysreq-header">
+            <div class="sysreq-icon">i</div>
+            <div>
+              <div class="sysreq-badge">${profile.badge}</div>
+              <h2 id="sysreq-title">${profile.title}</h2>
+              <p>${profile.sub}</p>
+            </div>
+          </div>
+          <div class="sysreq-grid">
+            <section class="sysreq-card sysreq-card-min">
+              <span class="sysreq-card-label">Minimum</span>
+              <ul>${list(profile.minimum)}</ul>
+            </section>
+            <section class="sysreq-card sysreq-card-rec">
+              <span class="sysreq-card-label">Recommended</span>
+              <ul>${list(profile.recommended)}</ul>
+            </section>
+          </div>
+          <div class="sysreq-note">
+            All captioning, preview, and export work runs locally on this device. Faster CPU/GPU/RAM gives smoother preview and quicker 60 FPS export.
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   async loadUserData() {
     try {
       if (api.token) {
@@ -595,15 +744,15 @@ export class UserDashboard {
         </div>
 
         <!-- System Requirements Modal -->
-        <div id="sysreq-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
+        <div id="sysreq-modal-backdrop-legacy" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
           <style>
             @media (max-width: 600px) {
               #sysreq-modal-inner { padding: 24px 16px !important; }
               #sysreq-spec-grid { grid-template-columns: 1fr !important; }
             }
           </style>
-          <div id="sysreq-modal-inner" style="background:#fff; border-radius:16px; padding:32px 28px; max-width:640px; width:92%; box-shadow:0 24px 60px rgba(0,0,0,0.22); position:relative; font-family:inherit; max-height:90vh; overflow-y:auto;">
-            <button id="btn-sysreq-close" style="position:absolute; top:14px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8; line-height:1;">×</button>
+          <div id="sysreq-modal-inner-legacy" style="background:#fff; border-radius:16px; padding:32px 28px; max-width:640px; width:92%; box-shadow:0 24px 60px rgba(0,0,0,0.22); position:relative; font-family:inherit; max-height:90vh; overflow-y:auto;">
+            <button id="btn-sysreq-close-legacy" style="position:absolute; top:14px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8; line-height:1;">×</button>
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
               <div style="width:36px;height:36px;border-radius:10px;background:#fff7ed;display:flex;align-items:center;justify-content:center;font-size:18px;">💻</div>
               <div>
@@ -636,6 +785,7 @@ export class UserDashboard {
             </div>
           </div>
         </div>
+        ${this.renderSystemRequirementsModal()}
       `;
 
       parent.appendChild(wrap);
@@ -653,14 +803,23 @@ export class UserDashboard {
 
       // System Requirements Info Modal
       const sysreqBackdrop = wrap.querySelector('#sysreq-modal-backdrop');
+      const closeSysreqModal = () => {
+        if (!sysreqBackdrop) return;
+        sysreqBackdrop.classList.remove('is-open');
+        sysreqBackdrop.setAttribute('aria-hidden', 'true');
+      };
       wrap.querySelector('#btn-sysreq-info')?.addEventListener('click', () => {
-        if (sysreqBackdrop) { sysreqBackdrop.style.display = 'flex'; }
+        if (sysreqBackdrop) {
+          soundFx.playKeyBeep(680);
+          sysreqBackdrop.classList.add('is-open');
+          sysreqBackdrop.setAttribute('aria-hidden', 'false');
+        }
       });
-      wrap.querySelector('#btn-sysreq-close')?.addEventListener('click', () => {
-        if (sysreqBackdrop) { sysreqBackdrop.style.display = 'none'; }
+      sysreqBackdrop?.querySelector('#btn-sysreq-close')?.addEventListener('click', () => {
+        closeSysreqModal();
       });
       sysreqBackdrop?.addEventListener('click', (e) => {
-        if (e.target === sysreqBackdrop) sysreqBackdrop.style.display = 'none';
+        if (e.target === sysreqBackdrop) closeSysreqModal();
       });
 
       const enhanceChk = wrap.querySelector('#user-enhance-quality');

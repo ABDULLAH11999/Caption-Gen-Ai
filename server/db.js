@@ -369,6 +369,22 @@ export async function initDb() {
     );
   }
 
+  // One-time cleanup: remove old demo/admin dummy rows from lead tables.
+  // The flag prevents future real contacts or purchase requests from being wiped on restart.
+  try {
+    const cleanupCheck = await query("SELECT value FROM site_settings WHERE key = 'lead_tables_cleaned_v1' LIMIT 1");
+    if (cleanupCheck.rows.length === 0) {
+      await query('TRUNCATE TABLE contacts, purchases RESTART IDENTITY');
+      await query(
+        'INSERT INTO site_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING',
+        ['lead_tables_cleaned_v1', new Date().toISOString()]
+      );
+      console.log('[DB] Cleared dummy contact requests and purchase orders.');
+    }
+  } catch (leadCleanErr) {
+    console.warn('[DB] Lead table cleanup skipped:', leadCleanErr.message);
+  }
+
   // Cleanup expired sessions and used/expired OTPs
   try {
     await query('DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP');
