@@ -43,28 +43,28 @@ class SpeechTranscriberService {
   /**
    * Decodes an audio/video file Blob into raw PCM audio float array and audio buffer.
    */
-  async extractAudioData(fileBlob) {
+  async extractAudioData(fileBlob, onProgress = () => {}) {
     const duration = await this.getVideoDurationFromBlob(fileBlob);
     const targetSampleRate = 16000;
     const targetLength = Math.max(1, Math.ceil(duration * targetSampleRate));
     const isAppleMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
     const isVideoContainer = !fileBlob.type || fileBlob.type.startsWith('video/') || /mp4|quicktime|mov|webm/i.test(fileBlob.type);
+    let audioCtx = null;
 
     if (isAppleMobile && isVideoContainer) {
-      console.warn('[speechTranscriber] Skipping browser audio decode for iPhone/iPad video container.');
-      return {
-        audioBuffer: null,
-        rawPcm: null,
-        sampleRate: 16000,
-        duration
-      };
+      try {
+        onProgress({ status: 'extracting', message: 'Capturing iPhone video audio track...', percent: 24 });
+        return await this.captureAudioFromMediaElement(fileBlob, duration, onProgress);
+      } catch (captureErr) {
+        console.warn('[speechTranscriber] iPhone media capture fallback failed, trying direct decode:', captureErr.message);
+      }
     }
 
     try {
       const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtxClass) throw new Error('AudioContext not supported');
 
-      const audioCtx = new AudioCtxClass();
+      audioCtx = new AudioCtxClass();
       if (audioCtx.state === 'suspended') {
         try { await audioCtx.resume(); } catch (_) {}
       }
@@ -139,6 +139,9 @@ class SpeechTranscriberService {
 
       const resampledBuffer = await offlineCtx.startRendering();
       const rawPcm = resampledBuffer.getChannelData(0);
+      if (!this.hasMeaningfulAudio(rawPcm)) {
+        throw new Error('Decoded audio track was silent');
+      }
 
       try { audioCtx.close(); } catch (_) {}
 
@@ -150,12 +153,220 @@ class SpeechTranscriberService {
       };
     } catch (err) {
       console.warn('[speechTranscriber] Audio extraction fallback:', err.message);
+      try { audioCtx?.close(); } catch (_) {}
+
+      try {
+        onProgress({ status: 'extracting', message: 'Capturing video audio track...', percent: 28 });
+        return await this.captureAudioFromMediaElement(fileBlob, duration, onProgress);
+      } catch (captureErr) {
+        console.warn('[speechTranscriber] Media element audio capture failed:', captureErr.message);
+      }
+
       return {
         audioBuffer: null,
         rawPcm: null,
         sampleRate: 16000,
         duration
       };
+    }
+  }
+
+  mergeAudioChunks(chunks, totalLength) {
+    const merged = new Float32Array(Math.max(0, totalLength));
+    let offset = 0;
+    chunks.forEach((chunk) => {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    });
+    return merged;
+  }
+
+  resamplePcm(input, sourceSampleRate, targetSampleRate = 16000) {
+    if (!input || input.length === 0) return new Float32Array(0);
+    if (!sourceSampleRate || Math.abs(sourceSampleRate - targetSampleRate) < 1) {
+      return input instanceof Float32Array ? input : new Float32Array(input);
+    }
+
+    const ratio = sourceSampleRate / targetSampleRate;
+    const outputLength = Math.max(1, Math.round(input.length / ratio));
+    const output = new Float32Array(outputLength);
+
+    for (let i = 0; i < outputLength; i++) {
+      const srcPos = i * ratio;
+      const srcIdx = Math.floor(srcPos);
+      const nextIdx = Math.min(input.length - 1, srcIdx + 1);
+      const frac = srcPos - srcIdx;
+      output[i] = input[srcIdx] * (1 - frac) + input[nextIdx] * frac;
+    }
+
+    return output;
+  }
+
+  hasMeaningfulAudio(rawPcm) {
+    if (!rawPcm || rawPcm.length === 0) return false;
+    const step = Math.max(1, Math.floor(rawPcm.length / 12000));
+    let sum = 0;
+    let count = 0;
+    for (let i = 0; i < rawPcm.length; i += step) {
+      sum += rawPcm[i] * rawPcm[i];
+      count++;
+    }
+    return Math.sqrt(sum / Math.max(1, count)) > 0.0004;
+  }
+
+  async waitForMediaReady(video, timeoutMs = 12000) {
+    if (video.readyState >= 2 && Number.isFinite(video.duration)) return;
+
+    await new Promise((resolve, reject) => {
+      let settled = false;
+      const done = (ok, err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        video.removeEventListener('loadedmetadata', onReady);
+        video.removeEventListener('canplay', onReady);
+        video.removeEventListener('error', onError);
+        ok ? resolve() : reject(err || new Error('Video metadata load failed'));
+      };
+      const onReady = () => done(true);
+      const onError = () => done(false, new Error('Video element failed to load'));
+      const timer = setTimeout(() => done(false, new Error('Video metadata load timed out')), timeoutMs);
+
+      video.addEventListener('loadedmetadata', onReady, { once: true });
+      video.addEventListener('canplay', onReady, { once: true });
+      video.addEventListener('error', onError, { once: true });
+      try { video.load(); } catch (_) {}
+    });
+  }
+
+  async captureAudioFromMediaElement(fileBlob, duration, onProgress = () => {}) {
+    const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtxClass) throw new Error('AudioContext not supported');
+
+    const audioCtx = new AudioCtxClass();
+    const video = document.createElement('video');
+    const url = URL.createObjectURL(fileBlob);
+    const chunks = [];
+    let totalLength = 0;
+    let progressTimer = null;
+    let processor = null;
+    let source = null;
+    let silentGain = null;
+
+    const cleanup = async () => {
+      clearInterval(progressTimer);
+      try { video.pause(); } catch (_) {}
+      try { processor && (processor.onaudioprocess = null); } catch (_) {}
+      try { source?.disconnect(); } catch (_) {}
+      try { processor?.disconnect(); } catch (_) {}
+      try { silentGain?.disconnect(); } catch (_) {}
+      try { URL.revokeObjectURL(url); } catch (_) {}
+      try { video.removeAttribute('src'); video.load(); video.remove(); } catch (_) {}
+      try { await audioCtx.close(); } catch (_) {}
+    };
+
+    try {
+      video.preload = 'auto';
+      video.playsInline = true;
+      video.setAttribute('playsinline', '');
+      video.setAttribute('webkit-playsinline', '');
+      video.crossOrigin = 'anonymous';
+      video.src = url;
+      video.style.position = 'fixed';
+      video.style.left = '-99999px';
+      video.style.width = '1px';
+      video.style.height = '1px';
+      video.style.opacity = '0';
+      document.body.appendChild(video);
+
+      await this.waitForMediaReady(video);
+      if (audioCtx.state === 'suspended') {
+        try { await audioCtx.resume(); } catch (_) {}
+      }
+
+      source = audioCtx.createMediaElementSource(video);
+      processor = audioCtx.createScriptProcessor(4096, 2, 1);
+      silentGain = audioCtx.createGain();
+      silentGain.gain.value = 0;
+
+      processor.onaudioprocess = (event) => {
+        const inputBuffer = event.inputBuffer;
+        const frameCount = inputBuffer.length;
+        const mixed = new Float32Array(frameCount);
+        const channelCount = Math.max(1, inputBuffer.numberOfChannels || 1);
+
+        for (let channel = 0; channel < channelCount; channel++) {
+          const input = inputBuffer.getChannelData(channel);
+          for (let i = 0; i < frameCount; i++) {
+            mixed[i] += input[i] / channelCount;
+          }
+        }
+
+        chunks.push(mixed);
+        totalLength += frameCount;
+      };
+
+      source.connect(processor);
+      processor.connect(silentGain);
+      silentGain.connect(audioCtx.destination);
+
+      progressTimer = setInterval(() => {
+        const ratio = duration > 0 ? Math.min(1, (video.currentTime || 0) / duration) : 0;
+        onProgress({
+          status: 'extracting',
+          message: 'Capturing video audio track...',
+          percent: Math.min(42, 28 + Math.round(ratio * 14))
+        });
+      }, 500);
+
+      await new Promise((resolve, reject) => {
+        let settled = false;
+        const timeoutMs = Math.min(180000, Math.max(25000, Math.ceil((duration || 10) * 1400) + 12000));
+        const done = (ok, err) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          video.removeEventListener('ended', onEnded);
+          video.removeEventListener('error', onError);
+          ok ? resolve() : reject(err || new Error('Audio capture failed'));
+        };
+        const onEnded = () => done(true);
+        const onError = () => done(false, new Error('Video playback failed during audio capture'));
+        const timer = setTimeout(() => done(false, new Error('Audio capture timed out')), timeoutMs);
+
+        video.addEventListener('ended', onEnded, { once: true });
+        video.addEventListener('error', onError, { once: true });
+
+        video.currentTime = 0;
+        video.volume = 1;
+        video.muted = false;
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(async () => {
+            try {
+              video.muted = true;
+              await video.play();
+            } catch (playErr) {
+              done(false, playErr || new Error('Video playback was blocked'));
+            }
+          });
+        }
+      });
+
+      const captured = this.mergeAudioChunks(chunks, totalLength);
+      const rawPcm = this.resamplePcm(captured, audioCtx.sampleRate, 16000);
+      if (!this.hasMeaningfulAudio(rawPcm)) {
+        throw new Error('Captured audio was silent');
+      }
+
+      return {
+        audioBuffer: null,
+        rawPcm,
+        sampleRate: 16000,
+        duration: video.duration || duration
+      };
+    } finally {
+      await cleanup();
     }
   }
 
@@ -301,7 +512,7 @@ class SpeechTranscriberService {
     onProgress({ status: 'extracting', message: 'Decoding audio tracks...', percent: 20 });
 
     const duration = await this.getVideoDurationFromBlob(fileBlob);
-    const { rawPcm } = await this.extractAudioData(fileBlob);
+    const { rawPcm } = await this.extractAudioData(fileBlob, onProgress);
 
     if (rawPcm && rawPcm.length > 0) {
       const speechSegments = this.detectSpeechSegments(rawPcm, 16000);

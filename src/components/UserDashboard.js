@@ -1052,7 +1052,6 @@ export class UserDashboard {
     this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
 
     try {
-      await this.sleep(200);
       if (this.processingCancelled) return;
 
       await this.processVideoBlob(file);

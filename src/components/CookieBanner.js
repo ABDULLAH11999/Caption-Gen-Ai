@@ -11,17 +11,18 @@ export class CookieBanner {
 
     this.container = document.createElement('div');
     this.container.className = 'saas-cookie-banner';
+    this.container.id = 'saas-cookie-banner';
     this.container.innerHTML = `
       <div class="cookie-banner-content">
-        <div class="cookie-icon">🍪</div>
+        <div class="cookie-icon-badge">🍪</div>
         <div class="cookie-text">
-          <span>We use cookies to save your preferences and improve your experience.</span>
+          <span>We use cookies to improve your experience.</span>
           <a href="/cookies" class="cookie-policy-link" id="btn-cookie-policy">Cookie Policy</a>
         </div>
       </div>
       <div class="cookie-banner-actions">
-        <button class="btn btn-dark btn-sm" id="btn-cookie-accept">Accept &amp; Close</button>
-        <button class="cookie-close-btn" id="btn-cookie-dismiss" title="Dismiss">&times;</button>
+        <button class="btn-cookie-accept" id="btn-cookie-accept">Accept</button>
+        <button class="cookie-close-btn" id="btn-cookie-dismiss" title="Dismiss" aria-label="Dismiss">&times;</button>
       </div>
     `;
 
