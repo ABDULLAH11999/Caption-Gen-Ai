@@ -47,18 +47,7 @@ class SpeechTranscriberService {
     const duration = await this.getVideoDurationFromBlob(fileBlob);
     const targetSampleRate = 16000;
     const targetLength = Math.max(1, Math.ceil(duration * targetSampleRate));
-    const isAppleMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const isVideoContainer = !fileBlob.type || fileBlob.type.startsWith('video/') || /mp4|quicktime|mov|webm/i.test(fileBlob.type);
-    let audioCtx = null;
-
-    if (isAppleMobile && isVideoContainer) {
-      try {
-        onProgress({ status: 'extracting', message: 'Capturing iPhone video audio track...', percent: 24 });
-        return await this.captureAudioFromMediaElement(fileBlob, duration, onProgress);
-      } catch (captureErr) {
-        console.warn('[speechTranscriber] iPhone media capture fallback failed, trying direct decode:', captureErr.message);
-      }
-    }
+    onProgress({ status: 'extracting', message: 'Decoding audio track...', percent: 22 });
 
     try {
       const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
@@ -321,7 +310,7 @@ class SpeechTranscriberService {
 
       await new Promise((resolve, reject) => {
         let settled = false;
-        const timeoutMs = Math.min(180000, Math.max(25000, Math.ceil((duration || 10) * 1400) + 12000));
+        const timeoutMs = Math.min(20000, Math.max(8000, Math.ceil((duration || 10) * 1000) + 4000));
         const done = (ok, err) => {
           if (settled) return;
           settled = true;

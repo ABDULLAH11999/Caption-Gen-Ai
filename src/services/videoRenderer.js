@@ -597,7 +597,8 @@ export class VideoRenderer {
     if (behindSegments.length === 0 || !selfieSegmenterService.isReady()) return;
 
     const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const sampleStep = isMobile ? 0.20 : 0.12;
+    // 25-30 keyframes/sec (33ms step) ensures sub-frame temporal alignment between video and cutout
+    const sampleStep = isMobile ? 0.045 : 0.033;
     const samples = [];
     const seen = new Set();
 
@@ -605,13 +606,13 @@ export class VideoRenderer {
       const padStart = Math.max(0, seg.start - 0.05);
       const padEnd = seg.end + 0.10;
       for (let t = padStart; t <= padEnd + 0.001; t += sampleStep) {
-        const sample = Math.round(t * 100) / 100;
+        const sample = Math.round(t * 1000) / 1000;
         if (!seen.has(sample)) {
           seen.add(sample);
           samples.push(sample);
         }
       }
-      const endSample = Math.round(padEnd * 100) / 100;
+      const endSample = Math.round(padEnd * 1000) / 1000;
       if (!seen.has(endSample)) {
         seen.add(endSample);
         samples.push(endSample);

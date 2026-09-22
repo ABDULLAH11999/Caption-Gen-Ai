@@ -202,15 +202,15 @@ class SelfieSegmenterService {
         let conf = floatArr[i];
         if (!isPersonMask) conf = 1.0 - conf;
 
-        // Clean, crisp boundary:
-        // conf < 0.48 = 100% background (prevents outer contour ghost halo)
-        // conf >= 0.68 = 100% solid subject
-        // Smoothstep between 0.48 and 0.68 for subpixel anti-aliased edge
+        // Natural, full-coverage boundary:
+        // conf < 0.25 = 100% background
+        // conf >= 0.52 = 100% solid subject (covers full hair, cap, arms, clothes)
+        // Smoothstep between 0.25 and 0.52 for subpixel anti-aliased edge
         let alpha = 0;
-        if (conf >= 0.68) {
+        if (conf >= 0.52) {
           alpha = 255;
-        } else if (conf > 0.48) {
-          const t = (conf - 0.48) / 0.20;
+        } else if (conf > 0.25) {
+          const t = (conf - 0.25) / 0.27;
           alpha = Math.round((3 * t * t - 2 * t * t * t) * 255);
         }
 
@@ -339,22 +339,22 @@ class SelfieSegmenterService {
     if (behindSegments.length === 0 || !this.isReady() || !videoElement) return [];
 
     const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    // 10-12 keyframes/sec for high temporal precision
-    const sampleStep = isMobile ? 0.12 : 0.08;
+    // 20-25 keyframes/sec for pixel-perfect motion tracking without edge ghosting
+    const sampleStep = isMobile ? 0.05 : 0.035;
     const samples = [];
     const seen = new Set();
 
     behindSegments.forEach((seg) => {
-      const padStart = Math.max(0, seg.start - 0.08);
-      const padEnd = seg.end + 0.15;
+      const padStart = Math.max(0, seg.start - 0.05);
+      const padEnd = seg.end + 0.10;
       for (let t = padStart; t <= padEnd + 0.001; t += sampleStep) {
-        const sample = Math.round(t * 100) / 100;
+        const sample = Math.round(t * 1000) / 1000;
         if (!seen.has(sample)) {
           seen.add(sample);
           samples.push(sample);
         }
       }
-      const endSample = Math.round(padEnd * 100) / 100;
+      const endSample = Math.round(padEnd * 1000) / 1000;
       if (!seen.has(endSample)) {
         seen.add(endSample);
         samples.push(endSample);
