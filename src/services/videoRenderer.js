@@ -606,13 +606,75 @@ export class VideoRenderer {
 
     // 13. Rotoscoped Person Cutout (Layer 3 on top of Captions)
     if (currentSentence.behind && selfieSegmenterService.isReady()) {
-      selfieSegmenterService.drawCutoutToContext(video, ctx, canvasWidth, canvasHeight, isEnhanced);
+      selfieSegmenterService.drawCutoutToContext(video, ctx, canvasWidth, canvasHeight, isEnhanced, {
+        time: curTime,
+        useExportCache: config.useExportCutoutCache === true
+      });
     }
   }
 
   /**
    * Export full video with burned-in captions at lossless source resolution and true 60 FPS
    */
+  async prepareExportCutoutCache(videoElement, sentences, width, height, enhanceQuality, onProgress) {
+    const behindSegments = (sentences || [])
+      .filter(s => s.behind)
+      .map(s => ({
+        start: Math.max(0, Number(s.start ?? s.startTime ?? 0)),
+        end: Math.max(0, Number(s.end ?? s.endTime ?? 0))
+      }))
+      .filter(seg => Number.isFinite(seg.start) && Number.isFinite(seg.end) && seg.end > seg.start);
+
+    selfieSegmenterService.clearExportCutoutCache();
+    if (behindSegments.length === 0 || !selfieSegmenterService.isReady()) return;
+
+    const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const sampleStep = isMobile ? 0.5 : 0.33;
+    const maxSamples = isMobile ? 50 : 80;
+    const samples = [];
+    const seen = new Set();
+
+    behindSegments.forEach((seg) => {
+      for (let t = seg.start; t <= seg.end + 0.001; t += sampleStep) {
+        const sample = Math.min(seg.end, Math.round(t * 100) / 100);
+        if (!seen.has(sample)) {
+          seen.add(sample);
+          samples.push(sample);
+        }
+      }
+      const endSample = Math.round(seg.end * 100) / 100;
+      if (!seen.has(endSample)) {
+        seen.add(endSample);
+        samples.push(endSample);
+      }
+    });
+
+    samples.sort((a, b) => a - b);
+    const stride = samples.length > maxSamples ? Math.ceil(samples.length / maxSamples) : 1;
+    const selectedSamples = samples.filter((_, idx) => idx % stride === 0);
+    const cache = [];
+    const cacheMaxSide = isMobile ? 540 : 720;
+
+    for (let i = 0; i < selectedSamples.length; i++) {
+      const t = selectedSamples[i];
+      try {
+        await this.seekVideoTo(videoElement, t);
+        const canvas = await selfieSegmenterService.captureCutoutFrame(videoElement, width, height, enhanceQuality, cacheMaxSide);
+        if (canvas) {
+          cache.push({ time: t, canvas });
+        }
+      } catch (err) {
+        console.warn('Export cutout cache frame skipped:', err.message);
+      }
+
+      if (onProgress && selectedSamples.length > 0) {
+        onProgress(Math.min(12, Math.round(((i + 1) / selectedSamples.length) * 12)));
+      }
+    }
+
+    selfieSegmenterService.setExportCutoutCache(cache);
+  }
+
   async exportVideo(videoElement, captionEngineInstance, config, onProgress) {
     if (this.isRendering) return;
     this.isRendering = true;
@@ -716,6 +778,19 @@ export class VideoRenderer {
         };
         recorder.onerror = reject;
       });
+
+      const hasBehindCaptions = sentences.some(s => s.behind);
+      if (hasBehindCaptions && selfieSegmenterService.isReady()) {
+        await this.prepareExportCutoutCache(
+          videoElement,
+          sentences,
+          width,
+          height,
+          !!(config.enhanceQuality || config.enhanceVideoQuality),
+          onProgress
+        );
+        config.useExportCutoutCache = true;
+      }
 
       // Reset video to start
       await this.seekVideoTo(videoElement, 0);

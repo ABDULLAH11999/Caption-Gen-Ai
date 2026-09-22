@@ -21,6 +21,7 @@ class SelfieSegmenterService {
     this.lastSegmentWallTime = 0;
     this.lastCutoutWidth = 0;
     this.lastCutoutHeight = 0;
+    this.exportCutoutCache = [];
   }
 
   /**
@@ -99,9 +100,38 @@ class SelfieSegmenterService {
     this.lastSegmentWallTime = 0;
     this.lastCutoutWidth = 0;
     this.lastCutoutHeight = 0;
+    this.exportCutoutCache = [];
     if (this.cutoutCtx && this.cutoutCanvas.width && this.cutoutCanvas.height) {
       this.cutoutCtx.clearRect(0, 0, this.cutoutCanvas.width, this.cutoutCanvas.height);
     }
+  }
+
+  clearExportCutoutCache() {
+    this.exportCutoutCache = [];
+  }
+
+  setExportCutoutCache(cache) {
+    this.exportCutoutCache = Array.isArray(cache)
+      ? cache.filter(item => item && Number.isFinite(item.time) && item.canvas)
+      : [];
+  }
+
+  drawExportCutoutForTime(ctx, time, width, height, maxDistance = 0.8) {
+    if (!ctx || !this.exportCutoutCache || this.exportCutoutCache.length === 0) return false;
+
+    let best = null;
+    let bestDiff = Infinity;
+    for (const item of this.exportCutoutCache) {
+      const diff = Math.abs(item.time - time);
+      if (diff < bestDiff) {
+        best = item;
+        bestDiff = diff;
+      }
+    }
+
+    if (!best || bestDiff > maxDistance) return false;
+    ctx.drawImage(best.canvas, 0, 0, width, height);
+    return true;
   }
 
   drawCachedCutout(ctx, width, height) {
@@ -220,6 +250,80 @@ class SelfieSegmenterService {
     cutoutCtx.globalCompositeOperation = "source-over"; // Reset blend mode
   }
 
+  async captureCutoutFrame(video, width, height, enhanceQuality = false, maxSide = 720) {
+    if (!this.segmenter || !video || video.readyState < 2) return null;
+
+    const longestSide = Math.max(width, height);
+    const scale = longestSide > maxSide ? maxSide / longestSide : 1;
+    const cacheWidth = Math.max(1, Math.round(width * scale));
+    const cacheHeight = Math.max(1, Math.round(height * scale));
+
+    if (this.cutoutCanvas.width !== cacheWidth || this.cutoutCanvas.height !== cacheHeight) {
+      this.cutoutCanvas.width = cacheWidth;
+      this.cutoutCanvas.height = cacheHeight;
+    }
+
+    const segmentSource = this.getSegmentationSource(video, width, height, Math.min(384, maxSide));
+    let timestamp = performance.now();
+    if (timestamp <= this.lastTimestamp) {
+      timestamp = this.lastTimestamp + 1;
+    }
+    this.lastTimestamp = timestamp;
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (canvas) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.isSegmenting = false;
+        resolve(canvas);
+      };
+
+      const timer = setTimeout(() => finish(null), 2500);
+
+      try {
+        this.isSegmenting = true;
+        this.segmenter.segmentForVideo(segmentSource, timestamp, (result) => {
+          try {
+            let mask = null;
+            if (result.confidenceMasks && result.confidenceMasks.length > 0) {
+              mask = result.confidenceMasks.length >= 2 ? result.confidenceMasks[1] : result.confidenceMasks[0];
+            } else if (result.categoryMask) {
+              mask = result.categoryMask;
+            }
+
+            if (!mask) {
+              finish(null);
+              return;
+            }
+
+            this.applyMaskAndCutout(mask, video, cacheWidth, cacheHeight, enhanceQuality);
+            this.lastCutoutWidth = cacheWidth;
+            this.lastCutoutHeight = cacheHeight;
+
+            const snapshot = document.createElement('canvas');
+            snapshot.width = cacheWidth;
+            snapshot.height = cacheHeight;
+            const snapshotCtx = snapshot.getContext('2d');
+            snapshotCtx.drawImage(this.cutoutCanvas, 0, 0, cacheWidth, cacheHeight);
+            finish(snapshot);
+          } finally {
+            if (result.confidenceMasks) {
+              result.confidenceMasks.forEach(m => { try { m.close(); } catch (_) {} });
+            }
+            if (result.categoryMask) {
+              try { result.categoryMask.close(); } catch (_) {}
+            }
+          }
+        });
+      } catch (err) {
+        console.error('captureCutoutFrame error:', err);
+        finish(null);
+      }
+    });
+  }
+
   /**
    * Renders the foreground cutout (person) onto a live display canvas
    */
@@ -292,11 +396,19 @@ class SelfieSegmenterService {
   /**
    * Draws the foreground cutout directly onto an export canvas context
    */
-  drawCutoutToContext(video, ctx, canvasWidth, canvasHeight, enhanceQuality = false) {
+  drawCutoutToContext(video, ctx, canvasWidth, canvasHeight, enhanceQuality = false, options = {}) {
     if (!this.segmenter || !video || video.readyState < 2) return;
 
     const width = canvasWidth;
     const height = canvasHeight;
+
+    if (options.useExportCache) {
+      if (this.drawExportCutoutForTime(ctx, Number(options.time || video.currentTime || 0), width, height)) return;
+      if (this.lastCutoutWidth && this.lastCutoutHeight) {
+        ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
+      }
+      return;
+    }
 
     if (this.cutoutCanvas.width !== width || this.cutoutCanvas.height !== height) {
       this.cutoutCanvas.width = width;
