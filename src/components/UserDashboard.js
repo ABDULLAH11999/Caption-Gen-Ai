@@ -1423,9 +1423,7 @@ export class UserDashboard {
       enhanceToggle.addEventListener('change', (e) => {
         this.enhanceVideoQuality = e.target.checked;
         this.videoElement.classList.toggle('video-enhanced', this.enhanceVideoQuality);
-        if (this.cutoutCanvas) {
-          this.cutoutCanvas.classList.toggle('video-enhanced', this.enhanceVideoQuality);
-        }
+        this.renderCutoutIfActiveBehind();
         soundFx.playEnhanceToggle(this.enhanceVideoQuality);
         this.showToast(this.enhanceVideoQuality ? '✨ Video Enhancement Enabled (+30% Vibrance & Contrast)' : 'Video Enhancement Disabled', 'info');
       });
@@ -2196,7 +2194,7 @@ export class UserDashboard {
         if (btn) {
           btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;">⏳</span> ${msg}`;
         }
-      });
+      }, this.enhanceVideoQuality);
 
       // 5. Restore video playback state
       this.videoElement.currentTime = savedTime;
@@ -2205,9 +2203,6 @@ export class UserDashboard {
       }
 
       // 6. Update UI, overlay, and render cutout for active frame
-      if (this.cutoutCanvas) {
-        this.cutoutCanvas.classList.toggle('video-enhanced', !!this.enhanceVideoQuality);
-      }
       this.lastRenderedSentenceKey = null;
       this.updateCaptionOverlay();
       this.renderCutoutIfActiveBehind();

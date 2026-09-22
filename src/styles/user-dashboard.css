@@ -650,9 +650,7 @@
 }
 
 .studio-video-element.video-enhanced,
-video.video-enhanced,
-#user-cutout-canvas.video-enhanced,
-.cutout-live-canvas.video-enhanced {
+video.video-enhanced {
   filter: contrast(1.18) saturate(1.28) brightness(1.02) !important;
   image-rendering: -webkit-optimize-contrast;
 }

@@ -247,7 +247,13 @@ class SelfieSegmenterService {
 
     // 2. Retain source pixels only where person mask exists with hardware blend mode
     cutoutCtx.globalCompositeOperation = "source-in";
+    if (enhanceQuality) {
+      cutoutCtx.filter = 'contrast(1.18) saturate(1.28) brightness(1.02)';
+    } else {
+      cutoutCtx.filter = 'none';
+    }
     cutoutCtx.drawImage(video, 0, 0, width, height);
+    cutoutCtx.filter = 'none';
     cutoutCtx.globalCompositeOperation = "source-over"; // Reset blend mode
   }
 
@@ -327,7 +333,7 @@ class SelfieSegmenterService {
    * Pre-bakes cutout frames for segments marked with behind = true
    * Produces buttery smooth 60 FPS preview and eliminates runtime video playback stutter.
    */
-  async prebakeCutoutsForSegments(videoElement, sentences, onProgress = () => {}) {
+  async prebakeCutoutsForSegments(videoElement, sentences, onProgress = () => {}, enhanceQuality = false) {
     const behindSegments = (sentences || [])
       .filter(s => s.behind)
       .map(s => ({
@@ -393,7 +399,7 @@ class SelfieSegmenterService {
       const t = samples[i];
       try {
         await seekTo(videoElement, t);
-        const canvas = await this.captureCutoutFrame(videoElement, width, height, false);
+        const canvas = await this.captureCutoutFrame(videoElement, width, height, enhanceQuality);
         if (canvas) {
           cache.push({ time: t, canvas });
         }
