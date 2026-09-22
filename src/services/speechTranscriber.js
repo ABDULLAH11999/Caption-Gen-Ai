@@ -46,8 +46,9 @@ class SpeechTranscriberService {
   async extractAudioData(fileBlob, onProgress = () => {}) {
     const duration = await this.getVideoDurationFromBlob(fileBlob);
     const targetSampleRate = 16000;
-    const targetLength = Math.max(1, Math.ceil(duration * targetSampleRate));
     onProgress({ status: 'extracting', message: 'Decoding audio track...', percent: 22 });
+
+    let audioCtx = null;
 
     try {
       const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
@@ -67,7 +68,7 @@ class SpeechTranscriberService {
             settled = true;
             reject(new Error('Audio decoding timed out'));
           }
-        }, isAppleMobile ? 8000 : 45000);
+        }, 15000);
 
         try {
           const res = audioCtx.decodeAudioData(
@@ -115,19 +116,18 @@ class SpeechTranscriberService {
         }
       });
 
-      const OfflineCtxClass = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-      if (!OfflineCtxClass) throw new Error('OfflineAudioContext not supported');
+      // Mix down all channels to mono and resample to 16kHz
+      const numChannels = decodedBuffer.numberOfChannels || 1;
+      const length = decodedBuffer.length;
+      const monoData = new Float32Array(length);
+      for (let c = 0; c < numChannels; c++) {
+        const channelData = decodedBuffer.getChannelData(c);
+        for (let i = 0; i < length; i++) {
+          monoData[i] += channelData[i] / numChannels;
+        }
+      }
 
-      const renderLength = Math.min(targetLength, Math.ceil((decodedBuffer.duration || duration) * targetSampleRate));
-      const offlineCtx = new OfflineCtxClass(1, Math.max(1, renderLength), targetSampleRate);
-
-      const source = offlineCtx.createBufferSource();
-      source.buffer = decodedBuffer;
-      source.connect(offlineCtx.destination);
-      source.start(0);
-
-      const resampledBuffer = await offlineCtx.startRendering();
-      const rawPcm = resampledBuffer.getChannelData(0);
+      const rawPcm = this.resamplePcm(monoData, decodedBuffer.sampleRate, targetSampleRate);
       if (!this.hasMeaningfulAudio(rawPcm)) {
         throw new Error('Decoded audio track was silent');
       }
@@ -135,9 +135,9 @@ class SpeechTranscriberService {
       try { audioCtx.close(); } catch (_) {}
 
       return { 
-        audioBuffer: resampledBuffer, 
+        audioBuffer: decodedBuffer, 
         rawPcm, 
-        sampleRate: 16000, 
+        sampleRate: targetSampleRate, 
         duration: decodedBuffer.duration || duration 
       };
     } catch (err) {
