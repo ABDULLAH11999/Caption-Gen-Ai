@@ -650,7 +650,9 @@
 }
 
 .studio-video-element.video-enhanced,
-video.video-enhanced {
+video.video-enhanced,
+#user-cutout-canvas.video-enhanced,
+.cutout-live-canvas.video-enhanced {
   filter: contrast(1.18) saturate(1.28) brightness(1.02) !important;
   image-rendering: -webkit-optimize-contrast;
 }
@@ -821,6 +823,22 @@ video.video-enhanced {
 @keyframes sysreqPopIn {
   from {
     transform: translateY(18px) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalPopIn {
+  from {
+    transform: translateY(20px) scale(0.94);
     opacity: 0;
   }
   to {

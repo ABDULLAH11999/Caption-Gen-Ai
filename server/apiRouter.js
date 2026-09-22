@@ -709,6 +709,20 @@ apiRouter.post('/public/quota-consume', quotaConsumeLimiter.middleware(), async 
   const userId = req.user ? req.user.user_id : null;
 
   if (userId) {
+    const dailyLimit = req.user.daily_quota || 3;
+    const usageRes = await query(
+      `SELECT COALESCE(SUM(generation_count), 0)::int as count FROM usage_logs WHERE user_id = $1 AND day_date = $2`,
+      [userId, today]
+    );
+    const count = parseInt(usageRes.rows[0]?.count || 0);
+    if (count >= dailyLimit) {
+      return res.status(403).json({
+        success: false,
+        allowed: false,
+        error: 'Daily generation limit reached for your account. Please upgrade your plan.'
+      });
+    }
+
     // For authenticated users: find or create today's usage row for user_id
     const existing = await query(
       `SELECT id FROM usage_logs WHERE user_id = $1 AND day_date = $2 LIMIT 1`,
@@ -726,6 +740,20 @@ apiRouter.post('/public/quota-consume', quotaConsumeLimiter.middleware(), async 
       );
     }
   } else {
+    const guestLimit = 3;
+    const usageRes = await query(
+      `SELECT COALESCE(SUM(generation_count), 0)::int as count FROM usage_logs WHERE ip_address = $1 AND day_date = $2 AND user_id IS NULL`,
+      [ip, today]
+    );
+    const count = parseInt(usageRes.rows[0]?.count || 0);
+    if (count >= guestLimit) {
+      return res.status(403).json({
+        success: false,
+        allowed: false,
+        error: 'Daily guest quota reached (3/3). Please sign in or upgrade for higher limits.'
+      });
+    }
+
     // For guest visitors: find or create guest row by ip_address where user_id IS NULL
     const existing = await query(
       `SELECT id FROM usage_logs WHERE ip_address = $1 AND day_date = $2 AND user_id IS NULL LIMIT 1`,

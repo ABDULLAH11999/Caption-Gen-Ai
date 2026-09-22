@@ -17,18 +17,28 @@ export class VideoRenderer {
         return;
       }
 
-      const done = () => {
-        video.removeEventListener('seeked', done);
+      let settled = false;
+      let timer = null;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        video.removeEventListener('seeked', onSeeked);
+        if (timer) clearTimeout(timer);
         resolve();
       };
 
-      video.addEventListener('seeked', done, { once: true });
+      const onSeeked = () => {
+        requestAnimationFrame(() => setTimeout(finish, 15));
+      };
+
+      video.addEventListener('seeked', onSeeked, { once: true });
       try {
         video.currentTime = Math.max(0, time || 0);
       } catch (_) {
-        done();
+        finish();
+        return;
       }
-      setTimeout(done, 1200);
+      timer = setTimeout(finish, 350);
     });
   }
 
@@ -104,10 +114,7 @@ export class VideoRenderer {
       case 'anim-blink': {
         const p = clamp(elapsed / 0.7);
         const pulse = Math.abs(Math.sin(p * Math.PI * 2));
-        state.blockOpacity = elapsed < 0.7 ? Math.max(0.25, pulse) : 1;
-        state.brightness = elapsed < 0.7 ? 1.2 + 0.8 * pulse : 1;
-        state.glow = elapsed < 0.7 ? 16 * pulse * scale : 0;
-        state.glowColor = '#FFFFFF';
+        state.blockOpacity = elapsed < 0.7 ? Math.max(0.35, pulse) : 1;
         break;
       }
       case 'anim-typewriter': {
@@ -116,8 +123,6 @@ export class VideoRenderer {
         break;
       }
       case 'anim-karaoke-glow': {
-        const pulse = 0.5 + 0.5 * Math.sin(elapsed * Math.PI * 5);
-        state.glow = (8 + 12 * pulse) * scale;
         break;
       }
       case 'anim-wave': {
@@ -132,13 +137,9 @@ export class VideoRenderer {
       case 'anim-blur': {
         const p = clamp(elapsed / 0.4);
         state.blockOpacity = p;
-        state.blur = (1 - p) * 12 * scale;
         break;
       }
       case 'anim-neon-pulse': {
-        const pulse = 0.5 + 0.5 * Math.sin(elapsed * Math.PI * 1.7);
-        state.glow = (10 + 24 * pulse) * scale;
-        state.glowColor = '#00F0FF';
         break;
       }
       case 'anim-glitch': {
@@ -156,25 +157,15 @@ export class VideoRenderer {
       }
       case 'anim-neon-shimmer': {
         const p = clamp(elapsed / 0.9);
-        const shine = p <= 0.45 ? p / 0.45 : Math.max(0, (1 - p) / 0.55);
-        state.shine = shine;
-        state.shimmerX = p;
-        state.blockScale = 0.96 + 0.1 * shine;
-        state.blockOpacity = 0.25 + 0.75 * Math.min(1, p / 0.25);
-        state.glow = 36 * shine * scale;
-        state.glowColor = '#00F0FF';
-        state.brightness = 1 + 1.2 * shine;
+        state.blockScale = 0.96 + 0.08 * (p <= 0.5 ? p / 0.5 : (1 - p) / 0.5);
+        state.blockOpacity = Math.min(1, p / 0.2);
         break;
       }
       case 'anim-fire-flare': {
         const p = clamp(elapsed / 0.85);
         const flare = p <= 0.4 ? p / 0.4 : Math.max(0, (1 - p) / 0.6);
-        state.shine = flare;
-        state.blockScale = (0.75 + 0.25 * Math.min(1, p / 0.4)) + 0.14 * flare;
+        state.blockScale = 0.85 + 0.15 * Math.min(1, p / 0.4);
         state.blockOpacity = Math.min(1, p / 0.18);
-        state.glow = 42 * flare * scale;
-        state.glowColor = '#FF6B00';
-        state.brightness = 1 + 0.7 * flare;
         break;
       }
       case 'anim-zoom-impact': {
@@ -243,13 +234,8 @@ export class VideoRenderer {
       case 'anim-liquid-gradient': {
         const p = clamp(elapsed / 1.1);
         const shine = Math.sin(p * Math.PI);
-        state.shine = shine;
-        state.shimmerX = p;
-        state.blockScale = 0.95 + 0.1 * shine;
+        state.blockScale = 0.95 + 0.08 * shine;
         state.blockOpacity = Math.min(1, p / 0.25);
-        state.glow = 24 * shine * scale;
-        state.glowColor = '#C084FC';
-        state.brightness = 1 + 0.35 * shine;
         break;
       }
     }
@@ -270,8 +256,8 @@ export class VideoRenderer {
 
     const isEnhanced = config && (config.enhanceQuality || config.enhanceVideoQuality) || (video.classList && video.classList.contains('video-enhanced'));
     if (isEnhanced) {
-      // 100% GPU-accelerated shader filters (+30% Vibrance, +15% Contrast/Edge Sharpness, -10% Shadows)
-      ctx.filter = 'contrast(115%) saturate(130%) brightness(96%)';
+      // Matches CSS: contrast(1.18) saturate(1.28) brightness(1.02)
+      ctx.filter = 'contrast(1.18) saturate(1.28) brightness(1.02)';
     } else {
       ctx.filter = 'none';
     }
@@ -294,7 +280,7 @@ export class VideoRenderer {
 
     if (!sentences || sentences.length === 0) return;
 
-    // 3. Find active sentence with micro-gap tolerance (matching live preview)
+    // 3. Find active sentence strictly matching timeline (no backwards jumping to old segments)
     let currentSentence = sentences.find(s => {
       const sStart = Number(s.start ?? s.startTime ?? 0);
       const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
@@ -302,11 +288,19 @@ export class VideoRenderer {
     });
 
     if (!currentSentence && sentences.length > 0) {
-      currentSentence = sentences.find(s => {
+      for (let i = sentences.length - 1; i >= 0; i--) {
+        const s = sentences[i];
         const sStart = Number(s.start ?? s.startTime ?? 0);
         const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-        return curTime >= sStart && curTime <= (sEnd + 1.2);
-      });
+        if (curTime >= sStart && curTime <= (sEnd + 0.35)) {
+          const nextS = sentences[i + 1];
+          const nextStart = nextS ? Number(nextS.start ?? nextS.startTime ?? Infinity) : Infinity;
+          if (curTime < nextStart) {
+            currentSentence = s;
+            break;
+          }
+        }
+      }
     }
 
     if (!currentSentence) return;
@@ -483,10 +477,9 @@ export class VideoRenderer {
       resolvedAnimId = AUTO_ANIMATION_SEQUENCE[segCount % AUTO_ANIMATION_SEQUENCE.length];
     }
 
-    const chunkStartTime = Number(displayWords[0]?.start ?? displayWords[0]?.startTime ?? (currentSentence.start ?? currentSentence.startTime ?? 0));
-    const elapsed = Math.max(0, curTime - chunkStartTime);
-
-    const animState = this.getAnimationFrameState(resolvedAnimId, elapsed, scale);
+    const segStartTime = Number(currentSentence.start ?? currentSentence.startTime ?? 0);
+    const animElapsed = Math.max(0, curTime - segStartTime);
+    const animState = this.getAnimationFrameState(resolvedAnimId, animElapsed, scale);
 
     const maxLineWidth = Math.max(...lines.map(l => l.width), 10);
     const blockCenterX = (textAlign === 'center')
@@ -496,9 +489,7 @@ export class VideoRenderer {
 
     ctx.save();
     ctx.globalAlpha = Math.max(0, Math.min(1.0, animState.blockOpacity));
-    if (animState.blur > 0 || animState.brightness !== 1) {
-      ctx.filter = `blur(${animState.blur.toFixed(2)}px) brightness(${animState.brightness.toFixed(2)})`;
-    }
+    ctx.filter = 'none';
 
     // Apply block entrance animation transform
     ctx.translate(blockCenterX + animState.blockOffsetX, blockCenterY + animState.blockOffsetY);
@@ -519,7 +510,7 @@ export class VideoRenderer {
       ctx.clip();
     }
 
-    // 12. Render caption lines on Layer 2 with preview-matching glow and shimmer effects
+    // 12. Render caption lines on Layer 2 matching preview exactly (zero blurry exposure glows)
     lines.forEach((line, lineIdx) => {
       const lineY = startBlockY + lineIdx * lineHeight;
       let startX = posX;
@@ -547,15 +538,9 @@ export class VideoRenderer {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        const speakingPulse = (resolvedAnimId === 'anim-karaoke-glow' && w.isSpeaking)
-          ? (0.5 + 0.5 * Math.sin(curTime * Math.PI * 5))
-          : 0;
-        const karaokeGlow = speakingPulse > 0 ? (8 + 12 * speakingPulse) * scale : 0;
-        const wordGlow = Math.max(animState.glow || 0, karaokeGlow);
-        const glowColor = animState.glowColor || w.color;
-
-        ctx.shadowColor = wordGlow > 0 ? glowColor : 'transparent';
-        ctx.shadowBlur = wordGlow;
+        // 100% Crisp strokes matching preview (zero shadow exposure halos)
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
 
@@ -576,25 +561,8 @@ export class VideoRenderer {
         ctx.miterLimit = 2;
         ctx.strokeText(w.word, 0, 0);
 
-        if (animState.shine > 0.12) {
-          const band = animState.shimmerX ?? 0.5;
-          const grad = ctx.createLinearGradient(-w.rawWidth / 2, 0, w.rawWidth / 2, 0);
-          const a = Math.max(0, band - 0.22);
-          const b = Math.max(0, band - 0.04);
-          const c = Math.min(1, band + 0.08);
-          const d = Math.min(1, band + 0.24);
-          grad.addColorStop(0, w.color);
-          grad.addColorStop(a, w.color);
-          grad.addColorStop(b, '#FFFFFF');
-          grad.addColorStop(c, '#FFE6FF');
-          grad.addColorStop(d, w.color);
-          grad.addColorStop(1, w.color);
-          ctx.fillStyle = grad;
-          ctx.fillText(w.word, 0, 0);
-        } else {
-          ctx.fillStyle = w.color;
-          ctx.fillText(w.word, 0, 0);
-        }
+        ctx.fillStyle = w.color;
+        ctx.fillText(w.word, 0, 0);
 
         ctx.restore();
 
@@ -629,20 +597,21 @@ export class VideoRenderer {
     if (behindSegments.length === 0 || !selfieSegmenterService.isReady()) return;
 
     const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const sampleStep = isMobile ? 0.5 : 0.33;
-    const maxSamples = isMobile ? 50 : 80;
+    const sampleStep = isMobile ? 0.20 : 0.12;
     const samples = [];
     const seen = new Set();
 
     behindSegments.forEach((seg) => {
-      for (let t = seg.start; t <= seg.end + 0.001; t += sampleStep) {
-        const sample = Math.min(seg.end, Math.round(t * 100) / 100);
+      const padStart = Math.max(0, seg.start - 0.05);
+      const padEnd = seg.end + 0.10;
+      for (let t = padStart; t <= padEnd + 0.001; t += sampleStep) {
+        const sample = Math.round(t * 100) / 100;
         if (!seen.has(sample)) {
           seen.add(sample);
           samples.push(sample);
         }
       }
-      const endSample = Math.round(seg.end * 100) / 100;
+      const endSample = Math.round(padEnd * 100) / 100;
       if (!seen.has(endSample)) {
         seen.add(endSample);
         samples.push(endSample);
@@ -650,16 +619,13 @@ export class VideoRenderer {
     });
 
     samples.sort((a, b) => a - b);
-    const stride = samples.length > maxSamples ? Math.ceil(samples.length / maxSamples) : 1;
-    const selectedSamples = samples.filter((_, idx) => idx % stride === 0);
     const cache = [];
-    const cacheMaxSide = isMobile ? 540 : 720;
 
-    for (let i = 0; i < selectedSamples.length; i++) {
-      const t = selectedSamples[i];
+    for (let i = 0; i < samples.length; i++) {
+      const t = samples[i];
       try {
         await this.seekVideoTo(videoElement, t);
-        const canvas = await selfieSegmenterService.captureCutoutFrame(videoElement, width, height, enhanceQuality, cacheMaxSide);
+        const canvas = await selfieSegmenterService.captureCutoutFrame(videoElement, width, height, enhanceQuality);
         if (canvas) {
           cache.push({ time: t, canvas });
         }
@@ -667,8 +633,9 @@ export class VideoRenderer {
         console.warn('Export cutout cache frame skipped:', err.message);
       }
 
-      if (onProgress && selectedSamples.length > 0) {
-        onProgress(Math.min(12, Math.round(((i + 1) / selectedSamples.length) * 12)));
+      if (onProgress && samples.length > 0) {
+        const prebakePercent = Math.min(15, Math.max(1, Math.round(((i + 1) / samples.length) * 15)));
+        onProgress(prebakePercent);
       }
     }
 
@@ -841,7 +808,9 @@ export class VideoRenderer {
         }
 
         const curTime = videoElement.currentTime;
-        const progress = Math.min(100, Math.round((curTime / duration) * 100));
+        const baseOffset = hasBehindCaptions ? 15 : 0;
+        const scaleFactor = hasBehindCaptions ? 0.85 : 1.0;
+        const progress = Math.min(100, Math.round(baseOffset + (curTime / duration) * (100 * scaleFactor)));
         if (onProgress) onProgress(progress);
 
         // Render frame with 100% preview-matching caption styles
@@ -878,7 +847,12 @@ export class VideoRenderer {
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
     video.crossOrigin = 'anonymous';
+    video.muted = false;
+    video.volume = 1.0;
     video.classList.toggle('video-enhanced', !!enhanceQuality);
+    video.style.cssText = 'position:fixed;top:0;left:0;width:160px;height:90px;opacity:0.001;pointer-events:none;z-index:-99999;';
+    document.body.appendChild(video);
+
     const videoUrl = URL.createObjectURL(videoBlob);
     video.src = videoUrl;
 
@@ -926,6 +900,7 @@ export class VideoRenderer {
       return exportedBlob;
     } finally {
       URL.revokeObjectURL(videoUrl);
+      video.pause();
       video.remove();
     }
   }

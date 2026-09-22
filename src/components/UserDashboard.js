@@ -259,6 +259,175 @@ export class UserDashboard {
     }
   }
 
+  async checkQuotaBeforeAction() {
+    await this.loadQuotaData();
+    const { dailyLimit, dailyUsed, monthlyLimit, monthlyUsed } = this.quotaInfo;
+    if (dailyUsed >= dailyLimit || monthlyUsed >= monthlyLimit) {
+      this.showQuotaExceededModal();
+      return false;
+    }
+    return true;
+  }
+
+  showQuotaExceededModal() {
+    const existing = document.getElementById('user-quota-exceeded-modal');
+    if (existing) existing.remove();
+
+    soundFx.playKeyBeep?.(320);
+
+    const { planName, dailyLimit, dailyUsed, monthlyLimit, monthlyUsed, isGuest } = this.quotaInfo;
+    const modalBackdrop = document.createElement('div');
+    modalBackdrop.id = 'user-quota-exceeded-modal';
+    modalBackdrop.className = 'quota-modal-backdrop is-open';
+    modalBackdrop.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: rgba(12, 12, 14, 0.72);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: modalFadeIn 0.2s ease-out;
+    `;
+
+    modalBackdrop.innerHTML = `
+      <div class="quota-modal-card" style="
+        background: #ffffff;
+        border-radius: 20px;
+        max-width: 480px;
+        width: 100%;
+        padding: 32px 28px;
+        text-align: center;
+        box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.35);
+        position: relative;
+        font-family: inherit;
+        animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      ">
+        <button id="btn-close-quota-modal" style="
+          position: absolute;
+          top: 16px;
+          right: 18px;
+          background: none;
+          border: none;
+          font-size: 20px;
+          line-height: 1;
+          color: #94a3b8;
+          cursor: pointer;
+          padding: 6px;
+          border-radius: 50%;
+          transition: all 0.15s ease;
+        ">✕</button>
+
+        <div style="
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          background: #fef2f2;
+          border: 2px solid #fee2e2;
+          color: #ef4444;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 28px;
+          margin: 0 auto 16px auto;
+        ">⚡</div>
+
+        <div style="
+          display: inline-block;
+          background: #fee2e2;
+          color: #991b1b;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          padding: 4px 12px;
+          border-radius: 20px;
+          margin-bottom: 10px;
+        ">Daily Limit Reached</div>
+
+        <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin: 0 0 10px 0;">
+          Generation Quota Exceeded
+        </h2>
+
+        <p style="font-size: 13.5px; color: #64748b; line-height: 1.5; margin: 0 0 20px 0;">
+          You have reached your daily generation limit of <strong style="color: #0f172a;">${dailyLimit} / ${dailyLimit} videos</strong> on the <strong style="color: var(--primary-coral);">${planName}</strong> plan.
+        </p>
+
+        <!-- Usage progress bar -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-bottom: 22px; text-align: left;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px;">
+            <span>Daily Generations</span>
+            <span style="color: #ef4444; font-weight: 800;">${dailyUsed} / ${dailyLimit} Used (100%)</span>
+          </div>
+          <div style="height: 8px; background: #e2e8f0; border-radius: 6px; overflow: hidden;">
+            <div style="height: 100%; width: 100%; background: #ef4444; border-radius: 6px;"></div>
+          </div>
+          <p style="font-size: 11px; color: #94a3b8; margin: 8px 0 0 0;">
+            💡 Quotas reset every 24 hours at 00:00 UTC.
+          </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button id="btn-modal-view-quota" class="btn btn-primary" style="
+            width: 100%;
+            height: 44px;
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+          ">
+            <span>📊</span>
+            <span>View My Plan &amp; Quota</span>
+          </button>
+
+          <button id="btn-modal-request-upgrade" class="btn btn-outline" style="
+            width: 100%;
+            height: 40px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--primary-coral);
+            border-color: var(--primary-coral);
+            cursor: pointer;
+          ">
+            ⚡ Request Higher Limit Plan
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modalBackdrop);
+
+    const closeModal = () => {
+      modalBackdrop.remove();
+    };
+
+    modalBackdrop.querySelector('#btn-close-quota-modal')?.addEventListener('click', closeModal);
+    modalBackdrop.addEventListener('click', (e) => {
+      if (e.target === modalBackdrop) closeModal();
+    });
+
+    modalBackdrop.querySelector('#btn-modal-view-quota')?.addEventListener('click', () => {
+      closeModal();
+      this.switchTab('quota');
+    });
+
+    modalBackdrop.querySelector('#btn-modal-request-upgrade')?.addEventListener('click', () => {
+      closeModal();
+      this.switchTab('quota');
+      setTimeout(() => {
+        const upgradeBtn = this.container?.querySelector('#btn-quota-upgrade');
+        if (upgradeBtn) upgradeBtn.click();
+      }, 100);
+    });
+  }
+
   render(parentElement) {
     this.container = document.createElement('div');
     this.container.className = 'user-dashboard-layout';
@@ -686,6 +855,8 @@ export class UserDashboard {
 
     if (!this.videoBlob) {
       // DROPZONE / VIDEO PICKER VIEW
+      const isQuotaFull = this.quotaInfo && (this.quotaInfo.dailyUsed >= this.quotaInfo.dailyLimit || this.quotaInfo.monthlyUsed >= this.quotaInfo.monthlyLimit);
+
       wrap.innerHTML = `
         <div class="user-tab-header">
           <div>
@@ -700,10 +871,22 @@ export class UserDashboard {
           </button>
         </div>
 
-        <div class="upload-card" id="user-drop-zone" style="max-width: 800px; margin: 20px auto; background: #ffffff; border: 2px dashed #cbd5e1; border-radius: var(--radius-xl); padding: 48px 32px; text-align: center;">
+        ${isQuotaFull ? `
+          <div class="quota-warning-banner" id="quota-warning-banner" style="max-width: 800px; margin: 0 auto 16px auto; background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 12px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; color: #991b1b; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.08);">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 20px;">⚡</span>
+              <span><strong>Daily Quota Limit Reached (${this.quotaInfo.dailyUsed}/${this.quotaInfo.dailyLimit}):</strong> Upgrade your plan or view quota to unlock more generations.</span>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" id="btn-banner-view-quota" style="border-color: #dc2626; color: #dc2626; padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 8px; flex-shrink: 0; background: #fff; cursor: pointer;">
+              📊 View Quota
+            </button>
+          </div>
+        ` : ''}
+
+        <div class="upload-card" id="user-drop-zone" style="max-width: 800px; margin: 20px auto; background: #ffffff; border: 2px dashed ${isQuotaFull ? '#fca5a5' : '#cbd5e1'}; border-radius: var(--radius-xl); padding: 48px 32px; text-align: center; cursor: pointer;">
           <input type="file" id="user-file-input" accept="video/*,video/mp4,video/quicktime,video/webm" style="display: none;">
           
-          <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--primary-coral-light); color: var(--primary-coral); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto;">
+          <div style="width: 64px; height: 64px; border-radius: 50%; background: ${isQuotaFull ? '#fef2f2' : 'var(--primary-coral-light)'}; color: ${isQuotaFull ? '#ef4444' : 'var(--primary-coral)'}; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto;">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
               <polyline points="17 8 12 3 7 8"></polyline>
@@ -792,8 +975,19 @@ export class UserDashboard {
 
       // Event Listeners for Dropzone
       const fileInput = wrap.querySelector('#user-file-input');
-      wrap.querySelector('#btn-user-browse-file')?.addEventListener('click', () => {
+
+      wrap.querySelector('#btn-banner-view-quota')?.addEventListener('click', () => {
+        this.switchTab('quota');
+      });
+
+      wrap.querySelector('#btn-user-browse-file')?.addEventListener('click', async (e) => {
         soundFx.playKeyBeep(520);
+        const isAllowed = await this.checkQuotaBeforeAction();
+        if (!isAllowed) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         fileInput.click();
       });
 
@@ -832,6 +1026,8 @@ export class UserDashboard {
 
       fileInput?.addEventListener('change', async (e) => {
         if (e.target.files && e.target.files[0]) {
+          const isAllowed = await this.checkQuotaBeforeAction();
+          if (!isAllowed) return;
           await this.handleVideoFile(e.target.files[0]);
         }
       });
@@ -849,12 +1045,14 @@ export class UserDashboard {
         ['dragleave', 'drop'].forEach(name => {
           dropZone.addEventListener(name, (e) => {
             e.preventDefault();
-            dropZone.style.borderColor = '#cbd5e1';
+            dropZone.style.borderColor = isQuotaFull ? '#fca5a5' : '#cbd5e1';
             dropZone.style.background = '#ffffff';
           });
         });
         dropZone.addEventListener('drop', async (e) => {
           if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            const isAllowed = await this.checkQuotaBeforeAction();
+            if (!isAllowed) return;
             await this.handleVideoFile(e.dataTransfer.files[0]);
           }
         });
@@ -988,6 +1186,9 @@ export class UserDashboard {
   // PROCESSING & TRANSCRIBING FLOW (20% to 100% Loader with Cancel)
   // ==========================================================================
   async handleDemoVideoLoad() {
+    const isAllowed = await this.checkQuotaBeforeAction();
+    if (!isAllowed) return;
+
     soundFx.playProcessStart();
     this.isProcessing = true;
     this.processingCancelled = false;
@@ -1038,6 +1239,9 @@ export class UserDashboard {
 
   async handleVideoFile(file) {
     if (!file) return;
+
+    const isAllowed = await this.checkQuotaBeforeAction();
+    if (!isAllowed) return;
 
     const fileSizeMB = file.size / (1024 * 1024);
     if (fileSizeMB > APP_CONFIG.MAX_FILE_SIZE_MB) {
@@ -1219,6 +1423,9 @@ export class UserDashboard {
       enhanceToggle.addEventListener('change', (e) => {
         this.enhanceVideoQuality = e.target.checked;
         this.videoElement.classList.toggle('video-enhanced', this.enhanceVideoQuality);
+        if (this.cutoutCanvas) {
+          this.cutoutCanvas.classList.toggle('video-enhanced', this.enhanceVideoQuality);
+        }
         soundFx.playEnhanceToggle(this.enhanceVideoQuality);
         this.showToast(this.enhanceVideoQuality ? '✨ Video Enhancement Enabled (+30% Vibrance & Contrast)' : 'Video Enhancement Disabled', 'info');
       });
@@ -1295,20 +1502,27 @@ export class UserDashboard {
     const time = this.videoElement.currentTime || 0;
     const sentences = captionEngine.sentences || [];
 
-    // 1. Find active sentence by start/end or startTime/endTime
+    // 1. Find active sentence strictly matching timeline (no backwards jumping to old segments)
     let currentSentence = sentences.find(s => {
-      const sStart = s.start ?? s.startTime ?? 0;
-      const sEnd = s.end ?? s.endTime ?? (sStart + 2.5);
+      const sStart = Number(s.start ?? s.startTime ?? 0);
+      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
       return time >= sStart && time <= sEnd;
     });
 
-    // 2. Micro-gap tolerance: linger previous sentence up to 1.2s so captions don't blink out between speech pauses
     if (!currentSentence && sentences.length > 0) {
-      currentSentence = sentences.find(s => {
-        const sStart = s.start ?? s.startTime ?? 0;
-        const sEnd = s.end ?? s.endTime ?? (sStart + 2.5);
-        return time >= sStart && time <= (sEnd + 1.2);
-      });
+      for (let i = sentences.length - 1; i >= 0; i--) {
+        const s = sentences[i];
+        const sStart = Number(s.start ?? s.startTime ?? 0);
+        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+        if (time >= sStart && time <= (sEnd + 0.35)) {
+          const nextS = sentences[i + 1];
+          const nextStart = nextS ? Number(nextS.start ?? nextS.startTime ?? Infinity) : Infinity;
+          if (time < nextStart) {
+            currentSentence = s;
+            break;
+          }
+        }
+      }
     }
 
     if (!currentSentence) {
@@ -1906,11 +2120,19 @@ export class UserDashboard {
     });
 
     if (!currentSentence && sentences.length > 0) {
-      currentSentence = sentences.find(s => {
+      for (let i = sentences.length - 1; i >= 0; i--) {
+        const s = sentences[i];
         const sStart = Number(s.start ?? s.startTime ?? 0);
         const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-        return time >= sStart && time <= (sEnd + 1.2);
-      });
+        if (time >= sStart && time <= (sEnd + 0.35)) {
+          const nextS = sentences[i + 1];
+          const nextStart = nextS ? Number(nextS.start ?? nextS.startTime ?? Infinity) : Infinity;
+          if (time < nextStart) {
+            currentSentence = s;
+            break;
+          }
+        }
+      }
     }
 
     if (currentSentence && currentSentence.behind && selfieSegmenterService.isReady()) {
@@ -1966,13 +2188,26 @@ export class UserDashboard {
       });
       selfieSegmenterService.resetCache();
 
-      // 4. Restore video playback state
+      // 4. Pre-bake all behind segments for 60 FPS zero-lag playback on mobile & desktop
+      if (btn) {
+        btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;">⏳</span> Pre-baking cutouts...`;
+      }
+      await selfieSegmenterService.prebakeCutoutsForSegments(this.videoElement, sentences, (pct, msg) => {
+        if (btn) {
+          btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;">⏳</span> ${msg}`;
+        }
+      });
+
+      // 5. Restore video playback state
       this.videoElement.currentTime = savedTime;
       if (wasPlaying) {
         await this.videoElement.play().catch(() => {});
       }
 
-      // 5. Update UI, overlay, and render cutout for active frame
+      // 6. Update UI, overlay, and render cutout for active frame
+      if (this.cutoutCanvas) {
+        this.cutoutCanvas.classList.toggle('video-enhanced', !!this.enhanceVideoQuality);
+      }
       this.lastRenderedSentenceKey = null;
       this.updateCaptionOverlay();
       this.renderCutoutIfActiveBehind();
@@ -1980,7 +2215,7 @@ export class UserDashboard {
       this.startRotoscopingLoop();
 
       soundFx.playSaveSuccess();
-      this.showToast(`✨ Processed! ${behindCount} segment(s) will render behind the person/object.`, 'success');
+      this.showToast(`✨ Pre-rendered! ${behindCount} segment(s) will render behind the person with 60 FPS smoothness.`, 'success');
     } catch (err) {
       console.error('Process Behind error:', err);
       this.showToast('Rotoscoping initialization failed: ' + err.message, 'error');
@@ -2324,10 +2559,12 @@ export class UserDashboard {
           <div style="margin-bottom: 22px;">
             <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; margin-bottom: 8px;">
               <span style="color: #334155;">Daily Generations</span>
-              <span style="color: var(--primary-coral);">${dailyUsed} / ${dailyLimit} used</span>
+              <span style="color: ${dailyUsed >= dailyLimit ? '#ef4444' : 'var(--primary-coral)'}; font-weight: 800;">
+                ${dailyUsed} / ${dailyLimit} used ${dailyUsed >= dailyLimit ? '(Limit Reached)' : ''}
+              </span>
             </div>
             <div style="height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
-              <div style="width: ${dailyPct}%; height: 100%; background: var(--primary-coral); border-radius: 4px;"></div>
+              <div style="width: ${dailyPct}%; height: 100%; background: ${dailyUsed >= dailyLimit ? '#ef4444' : 'var(--primary-coral)'}; border-radius: 4px;"></div>
             </div>
           </div>
 
@@ -2335,10 +2572,12 @@ export class UserDashboard {
           <div style="margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; margin-bottom: 8px;">
               <span style="color: #334155;">Monthly Generations</span>
-              <span style="color: #6366f1;">${monthlyUsed} / ${monthlyLimit} used</span>
+              <span style="color: ${monthlyUsed >= monthlyLimit ? '#ef4444' : '#6366f1'}; font-weight: 800;">
+                ${monthlyUsed} / ${monthlyLimit} used ${monthlyUsed >= monthlyLimit ? '(Limit Reached)' : ''}
+              </span>
             </div>
             <div style="height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
-              <div style="width: ${monthlyPct}%; height: 100%; background: #6366f1; border-radius: 4px;"></div>
+              <div style="width: ${monthlyPct}%; height: 100%; background: ${monthlyUsed >= monthlyLimit ? '#ef4444' : '#6366f1'}; border-radius: 4px;"></div>
             </div>
           </div>
 

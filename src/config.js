@@ -41,14 +41,14 @@ export const CAPTION_POSITIONS = [
   { id: 'bottom-right', label: 'Bottom Right', x: '94%', y: '82%', align: 'right', transform: 'translate(-100%, -50%)' }
 ];
 
-// 6-Animation Auto Cycle Sequence (Cycles 1 to 6 on every segment)
+// 6-Animation Auto Cycle Sequence (Crisp Kinetic Transforms matching preview 1:1)
 export const AUTO_ANIMATION_SEQUENCE = [
-  'anim-zoom-impact',     // 1- Zoom impact
-  'anim-neon-shimmer',    // 2- Neon Shimmer Sweep
+  'anim-pop',             // 1- Pop Scale Bounce
+  'anim-zoom-impact',     // 2- Zoom impact
   'anim-bounce-drop',     // 3- Kinetic Bounce Drop
-  'anim-fire-flare',      // 4- Solar Flare Pulse
-  'anim-pop',             // 5- Pop Scale Bounce
-  'anim-cinematic-drift'  // 6- Cinematic Drift
+  'anim-cinematic-drift', // 4- Cinematic Drift
+  'anim-3d-tilt',         // 5- 3D Tilt & Spring
+  'anim-elastic-snap'     // 6- Elastic Snap
 ];
 
 // Caption Animation Styles (Including Auto Mode Cycle)
