@@ -819,30 +819,649 @@ NEW_SEO_TOPICS_20.forEach((blog) => {
   SEEDED_BLOGS.push(blog);
 });
 
+// 20 additional high-intent SEO blog articles
+// Built around current video SEO signals: searchable titles, spoken/on-screen keyword alignment,
+// transcripts, platform-safe caption placement, and format-specific subtitle workflows.
+const MORE_SEO_TOPICS_20 = [
+  {
+    title: 'YouTube Shorts SEO Captions: Rank Higher with Searchable On-Screen Text',
+    slug: 'youtube-shorts-seo-captions-rank-higher-searchable-text',
+    excerpt: 'Learn how searchable captions, accurate transcripts, keyword-led titles, and burned-in on-screen text help YouTube Shorts rank in search and suggested feeds.',
+    keywords: 'youtube shorts seo captions, youtube shorts subtitle generator, searchable shorts captions, shorts transcript seo, rank youtube shorts',
+    meta_title: 'YouTube Shorts SEO Captions: Rank Higher with Searchable Text',
+    meta_desc: 'Use searchable captions, transcripts, titles, and on-screen text to improve YouTube Shorts SEO. Practical 2026 guide for creators using Zen Caption.',
+    featured_image: 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?auto=format&fit=crop&w=1200&q=80',
+    content: `# YouTube Shorts SEO Captions: Rank Higher with Searchable On-Screen Text
+
+YouTube Shorts discovery is no longer only about the swipe feed. Shorts can appear in YouTube search, Google results, and video carousels when the title, description, spoken content, and visible captions clearly match a real search query.
+
+## The Shorts SEO Caption Stack
+1. **Keyword-Led Title**: Use the phrase a viewer would actually search, such as "how to add captions to Shorts" or "best captions for real estate reels".
+2. **Accurate Spoken Transcript**: Say the topic clearly in the video. YouTube can understand the audio and match it to search intent.
+3. **Burned-In On-Screen Text**: Add readable captions that repeat the core idea naturally, not as keyword stuffing.
+4. **Short Description Support**: Open with the target topic in plain language, then add 1 to 3 relevant hashtags.
+
+## Caption Formula for Searchable Shorts
+Keep caption chunks short: 2 to 4 words per line. Highlight the noun or action word that matches search intent, such as "SUBTITLES", "SHORTS SEO", "CAPTION TOOL", or "WATCH TIME".
+
+## Why Zen Caption Helps
+Zen Caption generates readable burned-in captions and exports clean videos without forcing a watermark. That gives your Shorts both search clarity and a polished visual hook.`
+  },
+  {
+    title: 'Instagram Reels SEO: Captions, Keywords, Alt Text, and On-Screen Words',
+    slug: 'instagram-reels-seo-captions-keywords-alt-text-on-screen-words',
+    excerpt: 'A practical Instagram Reels SEO guide for using caption keywords, spoken words, alt text, and visible subtitles without making your content look spammy.',
+    keywords: 'instagram reels seo, reels captions seo, instagram reel subtitle generator, reels keywords on screen, instagram alt text reels',
+    meta_title: 'Instagram Reels SEO: Captions, Keywords & On-Screen Text',
+    meta_desc: 'Optimize Instagram Reels with caption keywords, spoken topics, alt text, and burned-in subtitles. Improve search discovery while keeping videos clean.',
+    featured_image: 'https://images.unsplash.com/photo-1611162618071-b39a2ec055fb?auto=format&fit=crop&w=1200&q=80',
+    content: `# Instagram Reels SEO: Captions, Keywords, Alt Text, and On-Screen Words
+
+Instagram search has become more language-driven. Reels perform better when the topic is clear across multiple signals: what you say, what you write in the caption, what appears on screen, and how the post is described.
+
+## Reels SEO Checklist
+1. **Say the Main Topic Out Loud**: If the Reel teaches "how to caption videos free", include that phrase naturally in the first few seconds.
+2. **Use Captions as Search Clues**: Burned-in text helps viewers and platform systems understand the subject quickly.
+3. **Write a Useful First Line**: Put the primary keyword in the first sentence of the post caption.
+4. **Add Accurate Alt Text**: Describe the video topic and visual context in plain words.
+5. **Avoid Hashtag Dumping**: Use a small set of relevant tags instead of a wall of generic tags.
+
+## Best Caption Placement for Reels
+Keep subtitles away from the bottom UI and right-side action buttons. Middle-safe placement around 40% to 60% from the top is easiest to read on mobile.
+
+## Best Workflow
+Generate captions in Zen Caption, choose a readable high-contrast style, export without a watermark, then upload with a matching title-style caption and alt text.`
+  },
+  {
+    title: 'TikTok Search SEO: Use Captions and On-Screen Keywords Without Stuffing',
+    slug: 'tiktok-search-seo-captions-on-screen-keywords-without-stuffing',
+    excerpt: 'Use TikTok captions, spoken keywords, and visible on-screen text to make videos easier to discover in TikTok Search while keeping your content natural.',
+    keywords: 'tiktok search seo, tiktok captions keywords, tiktok subtitle generator, tiktok on screen text seo, tiktok search optimization',
+    meta_title: 'TikTok Search SEO: Captions & On-Screen Keywords Guide',
+    meta_desc: 'Improve TikTok Search visibility with natural spoken keywords, readable captions, and on-screen text. A practical guide for creators and brands.',
+    featured_image: 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=1200&q=80',
+    content: `# TikTok Search SEO: Use Captions and On-Screen Keywords Without Stuffing
+
+TikTok users now search for tutorials, product reviews, local recommendations, and creator advice directly inside the app. That means your video needs clear topic signals, not random hashtag overload.
+
+## The TikTok SEO Signal Map
+- **Spoken Words**: Say the search phrase naturally in the hook.
+- **Burned-In Captions**: Put the core topic on screen in readable words.
+- **Post Caption**: Write one plain-language sentence that describes the video.
+- **Relevant Hashtags**: Use a few specific hashtags that match the video, not generic viral tags.
+
+## Example
+Weak: "You need this tool!"
+
+Strong: "This free caption generator adds TikTok subtitles without a watermark."
+
+The second version helps viewers and TikTok understand exactly what the clip is about.
+
+## Caption Style Tip
+Use bold, high-contrast words for the searched concept: "FREE CAPTIONS", "NO WATERMARK", "TIKTOK SEO", or "AUTO SUBTITLES". Zen Caption lets you create that style without opening a desktop editor.`
+  },
+  {
+    title: 'Free SRT and VTT Subtitle Generator: Export Captions for YouTube, Courses, and Websites',
+    slug: 'free-srt-vtt-subtitle-generator-youtube-courses-websites',
+    excerpt: 'Create SRT and VTT subtitle files for YouTube uploads, online courses, websites, and accessibility workflows using a free browser-based caption generator.',
+    keywords: 'free srt generator, vtt subtitle generator, export srt from video, youtube subtitle file, webvtt captions free',
+    meta_title: 'Free SRT & VTT Subtitle Generator for YouTube and Websites',
+    meta_desc: 'Generate SRT and VTT subtitle files from video for YouTube, courses, websites, and accessibility. Free browser-based caption workflow.',
+    featured_image: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1200&q=80',
+    content: `# Free SRT and VTT Subtitle Generator: Export Captions for YouTube, Courses, and Websites
+
+Burned-in captions are ideal for social feeds, but many platforms also need subtitle files. SRT and VTT files make videos searchable, accessible, and easier to reuse across websites, LMS platforms, and YouTube.
+
+## When to Use SRT
+Use SRT for YouTube uploads, Facebook video subtitles, LinkedIn captions, and general closed-caption workflows. It is simple, widely supported, and easy to edit.
+
+## When to Use VTT
+Use VTT for websites and HTML5 video players. WebVTT supports modern browser playback and is the standard choice for web-native captions.
+
+## Best Practices
+1. Keep each caption line short and readable.
+2. Align timestamps to speech, not sentence punctuation.
+3. Review names, product terms, and brand phrases manually.
+4. Export both burned-in video and subtitle files when you want maximum reach.
+
+Zen Caption lets creators generate captions, edit timing, export SRT or VTT, and burn styled open captions into the final MP4.`
+  },
+  {
+    title: 'iPhone MOV Subtitle Generator: Add Captions to Apple Videos Without Installing Apps',
+    slug: 'iphone-mov-subtitle-generator-add-captions-without-app',
+    excerpt: 'Add captions to iPhone MOV videos directly in your browser. Learn format tips for HEVC, Safari, mobile uploads, and watermark-free social exports.',
+    keywords: 'iphone mov subtitle generator, add captions to iphone video, mov captions online, iphone video caption tool, hevc subtitles free',
+    meta_title: 'iPhone MOV Subtitle Generator: Add Captions Without Apps',
+    meta_desc: 'Caption iPhone MOV and HEVC videos online without installing apps. Learn browser tips for clean subtitles, social exports, and no watermark output.',
+    featured_image: 'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?auto=format&fit=crop&w=1200&q=80',
+    content: `# iPhone MOV Subtitle Generator: Add Captions to Apple Videos Without Installing Apps
+
+iPhones record beautiful vertical video, but MOV and HEVC files can be awkward inside older web tools. A modern browser-based caption workflow should open the file, preserve the aspect ratio, and export captions without forcing a mobile app install.
+
+## iPhone Caption Workflow
+1. Record in vertical 9:16 if the clip is for TikTok, Reels, or Shorts.
+2. Upload the MOV file to Zen Caption from Safari, Chrome, or desktop.
+3. Generate captions and review proper nouns or location names.
+4. Keep text in the center-safe zone so it does not collide with social UI.
+5. Export a clean captioned video for posting.
+
+## Common MOV Problems
+- HEVC files may be slower to decode on older devices.
+- Very large 4K videos can use significant memory.
+- Screen-recorded audio can require manual review.
+
+For fastest results, trim long clips first and export short social-ready segments.`
+  },
+  {
+    title: 'No Watermark Caption Generator for Mobile: Add Subtitles on iPhone and Android',
+    slug: 'no-watermark-caption-generator-mobile-iphone-android',
+    excerpt: 'Create clean captioned videos on iPhone and Android without watermarks, app installs, or cloud upload delays using a mobile browser workflow.',
+    keywords: 'no watermark caption generator mobile, iphone caption generator no watermark, android subtitle generator, free mobile caption tool, add subtitles mobile free',
+    meta_title: 'No Watermark Caption Generator for iPhone and Android',
+    meta_desc: 'Add subtitles to mobile videos without watermarks or app installs. Free browser workflow for iPhone, Android, Reels, TikTok, and Shorts.',
+    featured_image: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=1200&q=80',
+    content: `# No Watermark Caption Generator for Mobile: Add Subtitles on iPhone and Android
+
+Mobile creators need speed. If a caption tool requires an app install, a login wall, or a paid export just to remove a watermark, the workflow breaks.
+
+## What Mobile Creators Need
+- Fast browser upload from Photos or Files.
+- Automatic speech-to-text captions.
+- Large readable subtitle presets.
+- 9:16 safe-zone positioning.
+- Clean export with no forced logo.
+
+## Best Mobile Caption Settings
+Use bold fonts, strong outlines, and short lines. Mobile viewers read quickly, but tiny text gets ignored. A 2 to 4 word caption chunk is usually easier to follow than a full sentence.
+
+## Why No Watermark Matters
+Watermarks make videos look recycled and can reduce brand trust. For ads, real estate listings, coaching clips, and local business content, clean captions feel more professional and are easier to reuse across every platform.`
+  },
+  {
+    title: 'Video SEO Checklist: Captions, Transcripts, Structured Data, and Thumbnails',
+    slug: 'video-seo-checklist-captions-transcripts-structured-data-thumbnails',
+    excerpt: 'A complete video SEO checklist covering captions, transcripts, unique titles, descriptions, thumbnails, VideoObject schema, and indexable watch pages.',
+    keywords: 'video seo checklist, video transcripts seo, video structured data, videoobject schema captions, google video seo',
+    meta_title: 'Video SEO Checklist: Captions, Transcripts & Structured Data',
+    meta_desc: 'Optimize videos for Google with captions, transcripts, unique titles, descriptions, thumbnails, VideoObject schema, and indexable watch pages.',
+    featured_image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80',
+    content: `# Video SEO Checklist: Captions, Transcripts, Structured Data, and Thumbnails
+
+Search engines need clear signals to understand a video. Captions and transcripts provide the words, while structured data and thumbnails help search systems display the video correctly.
+
+## Technical Video SEO Checklist
+1. **Indexable Watch Page**: Make sure the page can be crawled and is not blocked by robots rules.
+2. **Unique Title and Description**: Write metadata that describes the specific video, not the whole website.
+3. **Accessible Thumbnail**: Use a stable image URL that search crawlers can fetch.
+4. **Transcript or Captions**: Include the words spoken in the video so the page has indexable topic depth.
+5. **VideoObject Schema**: Add structured data when hosting videos on your own site.
+6. **Key Moments**: Use timestamps or clips when the video has chapters.
+
+## Caption SEO Tip
+Do not stuff keywords into subtitles. Use natural spoken language, then make sure the caption text accurately reflects the video. Helpful, specific captions beat spammy repetition every time.`
+  },
+  {
+    title: 'Best Caption Safe Zones for TikTok, Reels, Shorts, and LinkedIn Video',
+    slug: 'best-caption-safe-zones-tiktok-reels-shorts-linkedin-video',
+    excerpt: 'Place captions where people can actually read them. Learn safe zones for TikTok, Instagram Reels, YouTube Shorts, LinkedIn, and mobile ads.',
+    keywords: 'caption safe zones, tiktok safe zone captions, reels subtitle placement, youtube shorts caption placement, video caption layout',
+    meta_title: 'Best Caption Safe Zones for TikTok, Reels, Shorts & LinkedIn',
+    meta_desc: 'Learn where to place captions for TikTok, Instagram Reels, YouTube Shorts, LinkedIn, and mobile ads so text stays readable and clickable UI stays clear.',
+    featured_image: 'https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?auto=format&fit=crop&w=1200&q=80',
+    content: `# Best Caption Safe Zones for TikTok, Reels, Shorts, and LinkedIn Video
+
+Great captions can still fail if they sit under social app buttons, profile names, descriptions, or progress bars. Caption placement is a conversion detail, not just a design detail.
+
+## Vertical Video Safe Zone
+For 9:16 videos, place main captions near the middle of the frame, usually between 40% and 60% from the top. This keeps text away from bottom captions, music labels, comments, and right-side interaction buttons.
+
+## Platform Notes
+- **TikTok**: Avoid the right edge and lower caption area.
+- **Instagram Reels**: Keep important text away from bottom metadata and right action buttons.
+- **YouTube Shorts**: Avoid the title and channel area near the bottom.
+- **LinkedIn**: Use slightly more conservative typography because many viewers watch on desktop.
+
+## Zen Caption Workflow
+Use drag positioning and apply the same safe placement across all caption segments. Then preview the full clip before export.`
+  },
+  {
+    title: 'Hardcode Subtitles Into MP4: Burn Captions Permanently for Social Media',
+    slug: 'hardcode-subtitles-into-mp4-burn-captions-social-media',
+    excerpt: 'Learn when to hardcode subtitles into MP4 videos, why burned-in captions outperform optional captions on social feeds, and how to export clean video.',
+    keywords: 'hardcode subtitles into mp4, burn captions into video, permanent subtitles mp4, burned in captions online, open captions generator',
+    meta_title: 'Hardcode Subtitles Into MP4: Burn Captions for Social Media',
+    meta_desc: 'Burn permanent subtitles into MP4 videos for TikTok, Reels, Shorts, ads, and course clips. Learn open caption best practices and export tips.',
+    featured_image: 'https://images.unsplash.com/photo-1533750349088-cd871a92f312?auto=format&fit=crop&w=1200&q=80',
+    content: `# Hardcode Subtitles Into MP4: Burn Captions Permanently for Social Media
+
+Hardcoded subtitles, also called burned-in captions or open captions, are permanently rendered into the video frames. Unlike closed captions, viewers see them immediately without toggling anything.
+
+## When Hardcoded Captions Are Best
+- TikTok, Instagram Reels, and YouTube Shorts.
+- Paid social video ads.
+- Product demos and UGC ads.
+- Podcast clips posted across multiple platforms.
+- Videos where typography and brand colors matter.
+
+## Export Quality Rules
+Use high contrast, crisp outlines, and avoid tiny text. Export in the same aspect ratio you plan to upload: 9:16 for vertical social, 1:1 for square feed posts, and 16:9 for YouTube or website embeds.
+
+Zen Caption burns subtitles directly into MP4-style social exports so your video keeps its caption styling everywhere it is shared.`
+  },
+  {
+    title: 'Podcast Clips to Reels: Turn Long Interviews into Captioned Short Videos',
+    slug: 'podcast-clips-to-reels-captioned-short-videos',
+    excerpt: 'Repurpose podcasts and interviews into captioned Reels, TikToks, and Shorts with readable subtitles, hook-first editing, and viral clip packaging.',
+    keywords: 'podcast clips to reels, podcast caption generator, interview clips subtitles, repurpose podcast shorts, captioned podcast clips',
+    meta_title: 'Podcast Clips to Reels: Captioned Short Video Workflow',
+    meta_desc: 'Turn long podcasts and interviews into captioned Reels, TikToks, and Shorts with hook-first editing, subtitles, and clean social exports.',
+    featured_image: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=1200&q=80',
+    content: `# Podcast Clips to Reels: Turn Long Interviews into Captioned Short Videos
+
+The easiest way to grow a podcast is to turn the strongest moments into short vertical clips. Captions make those clips understandable in silent feeds and help viewers decide whether to watch the full episode.
+
+## Clip Selection Formula
+Choose moments with a clear opinion, story, mistake, transformation, or specific lesson. Avoid clips that require too much setup.
+
+## Caption Packaging
+Use 2 to 4 word chunks and highlight the key phrase. For example, a clip about pricing can highlight "RAISE YOUR RATES" or "CLIENT TRUST".
+
+## Posting Workflow
+1. Cut a 20 to 60 second clip.
+2. Upload it to Zen Caption.
+3. Generate subtitles and fix speaker names or niche terms.
+4. Export vertical video for Reels, TikTok, and Shorts.
+5. Use the first caption line as inspiration for the post title.`
+  },
+  {
+    title: 'Real Estate Video Caption Generator: Listing Reels, Open Houses, and Property Tours',
+    slug: 'real-estate-video-caption-generator-listing-reels-open-houses',
+    excerpt: 'Create polished real estate captions for listing videos, walkthroughs, open houses, and realtor Reels that stay readable on mobile feeds.',
+    keywords: 'real estate video caption generator, realtor reels captions, property tour subtitles, listing video captions, open house reels captions',
+    meta_title: 'Real Estate Video Caption Generator for Listing Reels',
+    meta_desc: 'Add captions to real estate listing videos, property tours, open houses, and realtor Reels. Mobile-safe subtitle tips for agents and brokerages.',
+    featured_image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80',
+    content: `# Real Estate Video Caption Generator: Listing Reels, Open Houses, and Property Tours
+
+Real estate videos need immediate clarity. Viewers should understand the location, price range, standout feature, and call-to-action even when the video is muted.
+
+## Caption Ideas for Realtors
+- "3 BEDROOM TOWNHOME"
+- "WALK TO DOWNTOWN"
+- "OPEN HOUSE SATURDAY"
+- "NEW LISTING"
+- "PRIVATE BACKYARD"
+
+## Best Caption Style
+Use elegant, high-contrast typography with clean outlines. Avoid chaotic animations that make luxury listings feel cheap. For first-time buyer content, a brighter social style can work well.
+
+## SEO Benefit
+Captioned real estate videos give platforms more context about neighborhoods, property types, and buyer intent. Pair spoken location phrases with on-screen captions and a post description that names the city or community.`
+  },
+  {
+    title: 'Local Business Video Captions: Get More Leads from Service Reels and Ads',
+    slug: 'local-business-video-captions-service-reels-ads-leads',
+    excerpt: 'Use captions on local business videos for salons, dentists, contractors, gyms, restaurants, and service ads to improve clarity and lead generation.',
+    keywords: 'local business video captions, service business reels captions, captions for local ads, small business video subtitles, lead generation video captions',
+    meta_title: 'Local Business Video Captions for Service Reels and Ads',
+    meta_desc: 'Add readable captions to local business Reels, TikToks, Shorts, and ads. Improve lead generation for salons, dentists, gyms, restaurants, and services.',
+    featured_image: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80',
+    content: `# Local Business Video Captions: Get More Leads from Service Reels and Ads
+
+Local business videos must explain the offer fast. A viewer should know what you do, where you serve, and why they should contact you before they even turn sound on.
+
+## High-Converting Caption Formula
+1. Problem: "TIRED OF BACK PAIN?"
+2. Service: "SPORTS MASSAGE IN DALLAS"
+3. Proof: "500+ HAPPY CLIENTS"
+4. CTA: "BOOK THIS WEEK"
+
+## Best Businesses for Captioned Video
+Captioned Reels and ads work especially well for dentists, med spas, gyms, salons, roofers, restaurants, photographers, coaches, and real estate agents.
+
+## SEO Tip
+Say and show the service plus city name. A caption like "BEST BARBER IN AUSTIN" is clearer than "look at this transformation". Specific local language helps both viewers and platform search.`
+  },
+  {
+    title: 'Course Video Subtitle Generator: Captions for Coaches, Educators, and LMS Lessons',
+    slug: 'course-video-subtitle-generator-coaches-educators-lms-lessons',
+    excerpt: 'Generate captions for course videos, coaching lessons, training modules, and LMS uploads with clean SRT/VTT files and burned-in subtitles.',
+    keywords: 'course video subtitle generator, coaching video captions, lms subtitles, training video captions, online course caption tool',
+    meta_title: 'Course Video Subtitle Generator for Coaches and Educators',
+    meta_desc: 'Caption course videos, coaching lessons, LMS modules, and training videos. Export SRT, VTT, and burned-in subtitles with a free browser workflow.',
+    featured_image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80',
+    content: `# Course Video Subtitle Generator: Captions for Coaches, Educators, and LMS Lessons
+
+Course creators need captions for comprehension, accessibility, and repurposing. A lesson recorded once can become an LMS module, a YouTube tutorial, and multiple short-form clips when the subtitles are accurate.
+
+## Caption Workflow for Courses
+1. Upload the lesson clip.
+2. Generate the transcript.
+3. Correct terminology, names, and acronyms.
+4. Export SRT or VTT for the course platform.
+5. Burn captions into short teaser clips for social media.
+
+## Formatting Rules
+Use longer caption durations than social videos. Students need time to read technical explanations, formulas, code terms, or framework names.
+
+## Repurposing Tip
+Turn lesson highlights into captioned Shorts. Use the same transcript to create searchable blog summaries, lesson notes, and email newsletters.`
+  },
+  {
+    title: 'Product Demo Caption Generator: SaaS, Apps, and UGC Ads with Clear Subtitles',
+    slug: 'product-demo-caption-generator-saas-apps-ugc-ads',
+    excerpt: 'Add captions to SaaS demos, app walkthroughs, product explainers, and UGC ads so viewers understand the offer without sound.',
+    keywords: 'product demo caption generator, saas video subtitles, app demo captions, ugc ad captions, product explainer subtitles',
+    meta_title: 'Product Demo Caption Generator for SaaS, Apps and UGC Ads',
+    meta_desc: 'Caption SaaS demos, app walkthroughs, product explainers, and UGC ads. Improve clarity, retention, and conversion with readable subtitles.',
+    featured_image: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?auto=format&fit=crop&w=1200&q=80',
+    content: `# Product Demo Caption Generator: SaaS, Apps, and UGC Ads with Clear Subtitles
+
+Product demos often fail because viewers miss the explanation. Captions solve that by making the value proposition readable while the screen recording or product footage plays.
+
+## Demo Caption Structure
+- Hook: "SAVE 5 HOURS A WEEK"
+- Feature: "AUTO-GENERATE REPORTS"
+- Proof: "USED BY 2,000 TEAMS"
+- CTA: "TRY IT FREE"
+
+## Best Style
+For SaaS and app demos, use quiet, clean typography. Keep captions away from UI buttons in the recording so the viewer can inspect the product.
+
+## UGC Ads
+For user-generated ads, use more energetic captions with highlighted benefit words. Make the pain point and transformation obvious in the first 3 seconds.`
+  },
+  {
+    title: 'Faceless Video Caption Generator: Make Searchable TikToks, Reels, and Shorts',
+    slug: 'faceless-video-caption-generator-searchable-tiktoks-reels-shorts',
+    excerpt: 'Create faceless videos with searchable captions, voiceover subtitles, bold hook text, and clean exports for TikTok, Reels, and YouTube Shorts.',
+    keywords: 'faceless video caption generator, faceless tiktok captions, faceless reels subtitles, voiceover captions, searchable faceless shorts',
+    meta_title: 'Faceless Video Caption Generator for TikTok, Reels and Shorts',
+    meta_desc: 'Make faceless TikToks, Reels, and Shorts with searchable captions, voiceover subtitles, hook text, and clean no-watermark exports.',
+    featured_image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80',
+    content: `# Faceless Video Caption Generator: Make Searchable TikToks, Reels, and Shorts
+
+Faceless videos depend on text clarity. Without a face on screen, captions, voiceover, stock footage, and pacing carry the entire message.
+
+## Best Faceless Caption Formats
+1. **Narration Captions**: Word-by-word subtitles synced to a voiceover.
+2. **List Captions**: Numbered points for tutorials and facts.
+3. **Story Captions**: Short phrases that reveal the next beat.
+4. **Search Captions**: Topic-first text like "HOW TO EDIT REELS FASTER".
+
+## Growth Tip
+Choose one searchable niche per video. A faceless finance clip, language lesson, productivity tip, or history story should all have clear topic words in the caption and title.
+
+Zen Caption helps faceless channels create clean, readable subtitles without manually keyframing text in editing software.`
+  },
+  {
+    title: 'AI Caption Generator for Ads: Improve Hook Rate, Watch Time, and Conversions',
+    slug: 'ai-caption-generator-for-ads-hook-rate-watch-time-conversions',
+    excerpt: 'Use AI-generated captions in video ads to improve hook rate, message clarity, silent-feed performance, and conversion rates across Meta, TikTok, and YouTube.',
+    keywords: 'ai caption generator for ads, video ad captions, hook rate captions, tiktok ad subtitles, meta ads captions',
+    meta_title: 'AI Caption Generator for Ads: Hook Rate and Conversion Guide',
+    meta_desc: 'Improve video ad hook rate, watch time, and conversions with AI-generated captions for Meta, TikTok, YouTube, and UGC campaigns.',
+    featured_image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80',
+    content: `# AI Caption Generator for Ads: Improve Hook Rate, Watch Time, and Conversions
+
+A video ad has seconds to earn attention. Captions make the offer visible before a viewer unmutes, which is critical for mobile placements where sound often starts off.
+
+## Ad Caption Framework
+1. **Problem Hook**: Make the pain visible immediately.
+2. **Specific Outcome**: Highlight the measurable result.
+3. **Proof Phrase**: Show credibility with a review, count, or before/after.
+4. **CTA Text**: Tell viewers what to do next.
+
+## Design Rules
+Use large text, short phrases, and high contrast. Do not cover the product, face, or demonstration area. For paid ads, clarity beats decorative styling.
+
+## Testing Tip
+Export 3 caption variations with different hook wording. Test the same video with different first-line captions to find the best hold rate and click-through rate.`
+  },
+  {
+    title: 'Subtitle Font Size Guide: Make Captions Readable on Phones, Tablets, and Desktop',
+    slug: 'subtitle-font-size-guide-readable-phones-tablets-desktop',
+    excerpt: 'Choose better subtitle font sizes for vertical video, desktop playback, course lessons, ads, and social clips so captions stay readable everywhere.',
+    keywords: 'subtitle font size guide, caption font size, readable video captions, mobile subtitle size, social media caption typography',
+    meta_title: 'Subtitle Font Size Guide for Mobile, Tablet and Desktop Video',
+    meta_desc: 'Learn the best subtitle font sizes for vertical video, ads, courses, and desktop playback. Make captions readable on every screen.',
+    featured_image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',
+    content: `# Subtitle Font Size Guide: Make Captions Readable on Phones, Tablets, and Desktop
+
+Subtitle font size is one of the biggest reasons captioned videos fail. Text that looks fine on a desktop editor can become unreadable on a phone feed.
+
+## Practical Size Rules
+- **9:16 Social Video**: Use large captions with 2 to 4 words per line.
+- **Course Videos**: Use moderate subtitle size and longer display time.
+- **Product Demos**: Keep text smaller if it would cover important UI.
+- **Ads**: Use bold hook text early, then smaller support captions.
+
+## Styling Matters
+Font size alone is not enough. Add a strong outline, shadow, or subtle background contrast so text remains readable over bright footage, white shirts, and outdoor scenes.
+
+Zen Caption presets are designed for mobile-first readability while still exporting cleanly for desktop playback.`
+  },
+  {
+    title: 'Caption Timing Guide: Fix Early, Late, and Out-of-Sync Video Subtitles',
+    slug: 'caption-timing-guide-fix-out-of-sync-video-subtitles',
+    excerpt: 'Learn how to fix early, late, drifting, and out-of-sync subtitles with better segment timing, word grouping, and speech-aligned caption edits.',
+    keywords: 'fix out of sync subtitles, caption timing guide, subtitles too early, subtitles too late, sync captions with audio',
+    meta_title: 'Caption Timing Guide: Fix Out-of-Sync Video Subtitles',
+    meta_desc: 'Fix early, late, drifting, and out-of-sync captions with speech-aligned timing, segment edits, and better word grouping for social videos.',
+    featured_image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
+    content: `# Caption Timing Guide: Fix Early, Late, and Out-of-Sync Video Subtitles
+
+Captions must feel attached to the voice. If subtitles appear too early, too late, or drift across the clip, viewers notice immediately.
+
+## Common Timing Problems
+- Captions start before the speaker begins.
+- Lines stay on screen after the phrase has ended.
+- Long sentences get split into awkward fragments.
+- Edited clips keep old timestamps after trimming.
+
+## Timing Fixes
+1. Set each segment start near the first syllable.
+2. End each segment shortly after the last spoken word.
+3. Split long sentences into natural phrases.
+4. Keep important words visible long enough to read.
+5. Preview at normal playback speed, not only frame-by-frame.
+
+Zen Caption includes editable caption segments so creators can fine-tune timestamps before exporting the final burned-in video.`
+  },
+  {
+    title: 'Accessible Video Captions: Improve Inclusion, Comprehension, and SEO',
+    slug: 'accessible-video-captions-inclusion-comprehension-seo',
+    excerpt: 'Create accessible video captions that support deaf and hard-of-hearing viewers, ESL audiences, noisy environments, and better search indexing.',
+    keywords: 'accessible video captions, accessibility subtitles, deaf hard of hearing captions, captions improve comprehension, video accessibility seo',
+    meta_title: 'Accessible Video Captions: Inclusion, Comprehension and SEO',
+    meta_desc: 'Create accessible captions for deaf and hard-of-hearing viewers, ESL audiences, noisy spaces, and search indexing. Practical subtitle guide.',
+    featured_image: 'https://images.unsplash.com/photo-1573497491208-6b1acb260507?auto=format&fit=crop&w=1200&q=80',
+    content: `# Accessible Video Captions: Improve Inclusion, Comprehension, and SEO
+
+Captions are not only a growth tactic. They make content usable for people who are deaf or hard of hearing, viewers in noisy places, and audiences watching in a second language.
+
+## Accessibility Caption Principles
+1. Match the spoken words accurately.
+2. Keep timing aligned with the speaker.
+3. Use readable contrast and font size.
+4. Avoid covering important visual information.
+5. Include important non-speech context when needed.
+
+## SEO Benefit
+Captions and transcripts add meaningful language to video pages. Search engines and platform systems can understand the topic more clearly when the spoken content is represented as text.
+
+## Social Benefit
+Accessible captions keep more viewers engaged, especially in silent mobile feeds. Better comprehension usually leads to better retention.`
+  },
+  {
+    title: 'Free Caption Generator for LinkedIn Videos: Professional Subtitles for B2B Content',
+    slug: 'free-caption-generator-linkedin-videos-professional-b2b-subtitles',
+    excerpt: 'Add professional captions to LinkedIn videos, founder posts, webinars, recruiting clips, and B2B demos so busy viewers understand the message.',
+    keywords: 'linkedin video captions, linkedin subtitle generator, b2b video captions, professional video subtitles, founder video captions',
+    meta_title: 'Free Caption Generator for LinkedIn Videos and B2B Content',
+    meta_desc: 'Create professional subtitles for LinkedIn videos, founder posts, webinars, recruiting clips, and B2B demos with a free caption generator.',
+    featured_image: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80',
+    content: `# Free Caption Generator for LinkedIn Videos: Professional Subtitles for B2B Content
+
+LinkedIn viewers often watch between meetings, during work breaks, or with sound muted. Professional captions help your message land quickly without feeling like a loud TikTok edit.
+
+## LinkedIn Caption Style
+Use clean typography, restrained colors, and clear sentence structure. Avoid overly chaotic effects for executive, recruiting, webinar, or product content.
+
+## Best LinkedIn Video Types for Captions
+- Founder thought leadership.
+- Product walkthroughs.
+- Customer testimonials.
+- Hiring and employer brand clips.
+- Webinar highlights.
+- Case study summaries.
+
+## SEO and Discovery Tip
+Use the same topic phrase in the spoken hook, burned-in caption, post text, and document title if you attach a carousel. Consistent wording helps people and platforms understand the post.`
+  },
+  {
+    title: 'How to Turn Webinars into Captioned Shorts, Reels, and LinkedIn Clips',
+    slug: 'turn-webinars-into-captioned-shorts-reels-linkedin-clips',
+    excerpt: 'Repurpose webinars into short captioned clips for YouTube Shorts, Instagram Reels, TikTok, and LinkedIn with a searchable transcript workflow.',
+    keywords: 'webinar to shorts, webinar captions, repurpose webinar clips, captioned webinar highlights, webinar subtitle generator',
+    meta_title: 'Turn Webinars into Captioned Shorts, Reels and LinkedIn Clips',
+    meta_desc: 'Repurpose webinars into captioned clips for Shorts, Reels, TikTok, and LinkedIn using transcripts, hooks, safe zones, and clean subtitle exports.',
+    featured_image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1200&q=80',
+    content: `# How to Turn Webinars into Captioned Shorts, Reels, and LinkedIn Clips
+
+A single webinar can become weeks of short-form content. The key is turning long explanations into focused, captioned moments that stand alone.
+
+## Repurposing Workflow
+1. Find clips that answer one specific question.
+2. Trim each clip to 20 to 60 seconds.
+3. Generate captions from the spoken audio.
+4. Highlight the core insight in the first line.
+5. Export vertical clips for social and square clips for LinkedIn.
+
+## Best Webinar Clip Types
+- Myths and mistakes.
+- Step-by-step frameworks.
+- Before-and-after case studies.
+- Strong audience questions.
+- Surprising statistics.
+
+Captions make webinar clips easier to understand and easier to search, especially when the speaker uses technical B2B language.`
+  },
+  {
+    title: 'Multilingual Subtitle SEO: Reach More Searchers with Translated Captions',
+    slug: 'multilingual-subtitle-seo-translated-captions-more-searchers',
+    excerpt: 'Use translated subtitles to reach multilingual audiences, improve comprehension, and create localized video content for global search demand.',
+    keywords: 'multilingual subtitle seo, translated captions, video translation subtitles, multilingual video captions, localized video seo',
+    meta_title: 'Multilingual Subtitle SEO: Translated Captions for Global Reach',
+    meta_desc: 'Use translated subtitles and localized captions to reach multilingual audiences, improve comprehension, and target global search demand.',
+    featured_image: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=1200&q=80',
+    content: `# Multilingual Subtitle SEO: Reach More Searchers with Translated Captions
+
+Translated captions help videos travel beyond one language market. They improve comprehension for international viewers and create localized text that can match more search queries.
+
+## When to Translate Captions
+- Tutorials with global demand.
+- Product demos for international customers.
+- Real estate and travel videos.
+- Education and course content.
+- Brand videos for multilingual communities.
+
+## Localization Tips
+Translate meaning, not just words. Keep idioms natural, adjust examples for the target audience, and review product names or locations carefully.
+
+## SEO Workflow
+Create the original transcript first, then translate captions into priority languages. Use localized titles and descriptions when uploading to platforms that support multiple language tracks.`
+  },
+  {
+    title: 'AI Subtitle Generator for Screen Recordings, Tutorials, and Software Demos',
+    slug: 'ai-subtitle-generator-screen-recordings-tutorials-software-demos',
+    excerpt: 'Caption screen recordings, tutorials, walkthroughs, coding videos, and software demos with readable subtitles that do not cover important UI.',
+    keywords: 'screen recording subtitle generator, tutorial video captions, software demo subtitles, coding video captions, walkthrough captions',
+    meta_title: 'AI Subtitle Generator for Screen Recordings and Tutorials',
+    meta_desc: 'Add captions to screen recordings, tutorials, coding videos, walkthroughs, and software demos without covering important UI details.',
+    featured_image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
+    content: `# AI Subtitle Generator for Screen Recordings, Tutorials, and Software Demos
+
+Screen recordings need captions that explain the steps without hiding the interface. If subtitles cover the button, code line, or setting being demonstrated, the tutorial becomes harder to follow.
+
+## Best Practices
+1. Place captions above or below the active UI area.
+2. Use smaller chunks for technical explanations.
+3. Review acronyms, commands, and product names.
+4. Keep text stable while the cursor moves.
+5. Export captions and SRT files for reuse in documentation.
+
+## Tutorial SEO Tip
+Use the same searchable phrase in the title, spoken introduction, caption text, and description. For example: "how to add subtitles to MP4" should appear naturally in each place.
+
+Zen Caption helps tutorials become clearer, more accessible, and easier to repurpose.`
+  },
+  {
+    title: 'Captioned UGC Ads: Make Creator Videos Clearer Before Viewers Turn Sound On',
+    slug: 'captioned-ugc-ads-creator-videos-clear-before-sound-on',
+    excerpt: 'Create captioned UGC ads that explain the product, hook silent viewers, highlight benefits, and improve mobile ad performance.',
+    keywords: 'captioned ugc ads, ugc video captions, creator ad subtitles, mobile ad captions, tiktok ugc captions',
+    meta_title: 'Captioned UGC Ads: Creator Video Subtitle Strategy',
+    meta_desc: 'Add captions to UGC ads so silent mobile viewers understand the hook, product, benefit, and CTA before turning sound on.',
+    featured_image: 'https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?auto=format&fit=crop&w=1200&q=80',
+    content: `# Captioned UGC Ads: Make Creator Videos Clearer Before Viewers Turn Sound On
+
+UGC ads work because they feel native, personal, and believable. Captions make that message understandable even when the ad starts muted.
+
+## UGC Caption Formula
+- First caption: State the problem.
+- Second caption: Name the product or mechanism.
+- Middle captions: Highlight the benefit.
+- Final caption: Show the offer or next step.
+
+## Design Rules
+Keep captions bold but not too polished. UGC should feel authentic, so use readable social typography rather than luxury editorial styling.
+
+## Testing Ideas
+Export versions with different first-line hooks:
+- "I stopped wasting money on..."
+- "This fixed my biggest problem with..."
+- "I wish I knew this before..."
+
+Small caption changes can produce major differences in thumb-stop rate.`
+  }
+];
+
+MORE_SEO_TOPICS_20.forEach((blog) => {
+  SEEDED_BLOGS.push(blog);
+});
+
 /**
- * Seed all 50 blogs into PostgreSQL database
+ * Seed blog articles into PostgreSQL database without changing existing slugs.
  */
 export async function seedBlogs() {
   const check = await query('SELECT count(*) FROM blogs');
   const count = parseInt(check.rows[0]?.count || '0');
+  let blogsToSeed = SEEDED_BLOGS;
+
   if (count >= 50) {
-    console.log(`[DB] 50 SEO blog articles already present in database (count: ${count}). Skipping seed.`);
-    return;
+    const newSlugs = MORE_SEO_TOPICS_20.map(blog => blog.slug);
+    const newCheck = await query('SELECT count(*) FROM blogs WHERE slug = ANY($1)', [newSlugs]);
+    const newCount = parseInt(newCheck.rows[0]?.count || '0');
+
+    if (newCount >= MORE_SEO_TOPICS_20.length) {
+      console.log(`[DB] Existing blogs unchanged; ${MORE_SEO_TOPICS_20.length} additional SEO blogs already present.`);
+      return;
+    }
+
+    blogsToSeed = MORE_SEO_TOPICS_20;
   }
 
-  console.log(`[DB] Seeding ${SEEDED_BLOGS.length} SEO-optimized blog articles (target: 50)...`);
+  console.log(`[DB] Seeding missing SEO-optimized blog articles (candidates: ${blogsToSeed.length}, current total: ${count})...`);
 
-  for (const blog of SEEDED_BLOGS) {
+  for (const blog of blogsToSeed) {
     await query(
       `INSERT INTO blogs (title, slug, excerpt, content, meta_title, meta_desc, keywords, featured_image, status, published_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
-       ON CONFLICT (slug) DO UPDATE 
-       SET title = EXCLUDED.title, excerpt = EXCLUDED.excerpt, content = EXCLUDED.content,
-           meta_title = EXCLUDED.meta_title, meta_desc = EXCLUDED.meta_desc, keywords = EXCLUDED.keywords`,
+       ON CONFLICT (slug) DO NOTHING`,
       [blog.title, blog.slug, blog.excerpt, blog.content, blog.meta_title, blog.meta_desc, blog.keywords, blog.featured_image, 'published']
     );
   }
 
-  console.log(`[DB] Successfully seeded ${SEEDED_BLOGS.length} blog articles into PostgreSQL!`);
+  console.log(`[DB] Seeded missing blog articles. Existing blog slugs were left unchanged.`);
 }
-
