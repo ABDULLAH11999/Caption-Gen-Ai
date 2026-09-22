@@ -258,19 +258,23 @@ apiRouter.post('/auth/signup', signupLimiter.middleware(), async (req, res) => {
     [cleanEmail, otpCode, 'signup', expiresAt]
   );
 
-  // Send professional themed OTP email asynchronously (non-blocking for lightning-fast UI response < 50ms)
+  // Send professional themed OTP email. If delivery fails, return a local fallback code
+  // so users can still finish signup instead of abandoning the site.
   const html = generateOtpEmailHtml({ name, otpCode });
-  sendEmail({
+  const emailResult = await sendEmail({
     to: cleanEmail,
     subject: `${otpCode} is your Zen Caption AI verification code`,
     html
-  }).catch(err => console.error('[Signup Email Error]:', err.message));
+  }).catch(err => ({ success: false, error: err.message }));
 
   res.json({
     success: true,
-    message: `Verification code sent to ${cleanEmail}`,
+    emailDelivered: !!emailResult?.success,
+    message: emailResult?.success
+      ? `Verification code sent to ${cleanEmail}`
+      : `Email delivery is temporarily unavailable. Use the code shown on this page to continue.`,
     email: cleanEmail,
-    devCode: otpCode
+    devCode: emailResult?.success ? undefined : otpCode
   });
 });
 
@@ -291,17 +295,20 @@ apiRouter.post('/auth/resend-otp', signupLimiter.middleware(), async (req, res) 
   );
 
   const html = generateOtpEmailHtml({ name: name || 'Creator', otpCode });
-  sendEmail({
+  const emailResult = await sendEmail({
     to: cleanEmail,
     subject: `${otpCode} is your Zen Caption AI verification code`,
     html
-  }).catch(err => console.error('[Resend OTP Error]:', err.message));
+  }).catch(err => ({ success: false, error: err.message }));
 
   return res.json({
     success: true,
-    message: `A new verification code has been sent to ${cleanEmail}`,
+    emailDelivered: !!emailResult?.success,
+    message: emailResult?.success
+      ? `A new verification code has been sent to ${cleanEmail}`
+      : `Email delivery is temporarily unavailable. Use the code shown on this page to continue.`,
     email: cleanEmail,
-    devCode: otpCode
+    devCode: emailResult?.success ? undefined : otpCode
   });
 });
 
@@ -328,17 +335,20 @@ apiRouter.post('/auth/forgot-password', signupLimiter.middleware(), async (req, 
   );
 
   const html = generateOtpEmailHtml({ name: userName, otpCode });
-  sendEmail({
+  const emailResult = await sendEmail({
     to: cleanEmail,
     subject: `${otpCode} is your password reset code`,
     html
-  }).catch(err => console.error('[Forgot Password Email Error]:', err.message));
+  }).catch(err => ({ success: false, error: err.message }));
 
   return res.json({
     success: true,
-    message: `A 6-digit password reset code has been sent to ${cleanEmail}`,
+    emailDelivered: !!emailResult?.success,
+    message: emailResult?.success
+      ? `A 6-digit password reset code has been sent to ${cleanEmail}`
+      : `Email delivery is temporarily unavailable. Use the code shown on this page to continue.`,
     email: cleanEmail,
-    devCode: otpCode
+    devCode: emailResult?.success ? undefined : otpCode
   });
 });
 

@@ -309,12 +309,16 @@ export class AuthModal {
         const res = await api.signup({ name, username, email, password });
         this.signupData = { name, username, email, password };
         const subheading = this.container.querySelector('#otp-subheading');
-        if (subheading) subheading.textContent = `We sent a 6-digit security code to ${email}`;
+        if (subheading) {
+          subheading.textContent = res.emailDelivered
+            ? `We sent a 6-digit security code to ${email}`
+            : `Email delivery failed, so we filled the backup code for you.`;
+        }
         this.switchView('otp');
         if (res && res.devCode) {
           const otpInput = this.container.querySelector('#otp-code-input');
           if (otpInput) otpInput.value = res.devCode;
-          this.showToast(`Verification code ready! (Code: ${res.devCode})`, 'success');
+          this.showToast(`Email failed, backup code filled automatically.`, 'info');
         } else {
           this.showToast('Verification code sent to your email!', 'info');
         }
@@ -341,7 +345,7 @@ export class AuthModal {
         if (res && res.devCode) {
           const otpInput = this.container.querySelector('#otp-code-input');
           if (otpInput) otpInput.value = res.devCode;
-          this.showToast(`New code ready! (Code: ${res.devCode})`, 'success');
+          this.showToast('Email failed, new backup code filled automatically.', 'info');
         } else {
           this.showToast('New verification code sent to your email!', 'info');
         }

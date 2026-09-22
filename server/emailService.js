@@ -232,17 +232,21 @@ function wrapEmailTemplate({ title, preheader, bodyContent }) {
  */
 export function generateOtpEmailHtml({ name, otpCode }) {
   const bodyContent = `
-    <span class="badge-pill">Verification Security</span>
-    <h1 class="main-heading">Confirm Your Account</h1>
+    <span class="badge-pill">Zen Caption Security</span>
+    <h1 class="main-heading">Verify Your Creator Account</h1>
     <p class="message-text">
       Hello <strong>${name || 'Creator'}</strong>,<br>
-      Welcome to <strong>Zen Caption AI</strong>! Please enter the 6-digit one-time verification code below to activate your account and access your creator dashboard.
+      Use the one-time code below to finish signing in to <strong>Zen Caption AI</strong>. Your captions, templates, exports, and account quota stay protected behind this verification step.
     </p>
 
     <div class="otp-card">
-      <div style="font-size: 12px; text-transform: uppercase; color: #a1a1aa; letter-spacing: 1px;">One-Time Security Passcode</div>
+      <div style="font-size: 12px; text-transform: uppercase; color: #a1a1aa; letter-spacing: 1px;">One-Time Verification Code</div>
       <div class="otp-code">${otpCode}</div>
-      <div style="font-size: 12px; color: #71717a;">Expires in 15 minutes &bull; Do not share this code</div>
+      <div style="font-size: 12px; color: #d4d4d8;">Expires in 15 minutes &bull; Do not share this code</div>
+    </div>
+
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:14px 16px;margin:22px 0;color:#9a3412;font-size:13px;line-height:1.55;">
+      Zen Caption AI will never ask for this code in chat, email replies, or support messages.
     </div>
 
     <p class="message-text" style="font-size: 13px; color: #9ca3af;">
@@ -389,7 +393,11 @@ export async function sendEmail({ to, subject, html }) {
     }
   }
 
-  // 3. Simulated Mock fallback for dev
-  console.log(`[EmailService Mock] Simulated delivery to "${recipients.join(', ')}" with subject "${subject}".`);
-  return { success: true, mock: true };
+  // 3. No provider delivered the message. Caller can decide whether to expose a local fallback code.
+  console.error(`[EmailService] No email provider delivered message to "${recipients.join(', ')}".`);
+  return {
+    success: false,
+    provider: 'none',
+    error: 'Email delivery failed. Configure a verified Resend sender/domain or valid SMTP credentials.'
+  };
 }
