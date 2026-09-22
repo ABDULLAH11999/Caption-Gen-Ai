@@ -1017,14 +1017,15 @@ export class UserDashboard {
   }
 
   updateProcessingProgress(percent, status) {
-    this.processingProgress = percent;
+    const nextPercent = Math.max(this.processingProgress || 0, Math.round(percent));
+    this.processingProgress = nextPercent;
     this.processingStatus = status;
     const txt = this.container.querySelector('#proc-status-text');
     const bar = this.container.querySelector('#proc-bar-inner');
     const pct = this.container.querySelector('#proc-percent-text');
     if (txt) txt.textContent = status;
-    if (bar) bar.style.width = `${percent}%`;
-    if (pct) pct.textContent = `${percent}%`;
+    if (bar) bar.style.width = `${nextPercent}%`;
+    if (pct) pct.textContent = `${nextPercent}%`;
   }
 
   cancelProcessing() {

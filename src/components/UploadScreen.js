@@ -634,10 +634,12 @@ export class UploadScreen {
 
     try {
       this.showToast('Analyzing video audio and recognizing spoken speech...', 'info');
+      let lastProgress = 10;
 
       const sentences = await speechTranscriber.transcribeAudio(blob, (p) => {
         if (msg) msg.textContent = p.message;
-        if (fill) fill.style.width = `${p.percent}%`;
+        lastProgress = Math.max(lastProgress, Math.round(Number(p.percent) || 0));
+        if (fill) fill.style.width = `${lastProgress}%`;
       });
 
       if (modal) modal.style.display = 'none';
