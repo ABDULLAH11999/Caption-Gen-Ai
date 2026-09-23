@@ -18,6 +18,13 @@ class SpeechTranscriberService {
     this.pipeline = null;
     this.pipelinePromise = null;
     this.modelId = 'Xenova/whisper-tiny';
+    // Detect Safari / iOS once at construction time
+    this._isSafari = typeof navigator !== 'undefined' &&
+      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    this._isIOS = typeof navigator !== 'undefined' &&
+      /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    this._isMobile = typeof navigator !== 'undefined' &&
+      /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent);
   }
 
   withTimeout(promise, ms, message) {
@@ -30,134 +37,159 @@ class SpeechTranscriberService {
   }
 
   getModelTimeoutMs() {
-    const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent);
-    return isMobile ? 240000 : 180000;
+    // iOS / Safari needs much longer — model download + WASM init is slower
+    if (this._isIOS) return 360000;   // 6 min
+    if (this._isSafari) return 300000; // 5 min
+    if (this._isMobile) return 240000; // 4 min
+    return 180000; // 3 min desktop
   }
 
   getInferenceTimeoutMs(duration) {
-    const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent);
-    const base = isMobile ? 240000 : 180000;
-    return Math.min(600000, Math.max(base, Math.ceil((duration || 30) * 6000)));
+    // iOS single-threaded WASM is ~4-6× slower than desktop Chrome
+    const multiplier = this._isIOS ? 12000 : this._isSafari ? 9000 : 6000;
+    const base = this._isIOS ? 360000 : this._isSafari ? 300000 : this._isMobile ? 240000 : 180000;
+    return Math.min(900000, Math.max(base, Math.ceil((duration || 30) * multiplier)));
   }
 
   /**
-   * Decodes an audio/video file Blob into raw PCM audio float array and audio buffer.
+   * Decodes an audio/video file Blob into raw PCM audio float array.
+   * Safari/iOS hardened: longer timeouts, OfflineAudioContext resampling,
+   * chunked arrayBuffer read with progress so UI never appears frozen.
    */
   async extractAudioData(fileBlob, onProgress = () => {}) {
     const duration = await this.getVideoDurationFromBlob(fileBlob);
     const targetSampleRate = 16000;
-    onProgress({ status: 'extracting', message: 'Decoding audio track...', percent: 22 });
+    onProgress({ status: 'extracting', message: 'Decoding audio track…', percent: 22 });
 
+    // iOS/Safari H.264 .mov can take 30-60 s to decode on older devices
+    const decodeTimeoutMs = this._isIOS ? 75000 : this._isSafari ? 45000 : 20000;
     let audioCtx = null;
 
     try {
       const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtxClass) throw new Error('AudioContext not supported');
 
+      // iOS: AudioContext must be created (and stays suspended) until a user
+      // gesture happens. We only call resume(); we do NOT await it here because
+      // we just need the context for decodeAudioData, which works while suspended.
       audioCtx = new AudioCtxClass();
       if (audioCtx.state === 'suspended') {
-        try { await audioCtx.resume(); } catch (_) {}
+        audioCtx.resume().catch(() => {}); // fire-and-forget; safe on iOS
       }
 
-      const arrayBuffer = await fileBlob.arrayBuffer();
+      // Read file as ArrayBuffer with a keepalive progress tick so the UI
+      // doesn't appear frozen on large files on slow iOS devices.
+      onProgress({ status: 'extracting', message: 'Reading audio data…', percent: 24 });
+      const arrayBuffer = await this._readBlobWithProgress(fileBlob, (pct) => {
+        onProgress({ status: 'extracting', message: 'Reading audio data…', percent: Math.round(24 + pct * 4) });
+      });
 
+      onProgress({ status: 'extracting', message: 'Decoding audio track…', percent: 28 });
+
+      // decodeAudioData: use Promise API when available (Safari 14.1+), else
+      // callback API. Both paths share the same timeout guard.
       const decodedBuffer = await new Promise((resolve, reject) => {
         let settled = false;
         const timer = setTimeout(() => {
-          if (!settled) {
-            settled = true;
-            reject(new Error('Audio decoding timed out'));
-          }
-        }, 15000);
+          if (!settled) { settled = true; reject(new Error('Audio decoding timed out')); }
+        }, decodeTimeoutMs);
+
+        const done = (buf, err) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          buf ? resolve(buf) : reject(err || new Error('Audio decode failure'));
+        };
 
         try {
-          const res = audioCtx.decodeAudioData(
+          // Modern Promise API (Safari 14.1+, Chrome, Firefox)
+          const maybePromise = audioCtx.decodeAudioData(
             arrayBuffer,
-            (buf) => {
-              if (!settled) {
-                settled = true;
-                clearTimeout(timer);
-                resolve(buf);
-              }
-            },
-            (err) => {
-              if (!settled) {
-                settled = true;
-                clearTimeout(timer);
-                reject(err || new Error('Audio decode failure'));
-              }
-            }
+            (buf) => done(buf, null),   // legacy callback — still fires on all browsers
+            (err) => done(null, err)
           );
-
-          if (res && typeof res.then === 'function') {
-            res.then(
-              (buf) => {
-                if (!settled) {
-                  settled = true;
-                  clearTimeout(timer);
-                  resolve(buf);
-                }
-              },
-              (err) => {
-                if (!settled) {
-                  settled = true;
-                  clearTimeout(timer);
-                  reject(err);
-                }
-              }
-            );
+          if (maybePromise && typeof maybePromise.then === 'function') {
+            maybePromise.then((buf) => done(buf, null), (err) => done(null, err));
           }
         } catch (e) {
-          if (!settled) {
-            settled = true;
-            clearTimeout(timer);
-            reject(e);
-          }
+          done(null, e);
         }
       });
 
-      // Mix down all channels to mono and resample to 16kHz
+      // Mix down to mono
       const numChannels = decodedBuffer.numberOfChannels || 1;
       const length = decodedBuffer.length;
       const monoData = new Float32Array(length);
       for (let c = 0; c < numChannels; c++) {
         const channelData = decodedBuffer.getChannelData(c);
-        for (let i = 0; i < length; i++) {
-          monoData[i] += channelData[i] / numChannels;
-        }
+        for (let i = 0; i < length; i++) monoData[i] += channelData[i] / numChannels;
       }
 
-      const rawPcm = this.resamplePcm(monoData, decodedBuffer.sampleRate, targetSampleRate);
-      if (!this.hasMeaningfulAudio(rawPcm)) {
-        throw new Error('Decoded audio track was silent');
-      }
+      onProgress({ status: 'extracting', message: 'Resampling audio to 16 kHz…', percent: 36 });
+
+      // Prefer OfflineAudioContext resampling (hardware-accelerated on iOS/Mac)
+      // over the JS linear-interpolation loop for large buffers.
+      const rawPcm = await this._resampleWithOfflineCtx(monoData, decodedBuffer.sampleRate, targetSampleRate)
+        .catch(() => this.resamplePcm(monoData, decodedBuffer.sampleRate, targetSampleRate));
+
+      if (!this.hasMeaningfulAudio(rawPcm)) throw new Error('Decoded audio track was silent');
 
       try { audioCtx.close(); } catch (_) {}
+      return { audioBuffer: decodedBuffer, rawPcm, sampleRate: targetSampleRate, duration: decodedBuffer.duration || duration };
 
-      return { 
-        audioBuffer: decodedBuffer, 
-        rawPcm, 
-        sampleRate: targetSampleRate, 
-        duration: decodedBuffer.duration || duration 
-      };
     } catch (err) {
-      console.warn('[speechTranscriber] Audio extraction fallback:', err.message);
+      console.warn('[speechTranscriber] Primary decode failed, trying media-element capture:', err.message);
       try { audioCtx?.close(); } catch (_) {}
 
       try {
-        onProgress({ status: 'extracting', message: 'Capturing video audio track...', percent: 28 });
+        onProgress({ status: 'extracting', message: 'Trying alternate audio capture…', percent: 28 });
         return await this.captureAudioFromMediaElement(fileBlob, duration, onProgress);
       } catch (captureErr) {
-        console.warn('[speechTranscriber] Media element audio capture failed:', captureErr.message);
+        console.warn('[speechTranscriber] Media element capture also failed:', captureErr.message);
       }
 
-      return {
-        audioBuffer: null,
-        rawPcm: null,
-        sampleRate: 16000,
-        duration
-      };
+      return { audioBuffer: null, rawPcm: null, sampleRate: 16000, duration };
     }
+  }
+
+  /**
+   * Reads a Blob as ArrayBuffer while emitting progress ticks (0-1).
+   * Prevents the UI from appearing frozen on slow iOS devices reading large files.
+   */
+  async _readBlobWithProgress(blob, onPct = () => {}) {
+    // FileReader fires progress events — use it so the browser stays responsive
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onprogress = (e) => { if (e.lengthComputable) onPct(e.loaded / e.total); };
+      reader.onload   = (e) => resolve(e.target.result);
+      reader.onerror  = ()  => reject(new Error('FileReader failed'));
+      reader.readAsArrayBuffer(blob);
+    });
+  }
+
+  /**
+   * Resamples a mono Float32Array to targetSampleRate using OfflineAudioContext.
+   * On iOS/Mac this is hardware-accelerated; falls back to JS loop on failure.
+   */
+  async _resampleWithOfflineCtx(monoData, sourceSampleRate, targetSampleRate) {
+    if (!sourceSampleRate || Math.abs(sourceSampleRate - targetSampleRate) < 1) {
+      return monoData instanceof Float32Array ? monoData : new Float32Array(monoData);
+    }
+    const outputLength = Math.round(monoData.length * (targetSampleRate / sourceSampleRate));
+    if (outputLength < 1) throw new Error('Output too short');
+
+    const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!OfflineCtx) throw new Error('OfflineAudioContext not available');
+
+    const offCtx = new OfflineCtx(1, outputLength, targetSampleRate);
+    const srcBuf = offCtx.createBuffer(1, monoData.length, sourceSampleRate);
+    srcBuf.getChannelData(0).set(monoData);
+    const src = offCtx.createBufferSource();
+    src.buffer = srcBuf;
+    src.connect(offCtx.destination);
+    src.start(0);
+    const rendered = await offCtx.startRendering();
+    return rendered.getChannelData(0);
   }
 
   mergeAudioChunks(chunks, totalLength) {
@@ -232,7 +264,12 @@ class SpeechTranscriberService {
     const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtxClass) throw new Error('AudioContext not supported');
 
+    // iOS: AudioContext must be constructed synchronously inside (or very close
+    // to) a user-gesture handler. We fire-and-forget resume() rather than
+    // awaiting it, which avoids a stall when the gesture has already passed.
     const audioCtx = new AudioCtxClass();
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+
     const video = document.createElement('video');
     const url = URL.createObjectURL(fileBlob);
     const chunks = [];
@@ -242,10 +279,11 @@ class SpeechTranscriberService {
     let source = null;
     let silentGain = null;
 
+    // Safari 17+ deprecated ScriptProcessor — use it but catch any errors gracefully
     const cleanup = async () => {
       clearInterval(progressTimer);
       try { video.pause(); } catch (_) {}
-      try { processor && (processor.onaudioprocess = null); } catch (_) {}
+      try { if (processor) processor.onaudioprocess = null; } catch (_) {}
       try { source?.disconnect(); } catch (_) {}
       try { processor?.disconnect(); } catch (_) {}
       try { silentGain?.disconnect(); } catch (_) {}
@@ -255,26 +293,28 @@ class SpeechTranscriberService {
     };
 
     try {
+      // iOS requires playsinline + muted for autoplay policy
       video.preload = 'auto';
       video.playsInline = true;
+      video.muted = true;            // start muted — iOS allows autoplay when muted
       video.setAttribute('playsinline', '');
       video.setAttribute('webkit-playsinline', '');
-      video.crossOrigin = 'anonymous';
+      // Do NOT set crossOrigin for local blob URLs — it can block iOS decode
       video.src = url;
-      video.style.position = 'fixed';
-      video.style.left = '-99999px';
-      video.style.width = '1px';
-      video.style.height = '1px';
-      video.style.opacity = '0';
+      video.style.cssText = 'position:fixed;left:-99999px;width:1px;height:1px;opacity:0;';
       document.body.appendChild(video);
 
       await this.waitForMediaReady(video);
-      if (audioCtx.state === 'suspended') {
-        try { await audioCtx.resume(); } catch (_) {}
-      }
+
+      // Re-check context state after media is ready (iOS may re-suspend it)
+      if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
 
       source = audioCtx.createMediaElementSource(video);
-      processor = audioCtx.createScriptProcessor(4096, 2, 1);
+
+      // ScriptProcessor is deprecated but still works everywhere. Use buffer size
+      // 4096 on desktop, 8192 on iOS to reduce onaudioprocess call frequency.
+      const bufSize = this._isIOS ? 8192 : 4096;
+      processor = audioCtx.createScriptProcessor(bufSize, 2, 1);
       silentGain = audioCtx.createGain();
       silentGain.gain.value = 0;
 
@@ -283,14 +323,10 @@ class SpeechTranscriberService {
         const frameCount = inputBuffer.length;
         const mixed = new Float32Array(frameCount);
         const channelCount = Math.max(1, inputBuffer.numberOfChannels || 1);
-
-        for (let channel = 0; channel < channelCount; channel++) {
-          const input = inputBuffer.getChannelData(channel);
-          for (let i = 0; i < frameCount; i++) {
-            mixed[i] += input[i] / channelCount;
-          }
+        for (let ch = 0; ch < channelCount; ch++) {
+          const input = inputBuffer.getChannelData(ch);
+          for (let i = 0; i < frameCount; i++) mixed[i] += input[i] / channelCount;
         }
-
         chunks.push(mixed);
         totalLength += frameCount;
       };
@@ -303,14 +339,16 @@ class SpeechTranscriberService {
         const ratio = duration > 0 ? Math.min(1, (video.currentTime || 0) / duration) : 0;
         onProgress({
           status: 'extracting',
-          message: 'Capturing video audio track...',
+          message: 'Capturing audio from video…',
           percent: Math.min(42, 28 + Math.round(ratio * 14))
         });
       }, 500);
 
+      // Timeout: duration + generous buffer for slow iOS hardware
+      const timeoutMs = Math.max(10000, Math.ceil((duration || 10) * 1100) + 6000);
+
       await new Promise((resolve, reject) => {
         let settled = false;
-        const timeoutMs = Math.min(20000, Math.max(8000, Math.ceil((duration || 10) * 1000) + 4000));
         const done = (ok, err) => {
           if (settled) return;
           settled = true;
@@ -320,40 +358,36 @@ class SpeechTranscriberService {
           ok ? resolve() : reject(err || new Error('Audio capture failed'));
         };
         const onEnded = () => done(true);
-        const onError = () => done(false, new Error('Video playback failed during audio capture'));
+        const onError = () => done(false, new Error('Video playback error during capture'));
         const timer = setTimeout(() => done(false, new Error('Audio capture timed out')), timeoutMs);
 
         video.addEventListener('ended', onEnded, { once: true });
         video.addEventListener('error', onError, { once: true });
 
         video.currentTime = 0;
+        // Keep muted=true: iOS allows autoplay when muted; ScriptProcessor still
+        // receives the audio data even when muted.
+        video.muted = true;
         video.volume = 1;
-        video.muted = false;
-        const playPromise = video.play();
-        if (playPromise && typeof playPromise.catch === 'function') {
-          playPromise.catch(async () => {
-            try {
-              video.muted = true;
-              await video.play();
-            } catch (playErr) {
-              done(false, playErr || new Error('Video playback was blocked'));
-            }
-          });
-        }
+
+        const tryPlay = () => {
+          const p = video.play();
+          if (p && typeof p.catch === 'function') {
+            p.catch((playErr) => done(false, playErr || new Error('Video play() blocked')));
+          }
+        };
+
+        // Small delay on iOS lets AudioContext settle after resume()
+        if (this._isIOS) setTimeout(tryPlay, 80); else tryPlay();
       });
 
       const captured = this.mergeAudioChunks(chunks, totalLength);
-      const rawPcm = this.resamplePcm(captured, audioCtx.sampleRate, 16000);
-      if (!this.hasMeaningfulAudio(rawPcm)) {
-        throw new Error('Captured audio was silent');
-      }
+      const rawPcm = await this._resampleWithOfflineCtx(captured, audioCtx.sampleRate, 16000)
+        .catch(() => this.resamplePcm(captured, audioCtx.sampleRate, 16000));
 
-      return {
-        audioBuffer: null,
-        rawPcm,
-        sampleRate: 16000,
-        duration: video.duration || duration
-      };
+      if (!this.hasMeaningfulAudio(rawPcm)) throw new Error('Captured audio was silent');
+
+      return { audioBuffer: null, rawPcm, sampleRate: 16000, duration: video.duration || duration };
     } finally {
       await cleanup();
     }
@@ -533,18 +567,36 @@ class SpeechTranscriberService {
           );
         }
 
-        onProgress({ status: 'transcribing', message: 'Transcribing spoken words with Whisper...', percent: 80 });
+        onProgress({ status: 'transcribing', message: 'Transcribing spoken words with Whisper…', percent: 80 });
 
-        const result = await this.withTimeout(
-          this.pipeline(rawPcm, {
-            return_timestamps: false,
-            chunk_length_s: 30,
-            stride_length_s: 5,
-            task: 'transcribe'
-          }),
-          this.getInferenceTimeoutMs(duration),
-          'Whisper transcription took too long'
-        );
+        // iOS/Safari: word-level timestamps add ~30% overhead on a single-threaded
+        // WASM runtime. Try 'word' first; if it throws fall back to chunk timestamps.
+        let result;
+        try {
+          result = await this.withTimeout(
+            this.pipeline(rawPcm, {
+              return_timestamps: 'word',
+              chunk_length_s: 30,
+              stride_length_s: 5,
+              task: 'transcribe'
+            }),
+            this.getInferenceTimeoutMs(duration),
+            'Whisper word-timestamp transcription took too long'
+          );
+        } catch (wordTsErr) {
+          console.warn('[speechTranscriber] Word timestamps failed, retrying with chunk timestamps:', wordTsErr.message);
+          onProgress({ status: 'transcribing', message: 'Retrying transcription…', percent: 82 });
+          result = await this.withTimeout(
+            this.pipeline(rawPcm, {
+              return_timestamps: true,   // chunk-level — faster, always supported
+              chunk_length_s: 30,
+              stride_length_s: 5,
+              task: 'transcribe'
+            }),
+            this.getInferenceTimeoutMs(duration),
+            'Whisper transcription took too long'
+          );
+        }
 
         if (result && result.text && result.text.trim()) {
           onProgress({ status: 'translating', message: 'Synchronizing English captions...', percent: 92 });
@@ -730,21 +782,106 @@ class SpeechTranscriberService {
   formatWhisperResultToSentences(whisperResult, totalDuration, speechSegments) {
     const rawText = this.normalizeTranscriptText(whisperResult.text);
     const words = this.extractWhisperWords(whisperResult);
-    const sourceWords = words.length > 0 ? words : rawText.split(/\s+/).filter(Boolean);
 
+    // Check whether Whisper returned real word-level timestamps
+    const hasRealTimestamps = words.length > 0 && typeof words[0] === 'object' &&
+      Number.isFinite(words[0].start) && Number.isFinite(words[0].end);
+
+    if (hasRealTimestamps) {
+      // Build captions directly from Whisper's own word timing — no VAD needed
+      return this.buildSentencesFromTimedWords(words, totalDuration);
+    }
+
+    // Fallback: plain string words → align against VAD speech energy segments
+    const sourceWords = words.length > 0 ? words : rawText.split(/\s+/).filter(Boolean);
     return this.buildVoiceAlignedSentences(sourceWords, totalDuration, speechSegments);
+  }
+
+  /**
+   * Converts a flat array of timed word objects (from Whisper word timestamps)
+   * into caption sentence segments of max ~5 words each.
+   */
+  buildSentencesFromTimedWords(timedWords, totalDuration) {
+    if (!timedWords || timedWords.length === 0) return [];
+
+    const maxWordsPerCaption = 5;
+    const minCaptionDuration = 0.35;
+    const sentences = [];
+
+    // Normalise word objects
+    const words = timedWords.map(w => ({
+      word: this.normalizeTranscriptText(typeof w === 'string' ? w : w.word),
+      start: typeof w === 'object' ? Number(w.start) : 0,
+      end: typeof w === 'object' ? Number(w.end) : 0
+    })).filter(w => w.word);
+
+    let i = 0;
+    while (i < words.length) {
+      const chunk = words.slice(i, i + maxWordsPerCaption);
+      i += maxWordsPerCaption;
+
+      const chunkStart = chunk[0].start;
+      const chunkEnd = Math.max(chunk[chunk.length - 1].end, chunkStart + minCaptionDuration);
+
+      // Ensure minimum visible caption duration
+      if (chunk[chunk.length - 1].end < chunkStart + minCaptionDuration) {
+        chunk[chunk.length - 1].end = chunkStart + minCaptionDuration;
+      }
+
+      const timedChunk = chunk.map(w => ({
+        word: w.word,
+        start: parseFloat(w.start.toFixed(3)),
+        end: parseFloat(w.end.toFixed(3)),
+        startTime: parseFloat(w.start.toFixed(3)),
+        endTime: parseFloat(w.end.toFixed(3))
+      }));
+
+      sentences.push({
+        id: `sentence_${sentences.length + 1}`,
+        startTime: timedChunk[0].start,
+        endTime: timedChunk[timedChunk.length - 1].end,
+        start: timedChunk[0].start,
+        end: timedChunk[timedChunk.length - 1].end,
+        text: timedChunk.map(w => w.word).join(' '),
+        words: timedChunk
+      });
+    }
+
+    this.normalizeWordSequences(sentences);
+    return this.consolidateTimeTokens(sentences);
   }
 
   extractWhisperWords(whisperResult) {
     const chunks = whisperResult?.chunks || [];
-    const words = [];
+    const timedWords = [];
 
+    // Prefer real per-word timestamps from Whisper (return_timestamps: 'word')
     chunks.forEach((chunk) => {
+      const [chunkStart, chunkEnd] = Array.isArray(chunk.timestamp) ? chunk.timestamp : [null, null];
       const tokens = this.tokenizeChunkText(chunk.text || '');
-      tokens.forEach((token) => words.push(token));
+      if (tokens.length === 0) return;
+
+      const hasRealTimestamps = chunkStart !== null && chunkEnd !== null &&
+        Number.isFinite(chunkStart) && Number.isFinite(chunkEnd) && chunkEnd > chunkStart;
+
+      if (hasRealTimestamps) {
+        // Distribute the chunk's time window evenly across its tokens
+        const wordDur = (chunkEnd - chunkStart) / tokens.length;
+        tokens.forEach((token, i) => {
+          timedWords.push({
+            word: token,
+            start: parseFloat((chunkStart + i * wordDur).toFixed(3)),
+            end: parseFloat((chunkStart + (i + 1) * wordDur).toFixed(3))
+          });
+        });
+      } else {
+        // No timestamp on this chunk — push plain strings; fallback aligner will handle
+        tokens.forEach((token) => timedWords.push(token));
+      }
     });
 
-    if (words.length > 0) return words;
+    if (timedWords.length > 0) return timedWords;
+    // Last resort: no chunks at all, split raw text
     return this.normalizeTranscriptText(whisperResult?.text || '').split(/\s+/).filter(Boolean);
   }
 
