@@ -113,21 +113,31 @@ class SelfieSegmenterService {
   setExportCutoutCache(cache) {
     this.exportCutoutCache = Array.isArray(cache)
       ? cache.filter(item => item && Number.isFinite(item.time) && item.canvas)
+          .sort((a, b) => a.time - b.time)
       : [];
   }
 
   drawExportCutoutForTime(ctx, time, width, height, maxDistance = 0.45) {
     if (!ctx || !this.exportCutoutCache || this.exportCutoutCache.length === 0) return false;
 
-    let best = null;
-    let bestDiff = Infinity;
-    for (const item of this.exportCutoutCache) {
-      const diff = Math.abs(item.time - time);
-      if (diff < bestDiff) {
-        best = item;
-        bestDiff = diff;
+    const cache = this.exportCutoutCache;
+    let lo = 0;
+    let hi = cache.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (cache[mid].time < time) {
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
       }
     }
+
+    const after = cache[Math.min(lo, cache.length - 1)];
+    const before = cache[Math.max(0, lo - 1)];
+    const beforeDiff = before ? Math.abs(before.time - time) : Infinity;
+    const afterDiff = after ? Math.abs(after.time - time) : Infinity;
+    const best = beforeDiff <= afterDiff ? before : after;
+    const bestDiff = Math.min(beforeDiff, afterDiff);
 
     if (!best || bestDiff > maxDistance) return false;
     ctx.drawImage(best.canvas, 0, 0, width, height);
@@ -238,15 +248,14 @@ class SelfieSegmenterService {
     this.maskCtx.putImageData(this.maskImageData, 0, 0);
 
     const cutoutCtx = this.cutoutCtx;
+    cutoutCtx.save();
+    cutoutCtx.globalCompositeOperation = 'copy';
     cutoutCtx.clearRect(0, 0, width, height);
+    cutoutCtx.restore();
+    cutoutCtx.globalCompositeOperation = 'source-over';
 
-    // 1. Draw scaled person mask (White on person, Transparent on background)
-    cutoutCtx.imageSmoothingEnabled = true;
-    cutoutCtx.imageSmoothingQuality = 'high';
-    cutoutCtx.drawImage(this.maskCanvas, 0, 0, width, height);
-
-    // 2. Retain source pixels only where person mask exists with hardware blend mode
-    cutoutCtx.globalCompositeOperation = "source-in";
+    // Draw source frame first, then apply the mask as alpha. This keeps all
+    // non-subject pixels genuinely transparent instead of black-filled.
     if (enhanceQuality) {
       cutoutCtx.filter = 'contrast(1.18) saturate(1.28) brightness(1.02)';
     } else {
@@ -254,6 +263,10 @@ class SelfieSegmenterService {
     }
     cutoutCtx.drawImage(video, 0, 0, width, height);
     cutoutCtx.filter = 'none';
+    cutoutCtx.globalCompositeOperation = "destination-in";
+    cutoutCtx.imageSmoothingEnabled = true;
+    cutoutCtx.imageSmoothingQuality = 'high';
+    cutoutCtx.drawImage(this.maskCanvas, 0, 0, width, height);
     cutoutCtx.globalCompositeOperation = "source-over"; // Reset blend mode
   }
 
@@ -436,7 +449,11 @@ class SelfieSegmenterService {
     const targetCtx = targetCanvas.getContext('2d');
     const currentTime = Number(video.currentTime || 0);
 
+    targetCtx.save();
+    targetCtx.globalCompositeOperation = 'copy';
     targetCtx.clearRect(0, 0, width, height);
+    targetCtx.restore();
+    targetCtx.globalCompositeOperation = 'source-over';
 
     // Fast Path: Try pre-baked cutout cache (0ms GPU draw, zero neural inference overhead)
     if (this.drawExportCutoutForTime(targetCtx, currentTime, width, height, 0.18)) {
@@ -485,7 +502,11 @@ class SelfieSegmenterService {
           this.lastCutoutHeight = height;
 
           // Composite person cutout over target canvas (Layer 3 over Layer 2 captions)
+          targetCtx.save();
+          targetCtx.globalCompositeOperation = 'copy';
           targetCtx.clearRect(0, 0, width, height);
+          targetCtx.restore();
+          targetCtx.globalCompositeOperation = 'source-over';
           targetCtx.drawImage(this.cutoutCanvas, 0, 0, width, height);
         } finally {
           this.isSegmenting = false;
@@ -513,14 +534,11 @@ class SelfieSegmenterService {
     const height = canvasHeight;
     const time = Number(options.time ?? video.currentTime ?? 0);
 
-    if (this.drawExportCutoutForTime(ctx, time, width, height, 0.18)) {
+    if (this.drawExportCutoutForTime(ctx, time, width, height, options.useExportCache ? 0.25 : 0.18)) {
       return;
     }
 
     if (options.useExportCache) {
-      if (this.lastCutoutWidth && this.lastCutoutHeight) {
-        ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
-      }
       return;
     }
 
@@ -580,4 +598,3 @@ class SelfieSegmenterService {
 }
 
 export const selfieSegmenterService = new SelfieSegmenterService();
-

@@ -1185,14 +1185,14 @@ export class UserDashboard {
 
             <!-- ACTION BUTTONS: APPLY SIZE & POS TO ALL, PROCESS AGAIN & EDIT SEGMENTS -->
             <div class="segments-header-actions-stack">
-              <button class="btn btn-seg-action btn-action-follow-pos" id="btn-header-apply-pos-all" title="Apply active segment sizing and position to ALL segments">
+              <button class="btn btn-seg-action btn-action-follow-pos" data-retired-id="btn-header-apply-pos-all" title="Apply active segment sizing and position to ALL segments">
                 <span>⚡ Apply Size & Pos to All</span>
               </button>
-              <button class="btn btn-seg-action btn-behind-process" id="btn-process-behind-again" title="Apply Rotoscoping to render checked lines behind subject">
+              <button class="btn btn-seg-action btn-behind-process" data-retired-id="btn-process-behind-again" title="Apply Rotoscoping to render checked lines behind subject">
                 <span>⚡ Process Again</span>
-                <span id="behind-active-badge" class="behind-count-pill">0 Behind</span>
+                <span data-retired-id="behind-active-badge" class="behind-count-pill">0 Behind</span>
               </button>
-              <button class="btn btn-seg-action btn-action-edit-seg" id="btn-open-segments-modal" title="Edit subtitle texts and timestamps">
+              <button class="btn btn-seg-action btn-action-edit-seg" data-retired-id="btn-open-segments-modal" title="Edit subtitle texts and timestamps">
                 <span>✏️ Edit Segments</span>
               </button>
             </div>
@@ -1995,6 +1995,9 @@ export class UserDashboard {
         s.behind = isChecked;
         soundFx.playKeyBeep(isChecked ? 680 : 440);
         item.classList.toggle('has-behind', isChecked);
+        if (typeof selfieSegmenterService.clearExportCutoutCache === 'function') {
+          selfieSegmenterService.clearExportCutoutCache();
+        }
         this.updateBehindCountBadge();
         syncActiveSegment();
       });
@@ -2572,6 +2575,9 @@ export class UserDashboard {
       btn.disabled = true;
       btn.classList.remove('needs-process');
       btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;">⏳</span> Loading AI Rotoscoping...`;
+      btn.classList.add('is-processing');
+      btn.title = 'Loading AI rotoscoping...';
+      btn.innerHTML = `<span class="sidebar-icon-glyph">↻</span><span id="behind-active-badge" class="behind-count-pill">${behindCount}</span>`;
     }
     soundFx.playProcessStart();
 
@@ -2615,6 +2621,8 @@ export class UserDashboard {
     } finally {
       if (btn) {
         btn.disabled = false;
+        btn.classList.remove('is-processing');
+        btn.title = 'Process behind-text cutouts';
         btn.innerHTML = `<span class="sidebar-icon-glyph">↻</span><span id="behind-active-badge" class="behind-count-pill">${behindCount}</span>`;
         this.updateBehindCountBadge();
       }
@@ -2652,7 +2660,15 @@ export class UserDashboard {
       const studioConfig = (this.activeConfig && (!this.activeConfig.templateId || this.activeConfig.templateId === tpl.id)) ? this.activeConfig : {};
       const cfg = { ...tpl.config, ...customConfig, ...studioConfig };
 
-      await videoRenderer.burnCaptionsToVideoLossless(this.videoBlob, captionEngine.sentences, cfg, (p) => {
+      const previewRect = this.videoElement?.getBoundingClientRect?.();
+      const renderCfg = {
+        ...cfg,
+        previewDisplayWidth: previewRect?.width || null,
+        previewDisplayHeight: previewRect?.height || null,
+        previewMode: this.currentMode
+      };
+
+      await videoRenderer.burnCaptionsToVideoLossless(this.videoBlob, captionEngine.sentences, renderCfg, (p) => {
         const percentVal = Math.max(0, Math.min(100, Math.round(p * 100)));
         if (bar) bar.style.width = `${percentVal}%`;
         if (pct) pct.textContent = `${percentVal}%`;
@@ -2836,7 +2852,7 @@ export class UserDashboard {
         });
 
         listEl.appendChild(row);
-      });
+      }, this.enhanceVideoQuality);
     };
 
     renderRows();

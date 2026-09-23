@@ -51,6 +51,23 @@ export class VideoRenderer {
     return found ? found.family : `'${fontId}', -apple-system, sans-serif`;
   }
 
+  getSupportedRecordingMimeType() {
+    if (typeof MediaRecorder === 'undefined') return '';
+    if (typeof MediaRecorder.isTypeSupported !== 'function') return '';
+
+    const candidates = [
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4;codecs=h264,aac',
+      'video/mp4;codecs=avc1',
+      'video/mp4',
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm'
+    ];
+
+    return candidates.find(type => MediaRecorder.isTypeSupported(type)) || '';
+  }
+
   easeOutBack(t) {
     const c1 = 1.70158;
     const c3 = c1 + 1;
@@ -159,6 +176,10 @@ export class VideoRenderer {
         const p = clamp(elapsed / 0.9);
         state.blockScale = 0.96 + 0.08 * (p <= 0.5 ? p / 0.5 : (1 - p) / 0.5);
         state.blockOpacity = Math.min(1, p / 0.2);
+        state.brightness = p < 0.45 ? 0.6 + 1.6 * (p / 0.45) : 2.2 - 1.2 * ((p - 0.45) / 0.55);
+        state.glow = Math.sin(Math.min(1, p) * Math.PI);
+        state.shine = Math.min(1, p);
+        state.shimmerX = p;
         break;
       }
       case 'anim-fire-flare': {
@@ -166,6 +187,9 @@ export class VideoRenderer {
         const flare = p <= 0.4 ? p / 0.4 : Math.max(0, (1 - p) / 0.6);
         state.blockScale = 0.85 + 0.15 * Math.min(1, p / 0.4);
         state.blockOpacity = Math.min(1, p / 0.18);
+        state.glow = flare;
+        state.shine = flare;
+        state.shimmerX = Math.min(1, p * 1.25);
         break;
       }
       case 'anim-zoom-impact': {
@@ -236,6 +260,9 @@ export class VideoRenderer {
         const shine = Math.sin(p * Math.PI);
         state.blockScale = 0.95 + 0.08 * shine;
         state.blockOpacity = Math.min(1, p / 0.25);
+        state.glow = shine;
+        state.shine = shine;
+        state.shimmerX = p;
         break;
       }
     }
@@ -357,8 +384,12 @@ export class VideoRenderer {
 
     // 7. Typography and responsive sizing relative to video resolution
     const isPortrait = canvasHeight > canvasWidth;
-    const baseRefWidth = isPortrait ? 430 : 760;
-    const scale = canvasWidth / baseRefWidth;
+    const previewDisplayWidth = Number(config.previewDisplayWidth || 0);
+    const fallbackRefWidth = isPortrait ? 360 : 1080;
+    const refWidth = Number.isFinite(previewDisplayWidth) && previewDisplayWidth > 120
+      ? previewDisplayWidth
+      : fallbackRefWidth;
+    const scale = Math.max(0.65, Math.min(3.25, canvasWidth / refWidth));
 
     const previewFontSize = (currentSentence.fontSize !== undefined && currentSentence.fontSize !== null && currentSentence.fontSize > 0)
       ? Number(currentSentence.fontSize)
@@ -445,7 +476,7 @@ export class VideoRenderer {
     const lines = [];
     let curLine = [];
     let curLineWidth = 0;
-    const wordGap = Math.round(baseFontSize * 0.36);
+    const wordGap = Math.max(4, Math.round(11 * scale));
 
     styledWords.forEach((sw) => {
       ctx.font = `${sw.fontWeight} ${sw.fontSize}px ${sw.font}`;
@@ -466,9 +497,9 @@ export class VideoRenderer {
       lines.push({ words: curLine, width: curLineWidth });
     }
 
-    const lineHeight = baseFontSize * 1.15;
+    const lineHeight = baseFontSize * 1.12;
     const totalBlockHeight = lines.length * lineHeight;
-    const startBlockY = hasCustomPos ? posY : (posY - totalBlockHeight * 0.5 + lineHeight * 0.5);
+    const startBlockY = hasCustomPos ? posY : (posY - totalBlockHeight * 0.5);
 
     // 11. Compute Dynamic Entrance Animation & Shine Glow Effects
     let resolvedAnimId = currentSentence.animation || config.animation || 'anim-auto';
@@ -523,7 +554,8 @@ export class VideoRenderer {
 
     // 12. Render caption lines on Layer 2 matching preview exactly (zero blurry exposure glows)
     lines.forEach((line, lineIdx) => {
-      const lineY = startBlockY + lineIdx * lineHeight;
+      const lineTop = startBlockY + lineIdx * lineHeight;
+      const lineY = lineTop + lineHeight * 0.5;
       let startX = posX;
       if (textAlign === 'center') {
         startX = posX - line.width / 2;
@@ -549,10 +581,11 @@ export class VideoRenderer {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // Glow effect (Matching Image 3 radiant neon style) or crisp zero-shadow
-        if (hasGlow && glowColor) {
-          ctx.shadowColor = glowColor;
-          ctx.shadowBlur = Math.round(18 * scale);
+        // Glow effect (Matching preview CSS drop-shadows) or crisp zero-shadow
+        const animationGlow = animState.glow > 0 ? animState.glow : 0;
+        if ((hasGlow && glowColor) || animationGlow > 0) {
+          ctx.shadowColor = glowColor || (resolvedAnimId === 'anim-fire-flare' ? '#ff6b00' : '#00F0FF');
+          ctx.shadowBlur = Math.round((hasGlow ? 18 : 24) * scale * Math.max(0.45, animationGlow || 1));
           ctx.shadowOffsetX = 0;
           ctx.shadowOffsetY = 0;
         } else {
@@ -583,6 +616,25 @@ export class VideoRenderer {
 
         ctx.fillStyle = w.color;
         ctx.fillText(w.word, 0, 0);
+
+        if (animState.shine > 0) {
+          const shimmerX = Number.isFinite(animState.shimmerX) ? animState.shimmerX : animState.shine;
+          const sweepWidth = Math.max(w.width * 1.8, baseFontSize * 4);
+          const sweepCenter = -w.width + sweepWidth * shimmerX;
+          const gradient = ctx.createLinearGradient(sweepCenter - sweepWidth * 0.35, 0, sweepCenter + sweepWidth * 0.35, 0);
+          const accentA = resolvedAnimId === 'anim-fire-flare' ? '#ff6b00' : '#00F0FF';
+          const accentB = resolvedAnimId === 'anim-liquid-gradient' ? '#FF4DA6' : '#FFFFFF';
+          gradient.addColorStop(0, 'rgba(255,255,255,0)');
+          gradient.addColorStop(0.32, accentA);
+          gradient.addColorStop(0.5, accentB);
+          gradient.addColorStop(0.68, accentA);
+          gradient.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.save();
+          ctx.globalAlpha = Math.min(0.72, 0.18 + animState.shine * 0.54);
+          ctx.fillStyle = gradient;
+          ctx.fillText(w.word, 0, 0);
+          ctx.restore();
+        }
 
         ctx.restore();
 
@@ -718,7 +770,11 @@ export class VideoRenderer {
 
       // 60 FPS Capture Stream
       const targetFps = 60;
-      const canvasStream = offscreenCanvas.captureStream ? offscreenCanvas.captureStream(targetFps) : offscreenCanvas;
+      if (!offscreenCanvas.captureStream || typeof MediaRecorder === 'undefined') {
+        throw new Error('This browser cannot export burned captions because MediaRecorder/canvas capture is unavailable. Please use current Chrome, Edge, Safari, or Firefox.');
+      }
+
+      const canvasStream = offscreenCanvas.captureStream(targetFps);
       const videoTrack = canvasStream.getVideoTracks ? canvasStream.getVideoTracks()[0] : null;
 
       const combinedTracks = canvasStream.getVideoTracks ? [...canvasStream.getVideoTracks()] : [];
@@ -728,29 +784,17 @@ export class VideoRenderer {
 
       const combinedStream = new MediaStream(combinedTracks);
 
-      // Select highest quality supported container
-      let mimeType = 'video/webm;codecs=vp9,opus';
-      if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.42E01E,mp4a.40.2')) {
-        mimeType = 'video/mp4;codecs=avc1.42E01E,mp4a.40.2';
-      } else if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')) {
-        mimeType = 'video/mp4;codecs=avc1';
-      } else if (MediaRecorder.isTypeSupported('video/mp4')) {
-        mimeType = 'video/mp4';
-      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
-        mimeType = 'video/webm;codecs=vp9,opus';
-      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
-        mimeType = 'video/webm;codecs=vp8,opus';
-      } else if (MediaRecorder.isTypeSupported('video/webm')) {
-        mimeType = 'video/webm';
-      }
+      // Select highest quality supported container, preferring Safari/iPhone friendly MP4.
+      const mimeType = this.getSupportedRecordingMimeType();
 
       // Broadcast-grade 12-16 Mbps bitrate for pristine 60 FPS video
       const videoBits = isMobile ? 8000000 : 14000000;
-      const recorder = new MediaRecorder(combinedStream, {
-        mimeType,
+      const recorderOptions = {
         videoBitsPerSecond: videoBits,
         audioBitsPerSecond: 192000
-      });
+      };
+      if (mimeType) recorderOptions.mimeType = mimeType;
+      const recorder = new MediaRecorder(combinedStream, recorderOptions);
 
       const chunks = [];
       recorder.ondataavailable = (e) => {
@@ -761,7 +805,8 @@ export class VideoRenderer {
 
       const exportPromise = new Promise((resolve, reject) => {
         recorder.onstop = () => {
-          const blob = new Blob(chunks, { type: mimeType });
+          const blobType = recorder.mimeType || mimeType || chunks[0]?.type || 'video/webm';
+          const blob = new Blob(chunks, { type: blobType });
           resolve(blob);
         };
         recorder.onerror = reject;
