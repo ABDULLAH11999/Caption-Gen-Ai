@@ -604,6 +604,9 @@ export class UserDashboard {
     if (!host) return;
     host.innerHTML = '';
 
+    const isStudioWorkspace = this.activeTab === 'apply' && !!this.videoBlob && !this.isProcessing;
+    host.classList.toggle('studio-workspace-active', isStudioWorkspace);
+
     if (this.activeTab === 'templates') {
       this.renderTemplatesTab(host);
     } else if (this.activeTab === 'apply') {
@@ -1062,103 +1065,105 @@ export class UserDashboard {
 
     // WORKSPACE VIEW (Video Player + Live Overlay + Transcript Sidebar)
     wrap.innerHTML = `
-      <div class="user-tab-header" style="margin-bottom: 20px;">
-        <div>
-          <h1 class="user-tab-title">Video Caption Workspace</h1>
-          <p style="color: #64748b; font-size: 13px;">
-            Active Style: <strong>${CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId)?.name || 'Default'}</strong>
-          </p>
-        </div>
-
-        <div class="user-tab-actions">
-          <button class="btn btn-outline" id="btn-reselect-video" style="padding: 8px 16px; font-size: 13px;">
-            🔄 New Video
-          </button>
-          <button class="btn btn-outline" id="btn-workspace-style" style="padding: 8px 16px; font-size: 13px;">
-            🎨 Templates
-          </button>
-        </div>
-      </div>
-
-      <div class="workspace-grid">
+      <div class="workspace-studio-layout">
         
-        <!-- Left: Video Player -->
-        <div class="video-player-card">
-          <div class="video-container ${this.currentMode}" id="user-video-wrapper">
-            <video class="studio-video-element" id="user-main-video" playsinline style="width: 100%; height: 100%; object-fit: contain;"></video>
-            
-            <!-- Real-Time Caption Overlay (Layer 2) -->
-            <div class="caption-live-overlay" id="user-caption-live-overlay"></div>
+        <!-- Left: Canvas & Video Player Panel -->
+        <div class="studio-canvas-panel">
+          <div class="user-tab-header" style="margin-bottom: 20px;">
+            <div>
+              <h1 class="user-tab-title">Video Caption Workspace</h1>
+              <p style="color: #64748b; font-size: 13px;">
+                Active Style: <strong>${CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId)?.name || 'Default'}</strong>
+              </p>
+            </div>
 
-            <!-- Foreground Rotoscoped Person Cutout (Layer 3) -->
-            <canvas class="cutout-live-canvas" id="user-cutout-canvas" style="display: none;"></canvas>
+            <div class="user-tab-actions">
+              <button class="btn btn-outline" id="btn-reselect-video" style="padding: 8px 16px; font-size: 13px;">
+                🔄 New Video
+              </button>
+              <button class="btn btn-outline" id="btn-workspace-style" style="padding: 8px 16px; font-size: 13px;">
+                🎨 Templates
+              </button>
+            </div>
           </div>
 
-          <!-- Controls -->
-          <div class="player-controls">
-            <div class="timeline-scrubber-wrapper">
-              <input type="range" class="timeline-scrubber" id="user-timeline-scrubber" min="0" max="100" value="0" step="0.1" style="flex: 1; accent-color: var(--primary-coral); cursor: pointer;">
-              <span class="timestamp-indicator" id="user-time-display">00:00 / 00:00</span>
+          <!-- Video Player Card -->
+          <div class="video-player-card">
+            <div class="video-container ${this.currentMode}" id="user-video-wrapper">
+              <video class="studio-video-element" id="user-main-video" playsinline style="width: 100%; height: 100%; object-fit: contain;"></video>
+              
+              <!-- Real-Time Caption Overlay (Layer 2) -->
+              <div class="caption-live-overlay" id="user-caption-live-overlay"></div>
+
+              <!-- Foreground Rotoscoped Person Cutout (Layer 3) -->
+              <canvas class="cutout-live-canvas" id="user-cutout-canvas" style="display: none;"></canvas>
             </div>
 
-            <!-- Enhancement Checkbox -->
-            <div class="player-enhance-bar">
-              <label class="player-enhance-label">
-                <input type="checkbox" id="user-player-enhance" ${this.enhanceVideoQuality ? 'checked' : ''} style="accent-color: var(--primary-coral);">
-                <span>✨ Enhance Video Quality</span>
-              </label>
-              <span class="badge badge-success" style="font-size: 10px;">60 FPS LOSSLESS</span>
-            </div>
-
-            <div class="player-action-controls">
-              <div class="player-playback-btns">
-                <button class="btn btn-outline btn-play-circle" id="user-btn-play">▶</button>
-                <button class="btn btn-outline btn-compact-action" id="user-btn-rw">↺ 5s</button>
-                <button class="btn btn-outline btn-compact-action" id="user-btn-ff">5s ↻</button>
-                <button class="btn btn-outline btn-compact-action" id="user-btn-mute">🔊</button>
+            <!-- Controls -->
+            <div class="player-controls">
+              <div class="timeline-scrubber-wrapper">
+                <input type="range" class="timeline-scrubber" id="user-timeline-scrubber" min="0" max="100" value="0" step="0.1" style="flex: 1; accent-color: var(--primary-coral); cursor: pointer;">
+                <span class="timestamp-indicator" id="user-time-display">00:00 / 00:00</span>
               </div>
 
-              <div class="player-export-btns">
-                <div class="player-export-secondary-row">
-                  <button class="btn btn-outline btn-compact-action" id="user-btn-srt">.SRT</button>
-                  <button class="btn btn-outline btn-compact-action" id="user-btn-vtt">.VTT</button>
+              <!-- Enhancement Checkbox -->
+              <div class="player-enhance-bar">
+                <label class="player-enhance-label">
+                  <input type="checkbox" id="user-player-enhance" ${this.enhanceVideoQuality ? 'checked' : ''} style="accent-color: var(--primary-coral);">
+                  <span>✨ Enhance Video Quality</span>
+                </label>
+                <span class="badge badge-success" style="font-size: 10px;">60 FPS LOSSLESS</span>
+              </div>
+
+              <div class="player-action-controls">
+                <div class="player-playback-btns">
+                  <button class="btn btn-outline btn-play-circle" id="user-btn-play">▶</button>
+                  <button class="btn btn-outline btn-compact-action" id="user-btn-rw">↺ 5s</button>
+                  <button class="btn btn-outline btn-compact-action" id="user-btn-ff">5s ↻</button>
+                  <button class="btn btn-outline btn-compact-action" id="user-btn-mute">🔊</button>
                 </div>
-                <button class="btn btn-primary btn-burn-captions" id="user-btn-burn">
-                  <div class="burn-btn-content">
-                    <span>🎥 Burn Captions (60 FPS Export)</span>
-                  </div>
-                </button>
-              </div>
-            </div>
 
-            <!-- Export Progress Indicator -->
-            <div id="user-export-progress" style="display: none; margin-top: 14px; background: #fafbfe; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
-              <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--primary-coral);">
-                <span>Burning captions at source quality...</span>
-                <span id="user-export-percent">0%</span>
+                <div class="player-export-btns">
+                  <div class="player-export-secondary-row">
+                    <button class="btn btn-outline btn-compact-action" id="user-btn-srt">.SRT</button>
+                    <button class="btn btn-outline btn-compact-action" id="user-btn-vtt">.VTT</button>
+                  </div>
+                  <button class="btn btn-primary btn-burn-captions" id="user-btn-burn">
+                    <div class="burn-btn-content">
+                      <span>🎥 Burn Captions (60 FPS Export)</span>
+                    </div>
+                  </button>
+                </div>
               </div>
-              <div style="height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
-                <div id="user-export-bar" style="width: 0%; height: 100%; background: var(--primary-coral); transition: width 0.1s linear;"></div>
+
+              <!-- Export Progress Indicator -->
+              <div id="user-export-progress" style="display: none; margin-top: 14px; background: #fafbfe; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--primary-coral);">
+                  <span>Burning captions at source quality...</span>
+                  <span id="user-export-percent">0%</span>
+                </div>
+                <div style="height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                  <div id="user-export-bar" style="width: 0%; height: 100%; background: var(--primary-coral); transition: width 0.1s linear;"></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Right: Interactive Words Timeline & Segments Editor -->
-        <aside style="display: flex; flex-direction: column; gap: 16px;">
-          <!-- Segments Header Card -->
-          <div style="background: #ffffff; border-radius: var(--radius-xl); border: 1px solid var(--border-color); padding: 18px; box-shadow: var(--shadow-sm);">
+        <!-- Right: Full-Height Studio Sidebar for Segments & Styling -->
+        <aside class="studio-sidebar-right">
+          <div class="studio-sidebar-right-header">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 8px;">
               <div>
-                <div style="font-size: 13px; font-weight: 800; color: #0c0c0e;">CAPTIONS & WORDS</div>
+                <div style="font-size: 14px; font-weight: 800; color: #0c0c0e; letter-spacing: -0.2px;">CAPTIONS & WORDS</div>
                 <div style="font-size: 11px; color: #64748b;" id="user-sentence-count">${captionEngine.sentences.length} Line Segments</div>
               </div>
             </div>
 
-            <!-- ACTION BUTTONS: FOLLOW POS TO ALL, PROCESS AGAIN (BLACK BG) & EDIT SEGMENTS (EQUAL SIZE) -->
+            <!-- ACTION BUTTONS: APPLY SIZE & POS TO ALL, PROCESS AGAIN & EDIT SEGMENTS -->
             <div class="segments-header-actions-stack">
-              <button class="btn btn-seg-action btn-action-follow-pos" id="btn-header-apply-pos-all" title="Apply active segment position & width to ALL segments">
-                <span>⚡ Follow Pos to All</span>
+              <button class="btn btn-seg-action btn-action-follow-pos" id="btn-header-apply-pos-all" title="Apply active segment sizing and position to ALL segments">
+                <span>⚡ Apply Size & Pos to All</span>
               </button>
               <button class="btn btn-seg-action btn-behind-process" id="btn-process-behind-again" title="Apply Rotoscoping to render checked lines behind subject">
                 <span>⚡ Process Again</span>
@@ -1168,10 +1173,10 @@ export class UserDashboard {
                 <span>✏️ Edit Segments</span>
               </button>
             </div>
+          </div>
 
-            <div style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;" id="user-segments-mini-list">
-              <!-- Dynamically populated -->
-            </div>
+          <div class="studio-segments-list" id="user-segments-mini-list">
+            <!-- Dynamically populated -->
           </div>
         </aside>
 
@@ -1493,18 +1498,21 @@ export class UserDashboard {
     return found ? found.family : `'${fontId}', -apple-system, sans-serif`;
   }
 
-  updateCaptionOverlay() {
+  updateCaptionOverlay(sentenceOverride = null) {
     const overlay = this.container.querySelector('#user-caption-live-overlay');
     if (!overlay || !this.videoElement) return;
 
-    const time = this.videoElement.currentTime || 0;
+    const time = sentenceOverride
+      ? (Number(sentenceOverride.start ?? sentenceOverride.startTime ?? 0) + 0.05)
+      : (this.videoElement.currentTime || 0);
     const sentences = captionEngine.sentences || [];
 
     // 1. Find active sentence strictly matching timeline (no backwards jumping to old segments)
-    let currentSentence = sentences.find(s => {
+    let currentSentence = sentenceOverride || sentences.find((s, i) => {
       const sStart = Number(s.start ?? s.startTime ?? 0);
       const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-      return time >= sStart && time <= sEnd;
+      const isLast = (i === sentences.length - 1);
+      return time >= sStart && (isLast ? time <= sEnd : time < sEnd);
     });
 
     if (!currentSentence && sentences.length > 0) {
@@ -1576,18 +1584,31 @@ export class UserDashboard {
       }
     }
 
-    // 7. Base font size: 25px in portrait / 28px in landscape (constant across all words to eliminate layout shifts)
+    // 7. Base font size: segment-specific size or default (25px portrait / 28px landscape)
     const isPortrait = this.currentMode === 'portrait';
-    const baseFontSize = isPortrait ? 25 : ((cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28);
+    const defaultBaseFontSize = isPortrait ? 25 : ((cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28);
+    const baseFontSize = (currentSentence.fontSize !== undefined && currentSentence.fontSize !== null && currentSentence.fontSize > 0)
+      ? Number(currentSentence.fontSize)
+      : defaultBaseFontSize;
 
-    // 8. Typography settings from config (Looked up through FONTS dictionary)
+    // 8. Typography settings from config with segment override
     const normalFontFamily = this.getFontFamily(cfg.normalFontFamily || 'Inter');
     const prominentFontFamily = this.getFontFamily(cfg.prominentFontFamily || 'Syne');
+    const segmentFontFamily = currentSentence.fontFamily ? this.getFontFamily(currentSentence.fontFamily) : null;
 
-    const defaultTextColor = cfg.textColor || '#FFFFFF';
-    const prominentColor = cfg.prominentColor || '#FFE600';
-    const hasLastWordColor = cfg.enableLastWordColor !== false && !!cfg.lastWordColor;
+    const defaultTextColor = currentSentence.textColor || cfg.textColor || '#FFFFFF';
+    const prominentColor = currentSentence.prominentColor || cfg.prominentColor || '#FFE600';
+    const hasLastWordColor = !currentSentence.prominentColor && (cfg.enableLastWordColor !== false && !!cfg.lastWordColor);
     const lastWordColor = hasLastWordColor ? cfg.lastWordColor : prominentColor;
+
+    // Stroke & Glow settings (Matching Image 3 radiant neon style)
+    const strokeEnabled = currentSentence.strokeEnabled !== false;
+    const customStrokeColor = currentSentence.strokeColor;
+    const hasGlow = currentSentence.glowColor && currentSentence.glowColor !== 'transparent' && currentSentence.glowColor !== '';
+    const glowColor = hasGlow ? currentSentence.glowColor : null;
+    const glowStyles = glowColor
+      ? `text-shadow: 0 0 6px ${glowColor}, 0 0 16px ${glowColor}, 0 0 28px ${glowColor} !important; filter: drop-shadow(0 0 8px ${glowColor}) !important;`
+      : 'text-shadow: none !important; filter: none !important;';
 
     // 9. Build styled words: Keep actual color of the word (NEVER apply separate color on speaking word)
     const wordsHtml = displayWords.map((w, localIdx) => {
@@ -1602,27 +1623,29 @@ export class UserDashboard {
       const isLastWord = (globalIdx === words.length - 1);
       const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && globalIdx === 1);
 
-      let font = isProminent ? prominentFontFamily : normalFontFamily;
+      let font = segmentFontFamily || (isProminent ? prominentFontFamily : normalFontFamily);
       let color = isProminent ? prominentColor : defaultTextColor;
 
       if (isLastWord && hasLastWordColor) {
-        font = prominentFontFamily;
+        font = segmentFontFamily || prominentFontFamily;
         color = lastWordColor;
       }
 
       // Speaking word keeps its actual color; gets prominent font and smooth GPU scale bounce
       if (isSpeaking) {
-        font = prominentFontFamily;
+        font = segmentFontFamily || prominentFontFamily;
       }
 
       const fontWeight = isSpeaking ? 900 : (isProminent ? 800 : 700);
 
-      const strokeWidth = isProminent
-        ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.5)
-        : (cfg.normalOutlineWidth !== undefined ? cfg.normalOutlineWidth : 1.5);
-      const strokeColor = isProminent
-        ? (cfg.prominentOutlineColor || '#000000')
-        : (cfg.normalOutlineColor || '#000000');
+      const strokeWidth = strokeEnabled
+        ? (isProminent
+            ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.5)
+            : (cfg.normalOutlineWidth !== undefined ? cfg.normalOutlineWidth : 1.5))
+        : 0;
+      const strokeColor = strokeEnabled
+        ? (customStrokeColor || (isProminent ? (cfg.prominentOutlineColor || '#000000') : (cfg.normalOutlineColor || '#000000')))
+        : 'transparent';
 
       const wordScale = isSpeaking ? 'scale(1.15)' : 'scale(1)';
       const wordZIndex = isSpeaking ? 5 : 1;
@@ -1645,7 +1668,7 @@ export class UserDashboard {
           visibility: visible !important;
           line-height: 1.05;
           letter-spacing: 0.2px;
-          text-shadow: none !important;
+          ${glowStyles}
           -webkit-text-stroke: ${strokeWidth}px ${strokeColor};
           paint-order: stroke fill;
           -webkit-paint-order: stroke fill;
@@ -1665,7 +1688,7 @@ export class UserDashboard {
     const sStart = Number(currentSentence.start ?? currentSentence.startTime ?? 0);
     const sEnd = Number(currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5));
     const subChunkKey = displayWords.map(w => w.word).join('_');
-    const animId = cfg.animation || 'anim-auto';
+    const animId = currentSentence.animation || cfg.animation || 'anim-auto';
 
     let resolvedAnimId = animId;
     if (animId === 'anim-auto') {
@@ -1767,83 +1790,426 @@ export class UserDashboard {
     list.innerHTML = '';
 
     const sentences = captionEngine.sentences || [];
+    const cfg = this.activeConfig || {};
+    const defaultNormalFont = cfg.normalFontFamily || 'Inter';
+    const defaultFontSize = (this.currentMode === 'portrait' ? 25 : ((cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28));
+
     sentences.forEach((s, idx) => {
       const sStart = Number(s.start ?? s.startTime ?? (idx * 2.5));
       const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+      const curFont = s.fontFamily || defaultNormalFont;
+      const curSize = s.fontSize !== undefined && s.fontSize !== null ? Number(s.fontSize) : defaultFontSize;
+      const curColor = s.textColor || cfg.textColor || '#FFFFFF';
+      const curProminentColor = s.prominentColor || cfg.prominentColor || '#FFE600';
+      const strokeEnabled = s.strokeEnabled !== false;
+      const curStrokeColor = s.strokeColor || cfg.prominentOutlineColor || '#000000';
+      const hasGlow = s.glowColor && s.glowColor !== 'transparent' && s.glowColor !== '';
+      const curGlowColor = hasGlow ? s.glowColor : '#ff2079';
+      const curAnim = s.animation || cfg.animation || 'anim-auto';
+      const curAnimMeta = CAPTION_ANIMATIONS.find(a => a.id === curAnim) || CAPTION_ANIMATIONS[0];
+
+      const curFontMeta = FONTS.find(f => f.id === curFont || f.name === curFont) || FONTS[0];
+
       const item = document.createElement('div');
       item.id = `seg-mini-${idx}`;
-      item.className = `seg-mini-item ${s.behind ? 'has-behind' : ''}`;
+      item.className = `seg-card-item ${s.behind ? 'has-behind' : ''}`;
+      item.dataset.idx = idx;
+
       item.innerHTML = `
-        <div class="seg-mini-behind-col">
-          <label class="seg-behind-checkbox-label" title="Render caption behind the person or main object in video">
-            <input type="checkbox" class="chk-segment-behind" data-idx="${idx}" ${s.behind ? 'checked' : ''} />
-            <span class="behind-label-text">Behind</span>
-          </label>
-        </div>
-        <div class="seg-mini-content">
-          <div class="seg-mini-header">
-            <span>#${idx + 1}</span>
-            <span class="seg-pos-mini-pill" title="Segment custom position coordinates">${s.posX !== undefined && s.posY !== undefined ? `${s.posX}%, ${s.posY}%` : 'Mid-L'}</span>
-            <span>${sStart.toFixed(1)}s - ${sEnd.toFixed(1)}s</span>
+        <!-- 1. Header: Index, Time, Pos, Modern Behind Switch -->
+        <div class="seg-card-header">
+          <div class="seg-card-identity">
+            <span class="seg-num-badge">#${idx + 1}</span>
+            <span class="seg-time-tag">${sStart.toFixed(1)}s - ${sEnd.toFixed(1)}s</span>
           </div>
-          <div class="seg-text-line" title="${s.text || ''}">
-            ${s.text || 'Caption Segment'}
+          <div class="seg-card-actions">
+            <span class="seg-coords-pill" title="Position on video">${s.posX !== undefined && s.posY !== undefined ? `${s.posX}%, ${s.posY}%` : 'Mid-L'}</span>
+            <label class="seg-behind-toggle" title="Render caption behind subject in video">
+              <input type="checkbox" class="chk-segment-behind" data-idx="${idx}" ${s.behind ? 'checked' : ''} />
+              <span class="behind-switch-track"><span class="behind-switch-thumb"></span></span>
+              <span class="behind-switch-text">Behind</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 2. Text Context Banner -->
+        <div class="seg-text-banner" title="Click to seek to this segment">
+          <span class="seg-play-icon">▶</span>
+          <span class="seg-text-string">${s.text || 'Caption Segment'}</span>
+        </div>
+
+        <!-- 3. Typography Bar: Custom Font Dropdown (Opens Strictly Below) + Size Stepper -->
+        <div class="seg-typo-bar" onclick="event.stopPropagation()">
+          <div class="seg-font-picker-wrap">
+            <button type="button" class="seg-font-trigger" data-idx="${idx}" title="Select font for segment #${idx + 1}">
+              <span class="seg-font-trigger-text" style="font-family: ${curFontMeta.family};">
+                ${curFontMeta.name}
+              </span>
+              <svg class="seg-dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="seg-font-dropdown-menu" id="seg-font-menu-${idx}">
+              ${FONTS.map(f => `
+                <div class="seg-font-option ${curFontMeta.id === f.id ? 'is-selected' : ''}" data-idx="${idx}" data-font="${f.id}" style="font-family: ${f.family};">
+                  <span class="opt-name">${f.name}</span>
+                  ${f.id === 'Italiana' ? '<span class="opt-tag">Image 2</span>' : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="seg-stepper-box" title="Font size in pixels">
+            <button type="button" class="btn-step btn-minus" data-idx="${idx}" title="Decrease font size">−</button>
+            <div class="step-val-wrap">
+              <input type="number" class="step-num-input" data-idx="${idx}" value="${curSize}" min="12" max="80">
+              <span class="step-unit">px</span>
+            </div>
+            <button type="button" class="btn-step btn-plus" data-idx="${idx}" title="Increase font size">+</button>
+          </div>
+        </div>
+
+        <!-- 4. Effects Bar: Text Color | Stroke | Radiant Neon Glow -->
+        <div class="seg-effects-bar" onclick="event.stopPropagation()">
+          
+          <!-- Cell 1: Dual Colors (Base Text & Prominent Highlight Word) -->
+          <div class="seg-effect-cell seg-colors-dual-cell" title="Base text & prominent highlight word colors">
+            <span class="effect-label">Color</span>
+            <div class="seg-color-swatches-group">
+              <label class="color-swatch-wrap" title="Base text color">
+                <input type="color" class="hidden-color-input seg-text-color-picker" data-idx="${idx}" value="${curColor}">
+                <span class="color-swatch-circle" id="text-swatch-${idx}" style="background-color: ${curColor};"></span>
+              </label>
+              <label class="color-swatch-wrap" title="Prominent word highlight color">
+                <input type="color" class="hidden-color-input seg-prominent-color-picker" data-idx="${idx}" value="${curProminentColor}">
+                <span class="color-swatch-circle prominent-swatch" id="prominent-swatch-${idx}" style="background-color: ${curProminentColor};"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Cell 2: Outline Stroke -->
+          <div class="seg-effect-cell" title="Outline Stroke">
+            <label class="effect-chk-label">
+              <input type="checkbox" class="chk-seg-stroke" data-idx="${idx}" ${strokeEnabled ? 'checked' : ''}>
+              <span class="effect-label">Stroke</span>
+            </label>
+            <label class="color-swatch-wrap ${!strokeEnabled ? 'is-disabled' : ''}">
+              <input type="color" class="hidden-color-input seg-stroke-color-picker" data-idx="${idx}" value="${curStrokeColor}" ${!strokeEnabled ? 'disabled' : ''}>
+              <span class="color-swatch-circle" id="stroke-swatch-${idx}" style="background-color: ${curStrokeColor};"></span>
+            </label>
+          </div>
+
+          <!-- Cell 3: Radiant Neon Glow (Image 3 Parity) -->
+          <div class="seg-effect-cell ${hasGlow ? 'glow-active' : ''}" title="Neon Outer Glow (Image 3)">
+            <label class="effect-chk-label">
+              <input type="checkbox" class="chk-seg-glow" data-idx="${idx}" ${hasGlow ? 'checked' : ''}>
+              <span class="effect-label">Glow</span>
+            </label>
+            <label class="color-swatch-wrap ${!hasGlow ? 'is-disabled' : ''}">
+              <input type="color" class="hidden-color-input seg-glow-color-picker" data-idx="${idx}" value="${curGlowColor}" ${!hasGlow ? 'disabled' : ''}>
+              <span class="color-swatch-circle glow-preview" id="glow-swatch-${idx}" style="background-color: ${hasGlow ? curGlowColor : '#cbd5e1'}; ${hasGlow ? `box-shadow: 0 0 8px ${curGlowColor};` : ''}"></span>
+            </label>
+            ${hasGlow ? `<button type="button" class="btn-clear-glow-x" data-idx="${idx}" title="Turn off glow">✕</button>` : ''}
+          </div>
+
+        </div>
+
+        <!-- 5. Animation Bar: Custom Segment Animation Dropdown -->
+        <div class="seg-anim-bar" onclick="event.stopPropagation()">
+          <div class="seg-anim-picker-wrap">
+            <button type="button" class="seg-anim-trigger" data-idx="${idx}" title="Select animation for segment #${idx + 1}">
+              <div class="seg-anim-lead">
+                <span class="seg-anim-icon-tag">⚡ Anim</span>
+                <span class="seg-anim-trigger-text">${curAnimMeta.name}</span>
+              </div>
+              <svg class="seg-dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="seg-anim-dropdown-menu" id="seg-anim-menu-${idx}">
+              ${CAPTION_ANIMATIONS.map(a => `
+                <div class="seg-anim-option ${curAnim === a.id ? 'is-selected' : ''}" data-idx="${idx}" data-anim="${a.id}">
+                  <span class="anim-opt-name">${a.name}</span>
+                  <span class="anim-opt-desc">${a.description}</span>
+                </div>
+              `).join('')}
+            </div>
           </div>
         </div>
       `;
 
-      // Checkbox click/change handler
-      const chk = item.querySelector('.chk-segment-behind');
-      chk?.addEventListener('click', (e) => {
-        e.stopPropagation();
-      });
-      chk?.addEventListener('change', (e) => {
-        e.stopPropagation();
-        const isChecked = e.target.checked;
-        if (captionEngine.sentences && captionEngine.sentences[idx]) {
-          captionEngine.sentences[idx].behind = isChecked;
-          soundFx.playKeyBeep(isChecked ? 680 : 440);
-          item.classList.toggle('has-behind', isChecked);
-          this.updateBehindCountBadge();
-          if (selfieSegmenterService.isReady()) {
-            this.updateCaptionOverlay();
-            this.renderCutoutIfActiveBehind();
+      // Segment sync helper: seeks preview to this exact segment & updates overlay in real time
+      const syncActiveSegment = () => {
+        if (this.videoElement) {
+          const targetTime = Math.max(0, sStart + 0.05);
+          if (Math.abs(this.videoElement.currentTime - targetTime) > 0.05) {
+            this.videoElement.currentTime = targetTime;
           }
         }
+        this.lastRenderedSentenceKey = null;
+        this.updateCaptionOverlay(s);
+        this.renderCutoutIfActiveBehind(s);
+        this.highlightActiveSegment(idx);
+      };
+
+      // Card-level click: focus & preview this segment, closing other segment dropdowns
+      item.addEventListener('click', (e) => {
+        list.querySelectorAll('.seg-font-dropdown-menu.is-open').forEach(m => {
+          if (!item.contains(m)) m.classList.remove('is-open');
+        });
+        list.querySelectorAll('.seg-anim-dropdown-menu.is-open').forEach(m => {
+          if (!item.contains(m)) m.classList.remove('is-open');
+        });
+        list.querySelectorAll('.seg-font-trigger.is-active').forEach(t => {
+          if (!item.contains(t)) t.classList.remove('is-active');
+        });
+        list.querySelectorAll('.seg-anim-trigger.is-active').forEach(t => {
+          if (!item.contains(t)) t.classList.remove('is-active');
+        });
+        syncActiveSegment();
       });
 
-      item.addEventListener('click', () => {
-        if (this.videoElement) {
-          soundFx.playSeek();
-          this.videoElement.currentTime = sStart;
-          this.lastRenderedSentenceKey = null;
-          this.updateCaptionOverlay();
-          this.renderCutoutIfActiveBehind();
+      // 1. Behind switch toggle
+      const chkBehind = item.querySelector('.chk-segment-behind');
+      chkBehind?.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        s.behind = isChecked;
+        soundFx.playKeyBeep(isChecked ? 680 : 440);
+        item.classList.toggle('has-behind', isChecked);
+        this.updateBehindCountBadge();
+        syncActiveSegment();
+      });
+
+      // 2. Custom Font Dropdown (OPENS STRICTLY BELOW THAT!)
+      const fontTrigger = item.querySelector('.seg-font-trigger');
+      const fontMenu = item.querySelector('.seg-font-dropdown-menu');
+
+      fontTrigger?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = fontMenu?.classList.contains('is-open');
+        list.querySelectorAll('.seg-font-dropdown-menu.is-open').forEach(m => m.classList.remove('is-open'));
+        list.querySelectorAll('.seg-font-trigger.is-active').forEach(t => t.classList.remove('is-active'));
+        list.querySelectorAll('.seg-anim-dropdown-menu.is-open').forEach(m => m.classList.remove('is-open'));
+        list.querySelectorAll('.seg-anim-trigger.is-active').forEach(t => t.classList.remove('is-active'));
+        if (!isOpen && fontMenu) {
+          fontMenu.classList.add('is-open');
+          fontTrigger.classList.add('is-active');
         }
+        syncActiveSegment();
+      });
+
+      fontMenu?.querySelectorAll('.seg-font-option').forEach(opt => {
+        opt.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const fontId = opt.getAttribute('data-font');
+          s.fontFamily = fontId;
+          const chosenFont = FONTS.find(f => f.id === fontId);
+          const labelSpan = fontTrigger?.querySelector('.seg-font-trigger-text');
+          if (labelSpan && chosenFont) {
+            labelSpan.textContent = chosenFont.name;
+            labelSpan.style.fontFamily = chosenFont.family;
+          }
+          fontMenu.querySelectorAll('.seg-font-option').forEach(o => {
+            o.classList.toggle('is-selected', o.getAttribute('data-font') === fontId);
+          });
+          fontMenu.classList.remove('is-open');
+          fontTrigger?.classList.remove('is-active');
+          soundFx.playKeyBeep(600);
+          syncActiveSegment();
+        });
+      });
+
+      // 3. Sizing Stepper Controls
+      const sizeInput = item.querySelector('.step-num-input');
+      const btnMinus = item.querySelector('.btn-minus');
+      const btnPlus = item.querySelector('.btn-plus');
+
+      btnMinus?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const nextVal = Math.max(12, (Number(s.fontSize || curSize) - 2));
+        s.fontSize = nextVal;
+        if (sizeInput) sizeInput.value = nextVal;
+        soundFx.playKeyBeep(480);
+        syncActiveSegment();
+      });
+
+      btnPlus?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const nextVal = Math.min(80, (Number(s.fontSize || curSize) + 2));
+        s.fontSize = nextVal;
+        if (sizeInput) sizeInput.value = nextVal;
+        soundFx.playKeyBeep(640);
+        syncActiveSegment();
+      });
+
+      sizeInput?.addEventListener('change', (e) => {
+        const val = Math.max(12, Math.min(80, Number(e.target.value) || 28));
+        s.fontSize = val;
+        e.target.value = val;
+        syncActiveSegment();
+      });
+
+      // 4. Text Color Picker
+      const textColorPicker = item.querySelector('.seg-text-color-picker');
+      const textSwatch = item.querySelector(`#text-swatch-${idx}`);
+      textColorPicker?.addEventListener('input', (e) => {
+        s.textColor = e.target.value;
+        if (textSwatch) textSwatch.style.backgroundColor = e.target.value;
+        syncActiveSegment();
+      });
+
+      // 4b. Prominent Word Color Picker (Highlighted hero keyword)
+      const prominentColorPicker = item.querySelector('.seg-prominent-color-picker');
+      const prominentSwatch = item.querySelector(`#prominent-swatch-${idx}`);
+      prominentColorPicker?.addEventListener('input', (e) => {
+        s.prominentColor = e.target.value;
+        if (prominentSwatch) prominentSwatch.style.backgroundColor = e.target.value;
+        syncActiveSegment();
+      });
+
+      // 5. Stroke Controls
+      const chkStroke = item.querySelector('.chk-seg-stroke');
+      const strokeColorPicker = item.querySelector('.seg-stroke-color-picker');
+      const strokeSwatch = item.querySelector(`#stroke-swatch-${idx}`);
+      const strokeWrap = strokeColorPicker?.closest('.color-swatch-wrap');
+
+      chkStroke?.addEventListener('change', (e) => {
+        s.strokeEnabled = e.target.checked;
+        if (strokeColorPicker) strokeColorPicker.disabled = !s.strokeEnabled;
+        if (strokeWrap) strokeWrap.classList.toggle('is-disabled', !s.strokeEnabled);
+        soundFx.playKeyBeep(s.strokeEnabled ? 620 : 440);
+        syncActiveSegment();
+      });
+
+      strokeColorPicker?.addEventListener('input', (e) => {
+        s.strokeColor = e.target.value;
+        if (strokeSwatch) strokeSwatch.style.backgroundColor = e.target.value;
+        syncActiveSegment();
+      });
+
+      // 6. Glow Controls (Image 3 Style)
+      const chkGlow = item.querySelector('.chk-seg-glow');
+      const glowColorPicker = item.querySelector('.seg-glow-color-picker');
+      const glowSwatch = item.querySelector(`#glow-swatch-${idx}`);
+      const glowWrap = glowColorPicker?.closest('.color-swatch-wrap');
+      const clearGlowBtn = item.querySelector('.btn-clear-glow-x');
+
+      chkGlow?.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          s.glowColor = glowColorPicker ? glowColorPicker.value : '#ff2079';
+          if (glowColorPicker) glowColorPicker.disabled = false;
+          if (glowWrap) glowWrap.classList.remove('is-disabled');
+          if (glowSwatch) {
+            glowSwatch.style.backgroundColor = s.glowColor;
+            glowSwatch.style.boxShadow = `0 0 8px ${s.glowColor}`;
+          }
+        } else {
+          s.glowColor = 'transparent';
+          if (glowColorPicker) glowColorPicker.disabled = true;
+          if (glowWrap) glowWrap.classList.add('is-disabled');
+          if (glowSwatch) {
+            glowSwatch.style.backgroundColor = '#cbd5e1';
+            glowSwatch.style.boxShadow = 'none';
+          }
+        }
+        soundFx.playKeyBeep(s.glowColor !== 'transparent' ? 740 : 400);
+        syncActiveSegment();
+        this.renderMiniSegmentsList();
+      });
+
+      glowColorPicker?.addEventListener('input', (e) => {
+        s.glowColor = e.target.value;
+        if (glowSwatch) {
+          glowSwatch.style.backgroundColor = e.target.value;
+          glowSwatch.style.boxShadow = `0 0 8px ${e.target.value}`;
+        }
+        syncActiveSegment();
+      });
+
+      clearGlowBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        s.glowColor = 'transparent';
+        soundFx.playKeyBeep(420);
+        syncActiveSegment();
+        this.renderMiniSegmentsList();
+      });
+
+      // 7. Animation Dropdown Controls
+      const animTrigger = item.querySelector('.seg-anim-trigger');
+      const animMenu = item.querySelector('.seg-anim-dropdown-menu');
+
+      animTrigger?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = animMenu?.classList.contains('is-open');
+        list.querySelectorAll('.seg-font-dropdown-menu.is-open').forEach(m => m.classList.remove('is-open'));
+        list.querySelectorAll('.seg-font-trigger.is-active').forEach(t => t.classList.remove('is-active'));
+        list.querySelectorAll('.seg-anim-dropdown-menu.is-open').forEach(m => m.classList.remove('is-open'));
+        list.querySelectorAll('.seg-anim-trigger.is-active').forEach(t => t.classList.remove('is-active'));
+        if (!isOpen && animMenu) {
+          animMenu.classList.add('is-open');
+          animTrigger.classList.add('is-active');
+        }
+        syncActiveSegment();
+      });
+
+      animMenu?.querySelectorAll('.seg-anim-option').forEach(opt => {
+        opt.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const animId = opt.getAttribute('data-anim');
+          s.animation = animId;
+          const chosenAnim = CAPTION_ANIMATIONS.find(a => a.id === animId) || CAPTION_ANIMATIONS[0];
+          const labelSpan = animTrigger?.querySelector('.seg-anim-trigger-text');
+          if (labelSpan && chosenAnim) {
+            labelSpan.textContent = chosenAnim.name;
+          }
+          animMenu.querySelectorAll('.seg-anim-option').forEach(o => {
+            o.classList.toggle('is-selected', o.getAttribute('data-anim') === animId);
+          });
+          animMenu.classList.remove('is-open');
+          animTrigger?.classList.remove('is-active');
+          soundFx.playKeyBeep(640);
+          syncActiveSegment();
+        });
+      });
+
+      // Seek on text banner click
+      item.querySelector('.seg-text-banner')?.addEventListener('click', () => {
+        soundFx.playSeek();
+        syncActiveSegment();
       });
 
       list.appendChild(item);
     });
 
+    // Close any font or animation dropdowns when clicking outside
+    if (!this._hasSegDropdownOutsideHandler) {
+      this._hasSegDropdownOutsideHandler = true;
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.seg-font-picker-wrap')) {
+          document.querySelectorAll('.seg-font-dropdown-menu.is-open').forEach(m => m.classList.remove('is-open'));
+          document.querySelectorAll('.seg-font-trigger.is-active').forEach(t => t.classList.remove('is-active'));
+        }
+        if (!e.target.closest('.seg-anim-picker-wrap')) {
+          document.querySelectorAll('.seg-anim-dropdown-menu.is-open').forEach(m => m.classList.remove('is-open'));
+          document.querySelectorAll('.seg-anim-trigger.is-active').forEach(t => t.classList.remove('is-active'));
+        }
+      });
+    }
+
     this.updateBehindCountBadge();
   }
 
-  highlightActiveSegment() {
+  highlightActiveSegment(activeIdxOverride = null) {
     if (!this.videoElement) return;
     const time = this.videoElement.currentTime || 0;
     const sentences = captionEngine.sentences || [];
     sentences.forEach((s, idx) => {
       const el = this.container.querySelector(`#seg-mini-${idx}`);
       if (el) {
-        const sStart = Number(s.start ?? s.startTime ?? 0);
-        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-        const isActive = time >= sStart && time <= sEnd;
-        if (isActive) {
-          el.style.borderColor = 'var(--primary-coral)';
-          el.style.background = 'var(--primary-coral-light)';
+        if (activeIdxOverride !== null && activeIdxOverride !== undefined) {
+          el.classList.toggle('is-active', idx === activeIdxOverride);
         } else {
-          el.style.borderColor = s.behind ? '#818cf8' : '#e2e8f0';
-          el.style.background = s.behind ? '#f5f7ff' : '#fafbfe';
+          const sStart = Number(s.start ?? s.startTime ?? 0);
+          const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+          const isLast = (idx === sentences.length - 1);
+          const isActive = time >= sStart && (isLast ? time <= sEnd : time < sEnd);
+          el.classList.toggle('is-active', isActive);
         }
       }
     });
@@ -1986,14 +2352,15 @@ export class UserDashboard {
       window.addEventListener('pointercancel', onPointerUp);
     });
 
-    // Helper to apply current active position & width to ALL segments
-    const applyCurrentPosToAll = () => {
+    // Helper to apply current active sizing (fontSize & boxWidth) & position (posX & posY) to ALL segments
+    const applyCurrentPosToAll = (applyFontSize = false) => {
       const time = this.videoElement ? this.videoElement.currentTime : 0;
       const sentences = captionEngine.sentences || [];
-      const currentSentence = sentences.find(s => {
+      const currentSentence = sentences.find((s, i) => {
         const sStart = Number(s.start ?? s.startTime ?? 0);
         const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-        return time >= sStart && time <= sEnd;
+        const isLast = (i === sentences.length - 1);
+        return time >= sStart && (isLast ? time <= sEnd : time < sEnd);
       }) || sentences[0];
 
       if (!currentSentence) return;
@@ -2001,17 +2368,25 @@ export class UserDashboard {
       const targetPosX = currentSentence.posX !== undefined ? currentSentence.posX : 6;
       const targetPosY = currentSentence.posY !== undefined ? currentSentence.posY : 50;
       const targetBoxWidth = currentSentence.boxWidth || null;
+      const targetFontSize = currentSentence.fontSize !== undefined ? currentSentence.fontSize : null;
 
       sentences.forEach(s => {
         s.posX = targetPosX;
         s.posY = targetPosY;
         s.boxWidth = targetBoxWidth;
+        if (applyFontSize && targetFontSize) {
+          s.fontSize = targetFontSize;
+        }
       });
 
       soundFx.playSaveSuccess();
-      this.showToast(`⚡ Position (${targetPosX}%, ${targetPosY}%) & width (${targetBoxWidth ? targetBoxWidth + '%' : 'Auto'}) applied to ALL segments!`, 'success');
+      if (applyFontSize && targetFontSize) {
+        this.showToast(`⚡ Size (${targetFontSize}px) & Position (${targetPosX}%, ${targetPosY}%) applied to ALL segments!`, 'success');
+      } else {
+        this.showToast(`⚡ Position (${targetPosX}%, ${targetPosY}%) & width applied to ALL segments!`, 'success');
+      }
       this.lastRenderedSentenceKey = null;
-      this.updateCaptionOverlay();
+      this.updateCaptionOverlay(currentSentence);
       this.renderMiniSegmentsList();
     };
 
@@ -2023,7 +2398,7 @@ export class UserDashboard {
       if (followAllBtn) {
         e.stopPropagation();
         e.preventDefault();
-        applyCurrentPosToAll();
+        applyCurrentPosToAll(false); // Only apply position & box width; preserve per-segment font sizes
         return;
       }
 
@@ -2032,10 +2407,11 @@ export class UserDashboard {
         e.preventDefault();
         const time = this.videoElement ? this.videoElement.currentTime : 0;
         const sentences = captionEngine.sentences || [];
-        const currentSentence = sentences.find(s => {
+        const currentSentence = sentences.find((s, i) => {
           const sStart = Number(s.start ?? s.startTime ?? 0);
           const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-          return time >= sStart && time <= sEnd;
+          const isLast = (i === sentences.length - 1);
+          return time >= sStart && (isLast ? time <= sEnd : time < sEnd);
         }) || sentences[0];
 
         if (currentSentence) {
@@ -2045,15 +2421,15 @@ export class UserDashboard {
           soundFx.playKeyBeep(450);
           this.showToast('Position reset to default Middle-Left.', 'info');
           this.lastRenderedSentenceKey = null;
-          this.updateCaptionOverlay();
+          this.updateCaptionOverlay(currentSentence);
           this.renderMiniSegmentsList();
         }
       }
     });
 
-    // Sidebar header apply pos to all button
+    // Sidebar header apply size & pos to all button
     wrap.querySelector('#btn-header-apply-pos-all')?.addEventListener('click', () => {
-      applyCurrentPosToAll();
+      applyCurrentPosToAll(true);
     });
   }
 
@@ -2102,19 +2478,22 @@ export class UserDashboard {
     }
   }
 
-  renderCutoutIfActiveBehind() {
+  renderCutoutIfActiveBehind(sentenceOverride = null) {
     if (!this.videoElement) return;
     if (!this.cutoutCanvas) {
       this.cutoutCanvas = this.container?.querySelector('#user-cutout-canvas');
     }
     if (!this.cutoutCanvas) return;
 
-    const time = this.videoElement.currentTime || 0;
+    const time = sentenceOverride
+      ? (Number(sentenceOverride.start ?? sentenceOverride.startTime ?? 0) + 0.05)
+      : (this.videoElement.currentTime || 0);
     const sentences = captionEngine.sentences || [];
-    let currentSentence = sentences.find(s => {
+    let currentSentence = sentenceOverride || sentences.find((s, i) => {
       const sStart = Number(s.start ?? s.startTime ?? 0);
       const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-      return time >= sStart && time <= sEnd;
+      const isLast = (i === sentences.length - 1);
+      return time >= sStart && (isLast ? time <= sEnd : time < sEnd);
     });
 
     if (!currentSentence && sentences.length > 0) {

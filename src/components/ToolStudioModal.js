@@ -39,13 +39,13 @@ export class ToolStudioModal {
   }
 
   async initConfigs() {
-    const v6Migrated = await storage.getSetting('config_templates_v6');
-    if (!v6Migrated) {
+    const v7Migrated = await storage.getSetting('config_templates_v7');
+    if (!v7Migrated) {
       this.landscapeConfig = { ...DEFAULT_LANDSCAPE_CONFIG };
       this.portraitConfig = { ...DEFAULT_PORTRAIT_CONFIG };
       await storage.saveSetting('config_landscape', this.landscapeConfig);
       await storage.saveSetting('config_portrait', this.portraitConfig);
-      await storage.saveSetting('config_templates_v6', true);
+      await storage.saveSetting('config_templates_v7', true);
     } else {
       const savedLandscape = await storage.getSetting('config_landscape');
       const savedPortrait = await storage.getSetting('config_portrait');

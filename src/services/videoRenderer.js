@@ -281,10 +281,11 @@ export class VideoRenderer {
     if (!sentences || sentences.length === 0) return;
 
     // 3. Find active sentence strictly matching timeline (no backwards jumping to old segments)
-    let currentSentence = sentences.find(s => {
+    let currentSentence = sentences.find((s, i) => {
       const sStart = Number(s.start ?? s.startTime ?? 0);
       const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-      return curTime >= sStart && curTime <= sEnd;
+      const isLast = (i === sentences.length - 1);
+      return curTime >= sStart && (isLast ? curTime <= sEnd : curTime < sEnd);
     });
 
     if (!currentSentence && sentences.length > 0) {
@@ -359,16 +360,24 @@ export class VideoRenderer {
     const baseRefWidth = isPortrait ? 430 : 760;
     const scale = canvasWidth / baseRefWidth;
 
-    const previewFontSize = isPortrait ? 25 : ((config.fontSize && Number(config.fontSize) <= 30) ? Number(config.fontSize) : 28);
+    const previewFontSize = (currentSentence.fontSize !== undefined && currentSentence.fontSize !== null && currentSentence.fontSize > 0)
+      ? Number(currentSentence.fontSize)
+      : (isPortrait ? 25 : ((config.fontSize && Number(config.fontSize) <= 30) ? Number(config.fontSize) : 28));
     const baseFontSize = Math.max(16, Math.round(previewFontSize * scale));
 
     const normalFontFamily = this.getFontFamily(config.normalFontFamily || 'Inter');
     const prominentFontFamily = this.getFontFamily(config.prominentFontFamily || 'Syne');
+    const segmentFontFamily = currentSentence.fontFamily ? this.getFontFamily(currentSentence.fontFamily) : null;
 
-    const defaultTextColor = config.textColor || '#FFFFFF';
-    const prominentColor = config.prominentColor || '#FFE600';
-    const hasLastWordColor = config.enableLastWordColor !== false && !!config.lastWordColor;
+    const defaultTextColor = currentSentence.textColor || config.textColor || '#FFFFFF';
+    const prominentColor = currentSentence.prominentColor || config.prominentColor || '#FFE600';
+    const hasLastWordColor = !currentSentence.prominentColor && (config.enableLastWordColor !== false && !!config.lastWordColor);
     const lastWordColor = hasLastWordColor ? config.lastWordColor : prominentColor;
+
+    const strokeEnabled = currentSentence.strokeEnabled !== false;
+    const customStrokeColor = currentSentence.strokeColor;
+    const hasGlow = currentSentence.glowColor && currentSentence.glowColor !== 'transparent' && currentSentence.glowColor !== '';
+    const glowColor = hasGlow ? currentSentence.glowColor : null;
 
     // 8. Build styled words
     const styledWords = displayWords.map((w, localIdx) => {
@@ -383,24 +392,26 @@ export class VideoRenderer {
       const isLastWord = (globalIdx === words.length - 1);
       const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && globalIdx === 1);
 
-      let font = isProminent ? prominentFontFamily : normalFontFamily;
+      let font = segmentFontFamily || (isProminent ? prominentFontFamily : normalFontFamily);
       let color = isProminent ? prominentColor : defaultTextColor;
 
       if (isLastWord && hasLastWordColor) {
-        font = prominentFontFamily;
+        font = segmentFontFamily || prominentFontFamily;
         color = lastWordColor;
       }
       if (isSpeaking) {
-        font = prominentFontFamily;
+        font = segmentFontFamily || prominentFontFamily;
       }
 
       const fontWeight = isSpeaking ? '900' : (isProminent ? '800' : '700');
-      const strokeWidth = (isProminent
-        ? (config.prominentOutlineWidth !== undefined ? config.prominentOutlineWidth : 2.5)
-        : (config.normalOutlineWidth !== undefined ? config.normalOutlineWidth : 1.5)) * scale;
-      const strokeColor = isProminent
-        ? (config.prominentOutlineColor || '#000000')
-        : (config.normalOutlineColor || '#000000');
+      const strokeWidth = strokeEnabled
+        ? ((isProminent
+            ? (config.prominentOutlineWidth !== undefined ? config.prominentOutlineWidth : 2.5)
+            : (config.normalOutlineWidth !== undefined ? config.normalOutlineWidth : 1.5)) * scale)
+        : 0;
+      const strokeColor = strokeEnabled
+        ? (customStrokeColor || (isProminent ? (config.prominentOutlineColor || '#000000') : (config.normalOutlineColor || '#000000')))
+        : 'transparent';
 
       const wordScale = isSpeaking ? 1.15 : 1.0;
 
@@ -409,7 +420,7 @@ export class VideoRenderer {
         font,
         fontWeight,
         color,
-        strokeWidth: Math.max(1.5, strokeWidth),
+        strokeWidth: Math.max(0, strokeWidth),
         strokeColor,
         isSpeaking,
         wordScale,
@@ -460,7 +471,7 @@ export class VideoRenderer {
     const startBlockY = hasCustomPos ? posY : (posY - totalBlockHeight * 0.5 + lineHeight * 0.5);
 
     // 11. Compute Dynamic Entrance Animation & Shine Glow Effects
-    let resolvedAnimId = config.animation || 'anim-auto';
+    let resolvedAnimId = currentSentence.animation || config.animation || 'anim-auto';
     if (resolvedAnimId === 'anim-auto') {
       let segCount = 0;
       const targetIdx = sentences.findIndex(s => s === currentSentence || (s.id !== undefined && s.id === currentSentence.id));
@@ -538,11 +549,18 @@ export class VideoRenderer {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // 100% Crisp strokes matching preview (zero shadow exposure halos)
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur = 0;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
+        // Glow effect (Matching Image 3 radiant neon style) or crisp zero-shadow
+        if (hasGlow && glowColor) {
+          ctx.shadowColor = glowColor;
+          ctx.shadowBlur = Math.round(18 * scale);
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 0;
+        } else {
+          ctx.shadowColor = 'transparent';
+          ctx.shadowBlur = 0;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 0;
+        }
 
         if (resolvedAnimId === 'anim-glitch') {
           ctx.save();
@@ -554,12 +572,14 @@ export class VideoRenderer {
           ctx.restore();
         }
 
-        // Crisp Outline Stroke
-        ctx.lineWidth = w.strokeWidth;
-        ctx.strokeStyle = w.strokeColor;
-        ctx.lineJoin = 'round';
-        ctx.miterLimit = 2;
-        ctx.strokeText(w.word, 0, 0);
+        // Crisp Outline Stroke (if enabled)
+        if (strokeEnabled && w.strokeWidth > 0 && w.strokeColor !== 'transparent') {
+          ctx.lineWidth = w.strokeWidth;
+          ctx.strokeStyle = w.strokeColor;
+          ctx.lineJoin = 'round';
+          ctx.miterLimit = 2;
+          ctx.strokeText(w.word, 0, 0);
+        }
 
         ctx.fillStyle = w.color;
         ctx.fillText(w.word, 0, 0);

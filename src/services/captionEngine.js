@@ -359,7 +359,15 @@ export class CaptionEngine {
           posX: s.posX !== undefined ? s.posX : (s.x !== undefined ? s.x : 6),
           posY: s.posY !== undefined ? s.posY : (s.y !== undefined ? s.y : 50),
           boxWidth: s.boxWidth || s.width || null,
-          behind: !!s.behind
+          behind: !!s.behind,
+          fontSize: s.fontSize,
+          fontFamily: s.fontFamily,
+          textColor: s.textColor,
+          prominentColor: s.prominentColor,
+          strokeEnabled: s.strokeEnabled,
+          strokeColor: s.strokeColor,
+          glowColor: s.glowColor,
+          animation: s.animation
         });
       }
     });
@@ -404,7 +412,15 @@ export class CaptionEngine {
         posX: s.posX !== undefined ? s.posX : (s.x !== undefined ? s.x : 6),
         posY: s.posY !== undefined ? s.posY : (s.y !== undefined ? s.y : 50),
         boxWidth: s.boxWidth || s.width || null,
-        behind: !!s.behind
+        behind: !!s.behind,
+        fontSize: s.fontSize,
+        fontFamily: s.fontFamily,
+        textColor: s.textColor,
+        prominentColor: s.prominentColor,
+        strokeEnabled: s.strokeEnabled,
+        strokeColor: s.strokeColor,
+        glowColor: s.glowColor,
+        animation: s.animation
       };
     });
 
