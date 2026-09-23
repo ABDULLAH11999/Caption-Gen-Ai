@@ -723,22 +723,14 @@ apiRouter.post('/public/quota-consume', quotaConsumeLimiter.middleware(), async 
       });
     }
 
-    // For authenticated users: find or create today's usage row for user_id
-    const existing = await query(
-      `SELECT id FROM usage_logs WHERE user_id = $1 AND day_date = $2 LIMIT 1`,
-      [userId, today]
+    // For authenticated users: upsert today's usage row for user_id
+    await query(
+      `INSERT INTO usage_logs (ip_address, user_id, day_date, generation_count)
+       VALUES ($1, $2, $3, 1)
+       ON CONFLICT (ip_address, day_date)
+       DO UPDATE SET generation_count = usage_logs.generation_count + 1, user_id = COALESCE(EXCLUDED.user_id, usage_logs.user_id)`,
+      [ip, userId, today]
     );
-    if (existing.rows.length > 0) {
-      await query(
-        `UPDATE usage_logs SET generation_count = generation_count + 1, ip_address = $1 WHERE id = $2`,
-        [ip, existing.rows[0].id]
-      );
-    } else {
-      await query(
-        `INSERT INTO usage_logs (ip_address, user_id, day_date, generation_count) VALUES ($1, $2, $3, 1)`,
-        [ip, userId, today]
-      );
-    }
   } else {
     const guestLimit = 3;
     const usageRes = await query(
@@ -754,22 +746,14 @@ apiRouter.post('/public/quota-consume', quotaConsumeLimiter.middleware(), async 
       });
     }
 
-    // For guest visitors: find or create guest row by ip_address where user_id IS NULL
-    const existing = await query(
-      `SELECT id FROM usage_logs WHERE ip_address = $1 AND day_date = $2 AND user_id IS NULL LIMIT 1`,
+    // For guest visitors: atomic upsert by ip_address & day_date
+    await query(
+      `INSERT INTO usage_logs (ip_address, user_id, day_date, generation_count)
+       VALUES ($1, NULL, $2, 1)
+       ON CONFLICT (ip_address, day_date)
+       DO UPDATE SET generation_count = usage_logs.generation_count + 1`,
       [ip, today]
     );
-    if (existing.rows.length > 0) {
-      await query(
-        `UPDATE usage_logs SET generation_count = generation_count + 1 WHERE id = $1`,
-        [existing.rows[0].id]
-      );
-    } else {
-      await query(
-        `INSERT INTO usage_logs (ip_address, user_id, day_date, generation_count) VALUES ($1, NULL, $2, 1)`,
-        [ip, today]
-      );
-    }
   }
 
   res.json({ success: true, consumed: true });

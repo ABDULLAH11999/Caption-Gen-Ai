@@ -124,24 +124,12 @@ export class ToolStudioModal {
               </svg>
             </div>
             <div>
-              <h2>CAPTION STYLE ENGINE</h2>
+              <h2 id="tool-modal-main-title">CAPTION STYLE ENGINE</h2>
               <p>16 READY-MADE TEMPLATES & DEEP GRANULAR STUDIO CUSTOMIZER</p>
             </div>
           </div>
 
           <div class="tool-header-controls">
-            <!-- Landscape vs Portrait Mode Tabs -->
-            <div class="orientation-tab-pill">
-              <button class="orient-btn ${this.currentMode === 'landscape' ? 'active' : ''}" data-mode="landscape">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"></rect></svg>
-                Landscape
-              </button>
-              <button class="orient-btn ${this.currentMode === 'portrait' ? 'active' : ''}" data-mode="portrait">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"></rect></svg>
-                Portrait
-              </button>
-            </div>
-
             <button class="btn-close-modal" id="btn-close-tool-modal" title="Close Studio">✕</button>
           </div>
         </div>
@@ -210,10 +198,7 @@ export class ToolStudioModal {
                 <button type="button" class="btn-back-to-templates" id="btn-back-to-templates">
                   <span>← Back to Templates Gallery</span>
                 </button>
-                <div class="customizing-badge-wrap">
-                  <span class="customizing-label">Customizing:</span>
-                  <span class="customizing-template-badge" id="customizing-template-badge">Viral Reel (Hormozi / Ref)</span>
-                </div>
+                <div class="customizing-template-title" id="customizing-template-badge" aria-hidden="true"></div>
                 <button type="button" class="btn-reset-template-preset" id="btn-reset-template-preset" title="Reset this template to default preset">
                   ↺ Reset Template
                 </button>
@@ -432,7 +417,6 @@ export class ToolStudioModal {
           <div class="tool-preview-column">
             <div class="preview-header-bar">
               <span class="preview-col-title" id="preview-col-mode-title">LIVE PREVIEW</span>
-              <span class="preview-profile-badge" id="preview-profile-badge">16:9 Landscape</span>
             </div>
 
             <div class="preview-screen-box preview-${this.currentMode}" id="preview-screen-box">
@@ -588,6 +572,8 @@ export class ToolStudioModal {
       if (customView) customView.style.display = 'none';
       if (tabTemplates) tabTemplates.classList.add('active');
       if (tabCustomize) tabCustomize.classList.remove('active');
+      const mainTitle = this.container.querySelector('#tool-modal-main-title');
+      if (mainTitle) mainTitle.textContent = 'CAPTION STYLE ENGINE';
     } else {
       if (galleryView) galleryView.style.display = 'none';
       if (customView) customView.style.display = 'flex';
@@ -603,7 +589,9 @@ export class ToolStudioModal {
 
     // Header badge
     const badge = this.container.querySelector('#customizing-template-badge');
-    if (badge) badge.textContent = activeTmpl.name;
+    if (badge) badge.textContent = '';
+    const mainTitle = this.container.querySelector('#tool-modal-main-title');
+    if (mainTitle) mainTitle.textContent = activeTmpl.name;
 
     // Video Enhancement Status
     const chkEnhance = this.container.querySelector('#chk-modal-enhance-quality');
@@ -1215,11 +1203,9 @@ export class ToolStudioModal {
     const anchor = this.container.querySelector('#preview-caption-anchor') || this.container.querySelector('#preview-caption-text');
     if (!anchor) return;
 
-    // Apply Mode Title and Profile Badge
+    // Keep preview header neutral; orientation text is intentionally hidden here.
     const titleSpan = this.container.querySelector('#preview-col-mode-title');
-    if (titleSpan) titleSpan.textContent = `LIVE PREVIEW (${this.currentMode.toUpperCase()})`;
-    const profileBadge = this.container.querySelector('#preview-profile-badge');
-    if (profileBadge) profileBadge.textContent = this.currentMode === 'landscape' ? '16:9 Landscape' : '9:16 Portrait';
+    if (titleSpan) titleSpan.textContent = 'LIVE PREVIEW';
 
     // Toggle video-enhanced on preview mockup
     const previewBox = this.container.querySelector('#preview-screen-box');

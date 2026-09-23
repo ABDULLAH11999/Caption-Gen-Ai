@@ -26,11 +26,11 @@ export class Navbar {
         <nav class="saas-nav-links">
           <a href="/" class="nav-item active" data-route="home">Home</a>
           <a href="/#how-it-works" class="nav-item" data-route="how-it-works">How It Works</a>
+          <a href="/#compare" class="nav-item" data-route="compare">Compare</a>
           <a href="/#templates" class="nav-item" data-route="templates">Templates</a>
           <a href="/#pricing" class="nav-item" data-route="pricing">Pricing</a>
+          <a href="/#faq" class="nav-item" data-route="faq">FAQ</a>
           <a href="/blog" class="nav-item" data-route="blog">Blog</a>
-          <a href="/about" class="nav-item" data-route="about">About</a>
-          <a href="/contact" class="nav-item" data-route="contact">Contact</a>
         </nav>
 
         <div class="saas-nav-actions" id="nav-actions-container">
@@ -82,11 +82,11 @@ export class Navbar {
     } else {
       actions.innerHTML = `
         <button class="btn btn-outline btn-sm desktop-nav-action" id="btn-nav-signin">Sign In</button>
-        <button class="btn btn-primary btn-sm desktop-nav-action" id="btn-nav-signup">Get Started Free</button>
+        <button class="btn btn-primary btn-sm desktop-nav-action" id="btn-nav-signup">Launch Studio</button>
       `;
 
       actions.querySelector('#btn-nav-signin')?.addEventListener('click', () => this.onOpenAuth('signin'));
-      actions.querySelector('#btn-nav-signup')?.addEventListener('click', () => this.onOpenAuth('signup'));
+      actions.querySelector('#btn-nav-signup')?.addEventListener('click', () => this.onNavigate('app'));
     }
 
     this.updateMobileMenu();

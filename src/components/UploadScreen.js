@@ -121,7 +121,7 @@ export class UploadScreen {
           <span class="badge badge-cyan">MAX SIZE: ${APP_CONFIG.MAX_FILE_SIZE_MB} MB</span>
           <span class="badge badge-purple">MAX DURATION: ${Math.floor(APP_CONFIG.MAX_DURATION_SEC / 60)} MINUTES</span>
           <span class="badge badge-yellow">MULTI-LANGUAGE: 1 - 3 LANGUAGES</span>
-          <span class="badge badge-green">100% LOCAL & OFFLINE</span>
+          <span class="badge badge-cyan">100% LOCAL & OFFLINE</span>
         </div>
 
         <div class="upload-btn-group">

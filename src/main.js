@@ -342,6 +342,9 @@ class ZenSaaSApp {
     // Handle Navbar and Footer visibility:
     // Dashboard and Admin panels have their own standalone sidebar workspace layout
     const isStudioOrAdmin = route === 'app' || route === 'admin';
+    document.body.classList.toggle('app-shell-locked', isStudioOrAdmin);
+    document.documentElement.classList.toggle('app-shell-locked', isStudioOrAdmin);
+    if (isStudioOrAdmin) window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     if (this.navbar?.container) {
       this.navbar.container.style.display = isStudioOrAdmin ? 'none' : 'block';
     }
@@ -415,7 +418,8 @@ class ZenSaaSApp {
           navigate: (r, p) => this.navigate(r, p),
           showToast: (msg, t) => this.showToast(msg, t),
           openAuthModal: (m) => this.authModal.open(m),
-          toolStudio: this.toolStudio
+          toolStudio: this.toolStudio,
+          initialFile: params?.file || null
         });
         this.userDashboard.render(this.mainContainer);
         this.userDashboard.init();

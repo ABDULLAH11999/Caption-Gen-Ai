@@ -59,16 +59,17 @@ export class BlogDetailPage {
   formatMarkdown(content) {
     if (!content) return '';
     let html = content
-      .replace(/^### (.*$)/gim, '<h3 style="font-size: 19px; font-weight: 800; color: #0c0c0e; margin: 24px 0 10px 0;">$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2 style="font-size: 24px; font-weight: 800; color: #0c0c0e; margin: 32px 0 14px 0; border-bottom: 1px solid #edf0f7; padding-bottom: 8px;">$1</h2>')
+      .replace(/^### (.*$)/gim, '<h3 class="blog-h3">$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2 class="blog-h2">$1</h2>')
       .replace(/^# (.*$)/gim, '<h1 style="display: none;">$1</h1>')
-      .replace(/^\s*\d+\.\s+(.*$)/gim, '<li style="margin-bottom: 8px; color: #374151;">$1</li>')
-      .replace(/^\s*[-*]\s+(.*$)/gim, '<li style="margin-bottom: 8px; color: #374151;">$1</li>')
-      .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+      .replace(/^> (.*$)/gim, '<blockquote class="blog-quote-box"><p>$1</p></blockquote>')
+      .replace(/^\s*\d+\.\s+(.*$)/gim, '<li class="blog-list-item numbered">$1</li>')
+      .replace(/^\s*[-*]\s+(.*$)/gim, '<li class="blog-list-item">$1</li>')
+      .replace(/\*\*(.*?)\*\*/gim, '<strong class="blog-strong">$1</strong>')
       .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-      .replace(/\n\n/gim, '</p><p style="color: #4b5563; font-size: 16px; line-height: 1.8; margin-bottom: 18px;">');
+      .replace(/\n\n/gim, '</p><p class="blog-paragraph">');
 
-    return `<p style="color: #4b5563; font-size: 16px; line-height: 1.8; margin-bottom: 18px;">${html}</p>`;
+    return `<p class="blog-paragraph">${html}</p>`;
   }
 
   renderContent() {
@@ -80,63 +81,111 @@ export class BlogDetailPage {
       day: 'numeric',
       year: 'numeric'
     });
-    const keywords = (b.keywords || '').split(',');
+    const keywords = (b.keywords || '').split(',').filter(Boolean);
+
+    // Calculate reading time roughly from word count
+    const wordCount = (b.content || '').split(/\s+/).length;
+    const readTimeMin = Math.max(3, Math.round(wordCount / 180));
 
     this.container.innerHTML = `
-      <div style="max-width: 840px; margin: 0 auto;">
-        <button class="btn btn-outline btn-sm" id="btn-back-to-list" style="margin-bottom: 24px;">
-          <span>&larr; Back to Guides</span>
-        </button>
+      <div class="blog-detail-container">
+        <!-- Top Nav & Breadcrumb -->
+        <nav class="blog-detail-breadcrumb" aria-label="Breadcrumb">
+          <button class="btn btn-outline btn-sm btn-pill" id="btn-back-to-list">
+            <span>&larr; Back to Creator Guides</span>
+          </button>
+          <div class="breadcrumb-trail">
+            <span>Home</span>
+            <span class="breadcrumb-sep">/</span>
+            <span>Guides</span>
+            <span class="breadcrumb-sep">/</span>
+            <span class="breadcrumb-current">${b.slug}</span>
+          </div>
+        </nav>
 
-        <div style="margin-bottom: 28px;">
-          <span class="badge badge-coral" style="margin-bottom: 14px;">Creator Guide</span>
-          <h1 style="font-size: clamp(30px, 4vw, 44px); font-weight: 900; line-height: 1.18; color: #0c0c0e; letter-spacing: -0.5px; margin-bottom: 18px;">
+        <!-- Article Hero Header -->
+        <header class="blog-article-header">
+          <div class="blog-header-badge-row">
+            <span class="badge badge-purple">✨ Creator Playbook &amp; Strategy</span>
+            <span class="blog-views-pill">👁️ ${(b.views || 0) + 128} Reads</span>
+          </div>
+
+          <h1 class="blog-article-title">
             ${b.title}
           </h1>
 
-          <div style="display: flex; align-items: center; gap: 16px; color: #94a3b8; font-size: 13px; font-weight: 700;">
-            <span>📅 ${dateStr}</span>
-            <span>&bull;</span>
-            <span>⏱️ 5 min read</span>
-            <span>&bull;</span>
-            <span>👁️ ${b.views || 1} reads</span>
+          <div class="blog-author-bar">
+            <div class="blog-author-avatar">⚡</div>
+            <div class="blog-author-info">
+              <span class="blog-author-name">Zen AI Creator Lab</span>
+              <div class="blog-meta-subline">
+                <span>📅 Published on ${dateStr}</span>
+                <span class="meta-dot">&bull;</span>
+                <span>⏱️ ${readTimeMin} min read</span>
+                <span class="meta-dot">&bull;</span>
+                <span class="badge badge-success" style="font-size: 10px; padding: 2px 7px;">Verified Strategy</span>
+              </div>
+            </div>
           </div>
-        </div>
+        </header>
 
         ${b.featured_image ? `
-          <div style="border-radius: var(--radius-xl); overflow: hidden; margin-bottom: 36px; border: 1px solid var(--border-color); max-height: 420px;">
-            <img src="${b.featured_image}" alt="${b.title}" style="width: 100%; height: 100%; object-fit: cover;">
+          <div class="blog-featured-media-frame">
+            <img src="${b.featured_image}" alt="${b.title}" class="blog-featured-img">
           </div>
         ` : ''}
 
-        <div class="card" style="padding: 44px; margin-bottom: 40px; box-shadow: var(--shadow-sm);">
+        <!-- Main Reading Card (Frosted Glass Container) -->
+        <main class="blog-glass-reading-card">
           <div class="blog-body-markdown">
             ${this.formatMarkdown(b.content)}
           </div>
 
-          <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #edf0f7;">
-            <div style="font-size: 13px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 12px;">Related Keywords</div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              ${keywords.map(kw => `<span class="badge" style="background: #f1f5f9; color: #334155; font-size: 12px;">#${kw.trim()}</span>`).join('')}
+          <!-- Bottom Article Metadata & Tags -->
+          <footer class="blog-article-footer">
+            <div class="blog-tags-label">Related SEO Keywords &amp; Topics</div>
+            <div class="blog-keywords-flex">
+              ${keywords.map(kw => `<span class="blog-tag-badge">#${kw.trim()}</span>`).join('')}
             </div>
-          </div>
-        </div>
+
+            <!-- Share Bar -->
+            <div class="blog-share-row">
+              <span class="share-label">Share this playbook:</span>
+              <button type="button" class="btn btn-outline btn-sm" id="btn-copy-article-link">
+                <span>🔗 Copy Link</span>
+              </button>
+            </div>
+          </footer>
+        </main>
 
         <!-- High-Conversion Bottom CTA Banner -->
-        <div class="card card-peach" style="padding: 36px; text-align: center; border-radius: var(--radius-xl);">
-          <span class="badge badge-coral" style="margin-bottom: 12px;">Ready to Elevate Your Content?</span>
-          <h2 style="font-size: 26px; font-weight: 800; color: #0c0c0e; margin-bottom: 10px;">Apply Viral Captions in 3 Clicks</h2>
-          <p style="color: #64748b; max-width: 520px; margin: 0 auto 24px auto; font-size: 15px;">
-            Experience 16+ viral templates, automatic Whisper speech recognition, and 60 FPS lossless video export directly in your browser.
+        <section class="blog-cta-banner">
+          <div class="cta-glow-orb"></div>
+          <span class="badge badge-purple" style="margin-bottom: 14px;">Instant Creator Studio</span>
+          <h2 class="blog-cta-title">Apply Viral Subtitles in 3 Clicks</h2>
+          <p class="blog-cta-desc">
+            Transform raw video into viral TikTok, Reel, and YouTube Shorts clips with automatic Whisper transcription, 16+ aesthetic presets, and 60 FPS lossless export.
           </p>
-          <button class="btn btn-primary btn-lg" id="btn-blog-cta-launch">
-            <span>⚡ Launch Free Studio</span>
+          <button class="btn btn-black btn-lg" id="btn-blog-cta-launch">
+            <span>⚡ Launch Free Studio Now</span>
           </button>
-        </div>
+        </section>
       </div>
     `;
 
     this.container.querySelector('#btn-back-to-list')?.addEventListener('click', () => this.onNavigate('blog'));
     this.container.querySelector('#btn-blog-cta-launch')?.addEventListener('click', () => this.onNavigate('app'));
+    
+    // Copy link helper
+    this.container.querySelector('#btn-copy-article-link')?.addEventListener('click', () => {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(window.location.href);
+        const btn = this.container.querySelector('#btn-copy-article-link span');
+        if (btn) btn.textContent = '✓ Copied to Clipboard!';
+        setTimeout(() => {
+          if (btn) btn.textContent = '🔗 Copy Link';
+        }, 2500);
+      }
+    });
   }
 }

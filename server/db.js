@@ -19,7 +19,9 @@ export const pool = new Pool({
   },
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 25000
+  connectionTimeoutMillis: 25000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000
 });
 
 // Handle idle pool client errors (e.g. Neon serverless resets idle connection) without crashing
@@ -27,17 +29,25 @@ pool.on('error', (err) => {
   console.warn('[DB Pool Idle Client Warning]', err.message);
 });
 
-export async function query(text, params, retries = 2) {
+export async function query(text, params, retries = 3) {
   try {
     const res = await pool.query(text, params);
     return res;
   } catch (err) {
-    if (retries > 0 && (err.message?.includes('timeout') || err.message?.includes('Connection terminated') || err.message?.includes('ECONNRESET'))) {
-      console.warn(`[DB Query Retry] Retrying query due to: ${err.message}`);
-      await new Promise(r => setTimeout(r, 800));
+    const msg = err.message || '';
+    const isTransient = msg.includes('timeout') ||
+      msg.includes('Connection terminated') ||
+      msg.includes('ECONNRESET') ||
+      msg.includes('57P01') ||
+      msg.includes('Connection refused') ||
+      msg.includes('closed');
+
+    if (retries > 0 && isTransient) {
+      console.warn(`[DB Query Retry] Retrying query (${retries} left) due to: ${msg}`);
+      await new Promise(r => setTimeout(r, 1000));
       return query(text, params, retries - 1);
     }
-    console.error('[DB Query Error]', { text, error: err.message });
+    console.error('[DB Query Error]', { text, error: msg });
     throw err;
   }
 }

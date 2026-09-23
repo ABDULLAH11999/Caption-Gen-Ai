@@ -31,6 +31,8 @@ export class UserDashboard {
     this.showToast = options.showToast || (() => {});
     this.openAuthModal = options.openAuthModal || (() => {});
     this.toolStudio = options.toolStudio || null;
+    this.initialFile = options.initialFile || null;
+    this.initialFileStarted = false;
 
     this.activeTab = 'apply'; // 'templates' | 'apply' | 'quota'
     this.currentMode = 'landscape'; // 'landscape' | 'portrait'
@@ -50,6 +52,11 @@ export class UserDashboard {
     this.processingProgress = 20;
     this.processingStatus = 'Initializing...';
     this.processingCancelled = false;
+    if (this.initialFile) {
+      this.isProcessing = true;
+      this.processingProgress = 15;
+      this.processingStatus = 'Reading video file & metadata...';
+    }
 
     // Line Segments
     this.segments = [];
@@ -71,6 +78,15 @@ export class UserDashboard {
   async init() {
     await this.loadUserData();
     await this.loadQuotaData();
+    if (this.initialFile && !this.initialFileStarted) {
+      this.initialFileStarted = true;
+      const file = this.initialFile;
+      this.initialFile = null;
+      setTimeout(() => {
+        this.switchTab('apply');
+        this.handleVideoFile(file);
+      }, 0);
+    }
   }
 
   getSystemRequirementsProfile() {
@@ -197,12 +213,8 @@ export class UserDashboard {
         <div class="sysreq-modal-inner" role="dialog" aria-modal="true" aria-labelledby="sysreq-title">
           <button id="btn-sysreq-close" class="sysreq-close-btn" aria-label="Close system requirements">x</button>
           <div class="sysreq-header">
-            <div class="sysreq-icon">i</div>
-            <div>
-              <div class="sysreq-badge">${profile.badge}</div>
-              <h2 id="sysreq-title">${profile.title}</h2>
-              <p>${profile.sub}</p>
-            </div>
+            <h2 id="sysreq-title">${profile.title}</h2>
+            <p>${profile.sub}</p>
           </div>
           <div class="sysreq-grid">
             <section class="sysreq-card sysreq-card-min">
@@ -586,6 +598,7 @@ export class UserDashboard {
       soundFx.playTabSwitch();
     }
     this.activeTab = tab;
+    this.resetDashboardScroll();
     if (tab === 'templates') {
       document.title = 'Templates & Styles - Zen Caption AI';
     } else if (tab === 'apply') {
@@ -606,6 +619,8 @@ export class UserDashboard {
 
     const isStudioWorkspace = this.activeTab === 'apply' && !!this.videoBlob && !this.isProcessing;
     host.classList.toggle('studio-workspace-active', isStudioWorkspace);
+    host.classList.toggle('apply-workspace-active', this.activeTab === 'apply');
+    this.resetDashboardScroll();
 
     if (this.activeTab === 'templates') {
       this.renderTemplatesTab(host);
@@ -613,6 +628,17 @@ export class UserDashboard {
       this.renderApplyCaptionsTab(host);
     } else if (this.activeTab === 'quota') {
       this.renderQuotaTab(host);
+    }
+  }
+
+  resetDashboardScroll() {
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      this.container?.querySelector('#user-workspace-content')?.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+    } catch (e) {
+      // Scroll reset is best-effort for older mobile browsers.
     }
   }
 
@@ -626,19 +652,7 @@ export class UserDashboard {
       <div class="user-tab-header">
         <div>
           <h1 class="user-tab-title">16 Professional Caption Templates</h1>
-        </div>
-
-        <div class="user-tab-actions">
-          <div class="mode-toggle-group">
-            <button class="mode-btn ${this.currentMode === 'landscape' ? 'active' : ''}" id="user-mode-landscape" title="16:9 Widescreen Landscape">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="5" width="20" height="14" rx="2.5"></rect><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-              <span>16:9 Landscape</span>
-            </button>
-            <button class="mode-btn ${this.currentMode === 'portrait' ? 'active' : ''}" id="user-mode-portrait" title="9:16 Shorts / Reels Portrait">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="2" width="12" height="20" rx="2.5"></rect><line x1="10" y1="18" x2="14" y2="18"></line></svg>
-              <span>9:16 Portrait</span>
-            </button>
-          </div>
+          <p style="color: #64748b; font-size: 13.5px; margin-top: 4px;">Universal presets engineered for TikTok, Shorts, Reels &amp; Landscape videos</p>
         </div>
       </div>
 
@@ -648,18 +662,6 @@ export class UserDashboard {
     `;
 
     parent.appendChild(wrap);
-
-    // Orientation toggle
-    wrap.querySelector('#user-mode-landscape')?.addEventListener('click', () => {
-      this.currentMode = 'landscape';
-      if (this.toolStudio) this.toolStudio.setOrientation('landscape');
-      this.renderTemplatesTab(parent);
-    });
-    wrap.querySelector('#user-mode-portrait')?.addEventListener('click', () => {
-      this.currentMode = 'portrait';
-      if (this.toolStudio) this.toolStudio.setOrientation('portrait');
-      this.renderTemplatesTab(parent);
-    });
 
 
 
@@ -861,72 +863,78 @@ export class UserDashboard {
       const isQuotaFull = this.quotaInfo && (this.quotaInfo.dailyUsed >= this.quotaInfo.dailyLimit || this.quotaInfo.monthlyUsed >= this.quotaInfo.monthlyLimit);
 
       wrap.innerHTML = `
-        <div class="user-tab-header">
-          <div>
-            <h1 class="user-tab-title">Apply Captions to Video</h1>
-            <p style="color: #64748b; font-size: 14px;">
-              Active Template: <strong style="color: var(--primary-coral);">${CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId)?.name || 'Default'}</strong>
-            </p>
-          </div>
-
-          <button class="btn btn-outline" id="btn-change-template-shortcut">
-            🎨 Change Style
-          </button>
-        </div>
-
-        ${isQuotaFull ? `
-          <div class="quota-warning-banner" id="quota-warning-banner" style="max-width: 800px; margin: 0 auto 16px auto; background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 12px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; color: #991b1b; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.08);">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <span style="font-size: 20px;">⚡</span>
-              <span><strong>Daily Quota Limit Reached (${this.quotaInfo.dailyUsed}/${this.quotaInfo.dailyLimit}):</strong> Upgrade your plan or view quota to unlock more generations.</span>
+        <div class="dashboard-page-container">
+          <header class="dashboard-top-bar">
+            <div>
+              <h1 class="user-tab-title">Apply Captions to Video</h1>
             </div>
-            <button type="button" class="btn btn-outline btn-sm" id="btn-banner-view-quota" style="border-color: #dc2626; color: #dc2626; padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 8px; flex-shrink: 0; background: #fff; cursor: pointer;">
-              📊 View Quota
+
+            <button class="btn btn-outline btn-sm" id="btn-change-template-shortcut">
+              🎨 Change Style
             </button>
+          </header>
+
+          <div class="dashboard-content-scroll">
+            ${isQuotaFull ? `
+              <div class="quota-warning-banner" id="quota-warning-banner" style="max-width: 800px; margin: 0 auto 16px auto; background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 12px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; color: #991b1b; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.08);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 20px;">⚡</span>
+                  <span><strong>Daily Quota Limit Reached (${this.quotaInfo.dailyUsed}/${this.quotaInfo.dailyLimit}):</strong> Upgrade your plan or view quota to unlock more generations.</span>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" id="btn-banner-view-quota" style="border-color: #dc2626; color: #dc2626; padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 8px; flex-shrink: 0; background: #fff; cursor: pointer;">
+                  📊 View Quota
+                </button>
+              </div>
+            ` : ''}
+
+            <div class="upload-card" id="user-drop-zone" style="max-width: 780px; margin: 16px auto 24px auto; background: #ffffff; border: 1.5px dashed ${isQuotaFull ? '#fca5a5' : '#cbd5e1'}; border-radius: 24px; padding: 48px 32px; text-align: center; cursor: pointer; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);">
+              <input type="file" id="user-file-input" accept="video/*,video/mp4,video/quicktime,video/webm" style="display: none;">
+              
+              <div style="width: 56px; height: 56px; border-radius: 50%; background: #f1f5f9; color: #090a14; display: flex; align-items: center; justify-content: center; margin: 0 auto 18px auto; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+              </div>
+
+              <h2 style="font-size: 22px; font-weight: 800; color: #090a14; margin-bottom: 8px; letter-spacing: -0.3px;">Upload Video to Add Captions</h2>
+              <p style="color: #64748b; font-size: 14px; max-width: 480px; margin: 0 auto 24px auto; line-height: 1.55;">
+                Select any MP4, WebM or MOV video. The local Whisper engine will extract audio and align word-by-word timestamps.
+              </p>
+
+              <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 26px;">
+                <span class="badge" style="background: #f1f5f9; color: #475569; font-weight: 700;">MAX SIZE: ${APP_CONFIG.MAX_FILE_SIZE_MB} MB</span>
+                <span class="badge badge-purple" style="font-weight: 700;">MAX DURATION: ${Math.floor(APP_CONFIG.MAX_DURATION_SEC / 60)} MIN</span>
+                <span class="badge badge-local-processing" style="font-weight: 700;">100% LOCAL PROCESSING</span>
+              </div>
+
+              <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 22px;">
+                <button class="btn btn-black" id="btn-user-browse-file" style="padding: 12px 32px; font-size: 14.5px;">
+                  📁 Browse Video File
+                </button>
+              </div>
+
+              <!-- Video Quality Enhancement Checkbox -->
+              <div style="display: inline-flex; align-items: center; gap: 10px; background: #fafbfe; border: 1px solid #e2e8f0; padding: 9px 18px; border-radius: var(--radius-pill);">
+                <input type="checkbox" id="user-enhance-quality" ${this.enhanceVideoQuality ? 'checked' : ''} style="accent-color: #000000; cursor: pointer; width: 16px; height: 16px;">
+                <label for="user-enhance-quality" style="font-size: 13px; font-weight: 700; color: #1e293b; cursor: pointer;">
+                  ✨ Enhance Video Quality
+                </label>
+              </div>
+            </div>
+
+            <!-- Important Notice regarding Client-Side Hardware Processing -->
+            <div class="client-processing-notice" style="max-width: 780px; margin: 0 auto; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 12px 18px; text-align: center; font-size: 13px; color: #9a3412; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span>⚠ <strong style="color: #7c2d12;">100% Local:</strong> All processing runs on your device — speed depends on your system.</span>
+              <button id="btn-sysreq-info" title="View System Requirements" style="background: none; border: 1.5px solid #ea580c; color: #ea580c; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 1; padding: 0;">i</button>
+            </div>
           </div>
-        ` : ''}
 
-        <div class="upload-card" id="user-drop-zone" style="max-width: 800px; margin: 20px auto; background: #ffffff; border: 2px dashed ${isQuotaFull ? '#fca5a5' : '#cbd5e1'}; border-radius: var(--radius-xl); padding: 48px 32px; text-align: center; cursor: pointer;">
-          <input type="file" id="user-file-input" accept="video/*,video/mp4,video/quicktime,video/webm" style="display: none;">
-          
-          <div style="width: 64px; height: 64px; border-radius: 50%; background: ${isQuotaFull ? '#fef2f2' : 'var(--primary-coral-light)'}; color: ${isQuotaFull ? '#ef4444' : 'var(--primary-coral)'}; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto;">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-          </div>
-
-          <h2 style="font-size: 22px; font-weight: 900; color: #0c0c0e; margin-bottom: 8px;">Upload Video to Add Captions</h2>
-          <p style="color: #64748b; font-size: 14px; max-width: 480px; margin: 0 auto 24px auto;">
-            Select any MP4, WebM or MOV video. The local Whisper engine will extract audio and align word-by-word timestamps.
-          </p>
-
-          <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px;">
-            <span class="badge badge-cyan">MAX SIZE: ${APP_CONFIG.MAX_FILE_SIZE_MB} MB</span>
-            <span class="badge badge-purple">MAX DURATION: ${Math.floor(APP_CONFIG.MAX_DURATION_SEC / 60)} MIN</span>
-            <span class="badge badge-success">100% LOCAL PROCESSING</span>
-          </div>
-
-          <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px;">
-            <button class="btn btn-primary" id="btn-user-browse-file" style="padding: 12px 28px; font-size: 15px;">
-              📁 Browse Video File
-            </button>
-          </div>
-
-          <!-- Video Quality Enhancement Checkbox -->
-          <div style="display: inline-flex; align-items: center; gap: 10px; background: #fafbfe; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 30px;">
-            <input type="checkbox" id="user-enhance-quality" ${this.enhanceVideoQuality ? 'checked' : ''} style="accent-color: var(--primary-coral); cursor: pointer; width: 16px; height: 16px;">
-            <label for="user-enhance-quality" style="font-size: 13px; font-weight: 700; color: #1e293b; cursor: pointer;">
-              ✨ Enhance Video Quality
-            </label>
-          </div>
-        </div>
-
-        <!-- Important Notice regarding Client-Side Hardware Processing -->
-        <div class="client-processing-notice" style="max-width: 800px; margin: 24px auto 0 auto; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 16px; text-align: center; font-size: 13px; color: #9a3412; display: flex; align-items: center; justify-content: center; gap: 8px;">
-          <span>⚠ <strong style="color: #7c2d12;">100% Local:</strong> All processing runs on your device — speed depends on your system.</span>
-          <button id="btn-sysreq-info" title="View System Requirements" style="background: none; border: 1.5px solid #ea580c; color: #ea580c; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 1; padding: 0;">i</button>
+          <footer class="dashboard-bottom-dock">
+            <span>⚡ Zen Caption AI Studio &bull; 100% Client-Side Privacy Guaranteed</span>
+            <span>Zero Watermarks &bull; Instant 60 FPS GPU Export</span>
+          </footer>
         </div>
 
         <!-- System Requirements Modal -->
@@ -1069,23 +1077,20 @@ export class UserDashboard {
         
         <!-- Left: Canvas & Video Player Panel -->
         <div class="studio-canvas-panel">
-          <div class="user-tab-header" style="margin-bottom: 20px;">
+          <header class="dashboard-top-bar workspace-top-bar" style="margin-bottom: 18px; border-radius: 16px; border: 1px solid rgba(226, 232, 240, 0.95);">
             <div>
-              <h1 class="user-tab-title">Video Caption Workspace</h1>
-              <p style="color: #64748b; font-size: 13px;">
-                Active Style: <strong>${CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId)?.name || 'Default'}</strong>
-              </p>
+              <h1 class="user-tab-title" style="font-size: 20px;">Video Caption Workspace</h1>
             </div>
 
             <div class="user-tab-actions">
-              <button class="btn btn-outline" id="btn-reselect-video" style="padding: 8px 16px; font-size: 13px;">
-                🔄 New Video
+              <button class="btn btn-outline btn-sm" id="btn-reselect-video" style="padding: 7px 16px; font-size: 12.5px;">
+                📁 New Video
               </button>
-              <button class="btn btn-outline" id="btn-workspace-style" style="padding: 8px 16px; font-size: 13px;">
+              <button class="btn btn-outline btn-sm" id="btn-workspace-style" style="padding: 7px 16px; font-size: 12.5px;">
                 🎨 Templates
               </button>
             </div>
-          </div>
+          </header>
 
           <!-- Video Player Card -->
           <div class="video-player-card">
@@ -1099,54 +1104,63 @@ export class UserDashboard {
               <canvas class="cutout-live-canvas" id="user-cutout-canvas" style="display: none;"></canvas>
             </div>
 
-            <!-- Controls -->
-            <div class="player-controls">
+            <!-- Dedicated Bottom Controls Bar (Image 5) -->
+            <div class="player-controls dashboard-bottom-bar" style="border-radius: 18px; margin-top: 14px; padding: 16px 20px;">
               <div class="timeline-scrubber-wrapper">
-                <input type="range" class="timeline-scrubber" id="user-timeline-scrubber" min="0" max="100" value="0" step="0.1" style="flex: 1; accent-color: var(--primary-coral); cursor: pointer;">
+                <input type="range" class="timeline-scrubber" id="user-timeline-scrubber" min="0" max="100" value="0" step="0.1" style="flex: 1; accent-color: #000000; cursor: pointer;">
                 <span class="timestamp-indicator" id="user-time-display">00:00 / 00:00</span>
               </div>
 
-              <!-- Enhancement Checkbox -->
-              <div class="player-enhance-bar">
-                <label class="player-enhance-label">
-                  <input type="checkbox" id="user-player-enhance" ${this.enhanceVideoQuality ? 'checked' : ''} style="accent-color: var(--primary-coral);">
-                  <span>✨ Enhance Video Quality</span>
-                </label>
-                <span class="badge badge-success" style="font-size: 10px;">60 FPS LOSSLESS</span>
-              </div>
-
-              <div class="player-action-controls">
+              <div class="player-action-controls" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                <!-- Left Playback Buttons -->
                 <div class="player-playback-btns">
-                  <button class="btn btn-outline btn-play-circle" id="user-btn-play">▶</button>
-                  <button class="btn btn-outline btn-compact-action" id="user-btn-rw">↺ 5s</button>
-                  <button class="btn btn-outline btn-compact-action" id="user-btn-ff">5s ↻</button>
-                  <button class="btn btn-outline btn-compact-action" id="user-btn-mute">🔊</button>
+                  <button class="btn btn-outline btn-play-circle" id="user-btn-play" title="Play / Pause">▶</button>
+                  <button class="btn btn-outline btn-compact-action" id="user-btn-rw" title="Rewind 5s">↺ 5s</button>
+                  <button class="btn btn-outline btn-compact-action" id="user-btn-ff" title="Forward 5s">5s ↻</button>
+                  <button class="btn btn-outline btn-compact-action" id="user-btn-mute" title="Mute / Unmute">🔊</button>
                 </div>
 
-                <div class="player-export-btns">
-                  <div class="player-export-secondary-row">
-                    <button class="btn btn-outline btn-compact-action" id="user-btn-srt">.SRT</button>
-                    <button class="btn btn-outline btn-compact-action" id="user-btn-vtt">.VTT</button>
+                <!-- Right Action Buttons Row -->
+                <div class="player-right-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                  <!-- Enhancement Checkbox -->
+                  <div class="player-enhance-bar" style="padding: 6px 14px; background: rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.06); border-radius: var(--radius-pill);">
+                    <label class="player-enhance-label" style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; cursor: pointer;">
+                      <input type="checkbox" id="user-player-enhance" ${this.enhanceVideoQuality ? 'checked' : ''} style="accent-color: #000000; width: 14px; height: 14px; cursor: pointer;">
+                      <span>✨ Enhance Video Quality</span>
+                    </label>
+                    <span class="badge badge-local-processing" style="font-size: 10px; margin-left: 8px;">60 FPS LOSSLESS</span>
                   </div>
-                  <button class="btn btn-primary btn-burn-captions" id="user-btn-burn">
-                    <div class="burn-btn-content">
-                      <span>🎥 Burn Captions (60 FPS Export)</span>
+
+                  <div class="player-export-secondary-row" style="display: flex; gap: 6px;">
+                    <button class="btn btn-outline btn-compact-action" id="user-btn-srt" title="Download SRT Subtitle">.SRT</button>
+                    <button class="btn btn-outline btn-compact-action" id="user-btn-vtt" title="Download WebVTT Subtitle">.VTT</button>
+                  </div>
+
+                  <button class="btn btn-black btn-burn-captions" id="user-btn-burn" style="padding: 10px 22px; font-weight: 700;">
+                    <div class="burn-btn-content" style="display: flex; align-items: center; gap: 6px;">
+                      <span>🎬 Burn Captions (60 FPS Export)</span>
                     </div>
                   </button>
                 </div>
               </div>
 
               <!-- Export Progress Indicator -->
-              <div id="user-export-progress" style="display: none; margin-top: 14px; background: #fafbfe; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--primary-coral);">
+              <div id="user-export-progress" style="display: none; margin-top: 14px; background: #fafbfe; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; margin-bottom: 6px; color: #ea580c;">
                   <span>Burning captions at source quality...</span>
                   <span id="user-export-percent">0%</span>
                 </div>
                 <div style="height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
-                  <div id="user-export-bar" style="width: 0%; height: 100%; background: var(--primary-coral); transition: width 0.1s linear;"></div>
+                  <div id="user-export-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ff7755, #ff4422); transition: width 0.1s linear;"></div>
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- Bottom Dock Bar -->
+          <div class="dashboard-bottom-dock" style="margin-top: 18px; border-radius: 14px; border: 1px solid rgba(226, 232, 240, 0.95);">
+            <span>⚡ Zen Caption AI Studio &bull; 60 FPS Lossless Subtitle Burner</span>
+            <span>100% Client-Side Video Processing</span>
           </div>
         </div>
 
@@ -1157,6 +1171,15 @@ export class UserDashboard {
               <div>
                 <div style="font-size: 14px; font-weight: 800; color: #0c0c0e; letter-spacing: -0.2px;">CAPTIONS & WORDS</div>
                 <div style="font-size: 11px; color: #64748b;" id="user-sentence-count">${captionEngine.sentences.length} Line Segments</div>
+              </div>
+              <div class="studio-sidebar-icon-actions">
+                <button class="sidebar-icon-action sidebar-icon-reload" id="btn-process-behind-again" title="Process behind-text cutouts">
+                  <span class="sidebar-icon-glyph">↻</span>
+                  <span id="behind-active-badge" class="behind-count-pill">0</span>
+                </button>
+                <button class="sidebar-icon-action sidebar-icon-edit" id="btn-open-segments-modal" title="Edit subtitle texts and timestamps">
+                  <span class="sidebar-icon-glyph">✎</span>
+                </button>
               </div>
             </div>
 
@@ -2439,14 +2462,10 @@ export class UserDashboard {
     const sentences = captionEngine.sentences || [];
     const count = sentences.filter(s => s.behind).length;
     if (badge) {
-      badge.textContent = `${count} Behind`;
+      badge.textContent = `${count}`;
     }
     if (btn) {
-      if (count > 0 && !selfieSegmenterService.isReady()) {
-        btn.classList.add('needs-process');
-      } else {
-        btn.classList.remove('needs-process');
-      }
+      btn.classList.toggle('needs-process', count > 0);
     }
   }
 
@@ -2596,7 +2615,7 @@ export class UserDashboard {
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = `<span>⚡ Process Again</span> <span id="behind-active-badge" class="behind-count-pill">${behindCount} Behind</span>`;
+        btn.innerHTML = `<span class="sidebar-icon-glyph">↻</span><span id="behind-active-badge" class="behind-count-pill">${behindCount}</span>`;
         this.updateBehindCountBadge();
       }
     }

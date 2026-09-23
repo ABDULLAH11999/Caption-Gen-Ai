@@ -18,6 +18,14 @@ const PORT = process.env.PORT || 10000;
 
 const app = express();
 
+// Protect server process from unhandled rejections or socket aborts
+process.on('unhandledRejection', (reason) => {
+  console.warn('[Server] Non-fatal Unhandled Rejection:', reason?.message || reason);
+});
+process.on('uncaughtException', (err) => {
+  console.warn('[Server] Non-fatal Uncaught Exception:', err?.message || err);
+});
+
 // Production Security Headers Middleware (A+ Grade on SecurityHeaders.com)
 app.use((req, res, next) => {
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
