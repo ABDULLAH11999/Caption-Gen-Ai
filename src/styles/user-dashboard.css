@@ -674,13 +674,13 @@ body.app-shell-locked {
   display: flex;
   align-items: center;
   gap: 5px;
-  background: rgba(15, 23, 42, 0.88);
+  background: #ffffff;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  padding: 4px 6px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 5px 7px;
+  border-radius: 22px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18);
   pointer-events: auto;
   z-index: 50;
   white-space: nowrap;
@@ -706,9 +706,13 @@ body.app-shell-locked {
   border-radius: 12px;
   font-size: 11px;
   font-weight: 700;
-  color: #94a3b8;
+  color: #111827;
   cursor: grab;
   user-select: none;
+}
+
+.caption-drag-handle svg {
+  color: #f97316;
 }
 
 .caption-toolbar-btn {
@@ -719,8 +723,8 @@ body.app-shell-locked {
   border-radius: 12px;
   font-size: 11px;
   font-weight: 700;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid #000000;
+  background: #000000;
   color: #ffffff;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -728,25 +732,25 @@ body.app-shell-locked {
 }
 
 .caption-toolbar-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: #18181b;
+  border-color: #18181b;
   transform: translateY(-1px);
 }
 
 .caption-toolbar-btn.btn-follow-all {
-  color: #38bdf8;
-  border-color: rgba(56, 189, 248, 0.3);
-  background: rgba(56, 189, 248, 0.12);
+  color: #ffffff;
+  border-color: #000000;
+  background: #000000;
 }
 
 .caption-toolbar-btn.btn-follow-all:hover {
-  background: rgba(56, 189, 248, 0.25);
-  border-color: rgba(56, 189, 248, 0.5);
+  background: #18181b;
+  border-color: #18181b;
   color: #ffffff;
 }
 
 .caption-toolbar-btn.btn-reset-pos {
-  color: #cbd5e1;
+  color: #ffffff;
 }
 
 .caption-toolbar-btn.btn-reset-pos:hover {
@@ -1017,6 +1021,44 @@ body.app-shell-locked {
   flex-shrink: 0;
 }
 
+@property --behind-progress {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+.workspace-style-preset-box {
+  min-width: min(360px, 34vw);
+  max-width: min(440px, 38vw);
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: #ffffff;
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.workspace-style-preset-box .style-preset-label {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.workspace-style-preset-box strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #000000;
+  font-weight: 900;
+}
+
 .sidebar-icon-action {
   width: 36px;
   height: 36px;
@@ -1032,6 +1074,7 @@ body.app-shell-locked {
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   font-size: 15px;
+  --behind-progress: 0;
 }
 
 .sidebar-icon-action:hover {
@@ -1061,13 +1104,36 @@ body.app-shell-locked {
   font-weight: 800;
 }
 
-.sidebar-icon-action.is-processing .sidebar-icon-glyph {
-  animation: spinLoader 0.85s linear infinite;
-  display: inline-block;
+.sidebar-icon-action.is-processing {
+  border-color: transparent;
+  color: #000000;
+  background:
+    radial-gradient(circle at center, #ffffff 0 58%, transparent 60%),
+    conic-gradient(#000000 calc(var(--behind-progress) * 1%), #ff3b30 0);
+  box-shadow: 0 4px 14px rgba(255, 59, 48, 0.22);
+  overflow: hidden;
+  animation: behindRingGlow 1.2s ease-in-out infinite;
+}
+
+.sidebar-icon-action.is-processing > * {
+  opacity: 0;
 }
 
 .sidebar-icon-action.is-processing::before {
-  display: none;
+  content: "";
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.18);
+  border-top-color: #000000;
+  animation: spinLoader 0.75s linear infinite;
+  z-index: 2;
+}
+
+@keyframes behindRingGlow {
+  0%, 100% { box-shadow: 0 4px 14px rgba(255, 59, 48, 0.18); }
+  50% { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24); }
 }
 
 .sidebar-icon-action .behind-count-pill {

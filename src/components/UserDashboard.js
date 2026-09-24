@@ -1086,6 +1086,8 @@ export class UserDashboard {
     }
 
     // WORKSPACE VIEW (Video Player + Live Overlay + Transcript Sidebar)
+    const activeTemplate = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
+    const activeTemplateName = activeTemplate?.name || 'Default Style';
     wrap.innerHTML = `
       <div class="workspace-studio-layout">
         
@@ -1094,6 +1096,11 @@ export class UserDashboard {
           <header class="dashboard-top-bar workspace-top-bar" style="margin-bottom: 18px; border-radius: 16px; border: 1px solid rgba(226, 232, 240, 0.95);">
             <div>
               <h1 class="user-tab-title" style="font-size: 20px;">Video Caption Workspace</h1>
+            </div>
+
+            <div class="workspace-style-preset-box" title="Current caption style preset">
+              <span class="style-preset-label">Style Preset:</span>
+              <strong>${activeTemplateName}</strong>
             </div>
 
             <div class="user-tab-actions">
@@ -1788,8 +1795,8 @@ export class UserDashboard {
               <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="2"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/></svg>
               <span>Move</span>
             </span>
-            <button type="button" class="caption-toolbar-btn btn-follow-all" id="btn-follow-all-segments" title="Apply this position and width to ALL segments">
-              <span>⚡ Apply to All</span>
+            <button type="button" class="caption-toolbar-btn btn-follow-all" id="btn-follow-all-segments" title="Apply this style, color, size, animation, and position to ALL segments">
+              <span> Apply to All</span>
             </button>
             <button type="button" class="caption-toolbar-btn btn-reset-pos" id="btn-reset-segment-pos" title="Reset this segment to default middle-left">
               <span>↺ Reset</span>
@@ -1805,7 +1812,7 @@ export class UserDashboard {
           <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines">
             <div class="resize-grip-line"></div>
           </div>
-          <div class="caption-resize-handle resize-corner" title="Drag corner to adjust box width">
+          <div class="caption-resize-handle resize-corner" title="Drag corner to adjust font size and box width">
             <div class="resize-grip-dot"></div>
           </div>
         </div>
@@ -2069,6 +2076,16 @@ export class UserDashboard {
         }
         this.updateBehindCountBadge();
         syncActiveSegment();
+        if (isChecked && !this.autoProcessingBehind) {
+          this.autoProcessingBehind = true;
+          setTimeout(async () => {
+            try {
+              await this.handleProcessBehindAgain();
+            } finally {
+              this.autoProcessingBehind = false;
+            }
+          }, 120);
+        }
       });
 
       // 2. Custom Font Dropdown (OPENS STRICTLY BELOW THAT!)
@@ -2322,6 +2339,8 @@ export class UserDashboard {
     let initialAnchorLeftPx = 0;
     let initialAnchorTopPx = 0;
     let initialWidthPx = 0;
+    let initialFontSize = 0;
+    let resizeMode = null;
     let activeSentence = null;
     let activeAnchor = null;
 
@@ -2357,8 +2376,11 @@ export class UserDashboard {
         // Start resizing width
         isResizing = true;
         isDragging = false;
+        resizeMode = isCornerResize ? 'corner' : 'width';
         startPointerX = e.clientX;
+        startPointerY = e.clientY;
         initialWidthPx = anchorRect.width;
+        initialFontSize = Number(activeSentence.fontSize || (this.currentMode === 'portrait' ? 25 : 28));
         anchor.classList.add('is-resizing');
         e.preventDefault();
         e.stopPropagation();
@@ -2413,6 +2435,7 @@ export class UserDashboard {
           activeAnchor.style.transform = 'translate(0, 0)';
         } else if (isResizing) {
           const deltaX = moveEvent.clientX - startPointerX;
+          const deltaY = moveEvent.clientY - startPointerY;
           const newWidthPx = Math.max(90, initialWidthPx + deltaX);
           let widthPct = Math.round((newWidthPx / currentVideoRect.width) * 100);
           widthPct = Math.max(15, Math.min(96, widthPct));
@@ -2420,6 +2443,15 @@ export class UserDashboard {
           activeSentence.boxWidth = widthPct;
           activeAnchor.style.width = `${widthPct}%`;
           activeAnchor.style.maxWidth = `${widthPct}%`;
+
+          if (resizeMode === 'corner') {
+            const sizeDelta = Math.round((deltaX + deltaY) / 18);
+            const nextFontSize = Math.max(12, Math.min(80, initialFontSize + sizeDelta));
+            activeSentence.fontSize = nextFontSize;
+            activeAnchor.querySelectorAll('.caption-word-token').forEach(token => {
+              token.style.fontSize = `${nextFontSize}px`;
+            });
+          }
         }
       };
 
@@ -2436,6 +2468,7 @@ export class UserDashboard {
           this.renderMiniSegmentsList();
           isDragging = false;
           isResizing = false;
+          resizeMode = null;
         }
         window.removeEventListener('pointermove', onPointerMove);
         window.removeEventListener('pointerup', onPointerUp);
@@ -2447,8 +2480,8 @@ export class UserDashboard {
       window.addEventListener('pointercancel', onPointerUp);
     });
 
-    // Helper to apply current active sizing (fontSize & boxWidth) & position (posX & posY) to ALL segments
-    const applyCurrentPosToAll = (applyFontSize = false) => {
+    // Helper to apply current active style, sizing, animation, and position to ALL segments
+    const applyCurrentPosToAll = () => {
       const time = this.videoElement ? this.videoElement.currentTime : 0;
       const sentences = captionEngine.sentences || [];
       const currentSentence = sentences.find((s, i) => {
@@ -2463,18 +2496,31 @@ export class UserDashboard {
       const targetPosX = currentSentence.posX !== undefined ? currentSentence.posX : 6;
       const targetPosY = currentSentence.posY !== undefined ? currentSentence.posY : 50;
       const targetBoxWidth = currentSentence.boxWidth || null;
-      const targetFontSize = currentSentence.fontSize !== undefined ? currentSentence.fontSize : null;
+      const targetFontSize = currentSentence.fontSize !== undefined ? currentSentence.fontSize : (this.currentMode === 'portrait' ? 25 : 28);
+      const targetFontFamily = currentSentence.fontFamily;
+      const targetTextColor = currentSentence.textColor;
+      const targetProminentColor = currentSentence.prominentColor;
+      const targetStrokeEnabled = currentSentence.strokeEnabled;
+      const targetStrokeColor = currentSentence.strokeColor;
+      const targetGlowColor = currentSentence.glowColor;
+      const targetAnimation = currentSentence.animation;
 
       sentences.forEach(s => {
         s.posX = targetPosX;
         s.posY = targetPosY;
         s.boxWidth = targetBoxWidth;
-        if (applyFontSize && targetFontSize) {
-          s.fontSize = targetFontSize;
-        }
+        s.fontSize = targetFontSize;
+        if (targetFontFamily !== undefined) s.fontFamily = targetFontFamily;
+        if (targetTextColor !== undefined) s.textColor = targetTextColor;
+        if (targetProminentColor !== undefined) s.prominentColor = targetProminentColor;
+        if (targetStrokeEnabled !== undefined) s.strokeEnabled = targetStrokeEnabled;
+        if (targetStrokeColor !== undefined) s.strokeColor = targetStrokeColor;
+        if (targetGlowColor !== undefined) s.glowColor = targetGlowColor;
+        if (targetAnimation !== undefined) s.animation = targetAnimation;
       });
 
       soundFx.playSaveSuccess();
+      const applyFontSize = true;
       if (applyFontSize && targetFontSize) {
         this.showToast(`⚡ Size (${targetFontSize}px) & Position (${targetPosX}%, ${targetPosY}%) applied to ALL segments!`, 'success');
       } else {
@@ -2493,7 +2539,7 @@ export class UserDashboard {
       if (followAllBtn) {
         e.stopPropagation();
         e.preventDefault();
-        applyCurrentPosToAll(false); // Only apply position & box width; preserve per-segment font sizes
+        applyCurrentPosToAll();
         return;
       }
 
@@ -2539,6 +2585,17 @@ export class UserDashboard {
     if (btn) {
       btn.classList.toggle('needs-process', count > 0);
     }
+  }
+
+  setBehindProcessProgress(percent = 0, countOverride = null) {
+    const btn = this.container?.querySelector('#btn-process-behind-again');
+    if (!btn) return;
+    const sentences = captionEngine.sentences || [];
+    const count = countOverride ?? sentences.filter(s => s.behind).length;
+    const pct = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+    btn.style.setProperty('--behind-progress', `${pct}`);
+    btn.classList.add('is-processing');
+    btn.innerHTML = `<span class="sidebar-icon-glyph">↻</span><span id="behind-active-badge" class="behind-count-pill">${count}</span>`;
   }
 
   startRotoscopingLoop() {
@@ -2645,10 +2702,19 @@ export class UserDashboard {
       btn.classList.remove('needs-process');
       btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;">⏳</span> Loading AI Rotoscoping...`;
       btn.classList.add('is-processing');
+      btn.style.setProperty('--behind-progress', '3');
       btn.title = 'Loading AI rotoscoping...';
       btn.innerHTML = `<span class="sidebar-icon-glyph">↻</span><span id="behind-active-badge" class="behind-count-pill">${behindCount}</span>`;
     }
     soundFx.playProcessStart();
+    let behindProgressTimer = null;
+    let behindVisualProgress = 3;
+    if (btn) {
+      behindProgressTimer = window.setInterval(() => {
+        behindVisualProgress = Math.min(92, behindVisualProgress + (behindVisualProgress < 35 ? 3 : 1));
+        btn.style.setProperty('--behind-progress', `${behindVisualProgress}`);
+      }, 220);
+    }
 
     try {
       // 3. Initialize Selfie Segmenter
@@ -2663,6 +2729,7 @@ export class UserDashboard {
       if (btn) {
         btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;">⏳</span> Pre-baking cutouts...`;
       }
+      if (btn) btn.style.setProperty('--behind-progress', '28');
       await selfieSegmenterService.prebakeCutoutsForSegments(this.videoElement, sentences, (pct, msg) => {
         if (btn) {
           btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;">⏳</span> ${msg}`;
@@ -2688,9 +2755,14 @@ export class UserDashboard {
       console.error('Process Behind error:', err);
       this.showToast('Rotoscoping initialization failed: ' + err.message, 'error');
     } finally {
+      if (behindProgressTimer) {
+        window.clearInterval(behindProgressTimer);
+      }
       if (btn) {
+        btn.style.setProperty('--behind-progress', '100');
         btn.disabled = false;
         btn.classList.remove('is-processing');
+        btn.style.removeProperty('--behind-progress');
         btn.title = 'Process behind-text cutouts';
         btn.innerHTML = `<span class="sidebar-icon-glyph">↻</span><span id="behind-active-badge" class="behind-count-pill">${behindCount}</span>`;
         this.updateBehindCountBadge();
