@@ -1796,7 +1796,7 @@ export class UserDashboard {
               <span>Move</span>
             </span>
             <button type="button" class="caption-toolbar-btn btn-follow-all" id="btn-follow-all-segments" title="Apply this style, color, size, animation, and position to ALL segments">
-              <span> Apply to All</span>
+              <span>Apply to All</span>
             </button>
             <button type="button" class="caption-toolbar-btn btn-reset-pos" id="btn-reset-segment-pos" title="Reset this segment to default middle-left">
               <span>↺ Reset</span>
@@ -2520,12 +2520,7 @@ export class UserDashboard {
       });
 
       soundFx.playSaveSuccess();
-      const applyFontSize = true;
-      if (applyFontSize && targetFontSize) {
-        this.showToast(`⚡ Size (${targetFontSize}px) & Position (${targetPosX}%, ${targetPosY}%) applied to ALL segments!`, 'success');
-      } else {
-        this.showToast(`⚡ Position (${targetPosX}%, ${targetPosY}%) & width applied to ALL segments!`, 'success');
-      }
+      this.showToast('Style, color, size, animation, and position applied to all segments.', 'success');
       this.lastRenderedSentenceKey = null;
       this.updateCaptionOverlay(currentSentence);
       this.renderMiniSegmentsList();
