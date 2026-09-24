@@ -43,25 +43,53 @@ function normalizePcmForWhisper(rawPcm) {
   return normalized;
 }
 
-async function runTranscriptionAttempts(rawPcm, options = {}) {
+function getLanguageHintOrder(fileName = '') {
+  const name = String(fileName || '').toLowerCase();
+  if (/(urdu|hindi|roman|hinglish|pakistan|india)/i.test(name)) {
+    return ['hindi', 'urdu', null, 'english'];
+  }
+  if (/(english|eng|test-run|showcase)/i.test(name)) {
+    return ['english', null, 'hindi', 'urdu'];
+  }
+  return [null, 'english', 'hindi', 'urdu'];
+}
+
+function buildTranscriptionAttempts(fileName = '') {
+  const languageHints = getLanguageHintOrder(fileName);
+  const attempts = [];
+  const seen = new Set();
+  const addAttempt = (timestampMode, language, basePercent, labelPrefix) => {
+    const key = `${timestampMode}:${language || 'auto'}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    attempts.push({
+      message: language
+        ? `${labelPrefix} (${language})...`
+        : `${labelPrefix}...`,
+      percent: Math.min(91, basePercent + attempts.length),
+      options: {
+        return_timestamps: timestampMode,
+        chunk_length_s: 30,
+        stride_length_s: 5,
+        task: 'transcribe',
+        ...(language ? { language } : {})
+      }
+    });
+  };
+
+  languageHints.forEach((language) => {
+    addAttempt('word', language, 80, 'Transcribing spoken words with Whisper');
+  });
+  languageHints.forEach((language) => {
+    addAttempt(true, language, 86, 'Retrying with phrase timestamps');
+  });
+
+  return attempts;
+}
+
+async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
   const pcm = normalizePcmForWhisper(rawPcm);
-  const attempts = [
-    {
-      message: 'Transcribing spoken words with Whisper...',
-      percent: 80,
-      options: { return_timestamps: 'word', chunk_length_s: 30, stride_length_s: 5, task: 'transcribe' }
-    },
-    {
-      message: 'Retrying with phrase timestamps...',
-      percent: 84,
-      options: { return_timestamps: true, chunk_length_s: 20, stride_length_s: 4, task: 'transcribe' }
-    },
-    {
-      message: 'Retrying plain transcript extraction...',
-      percent: 88,
-      options: { return_timestamps: false, chunk_length_s: 20, stride_length_s: 4, task: 'transcribe' }
-    }
-  ];
+  const attempts = buildTranscriptionAttempts(fileName);
 
   let lastError = null;
   for (const attempt of attempts) {
@@ -87,7 +115,7 @@ async function runTranscriptionAttempts(rawPcm, options = {}) {
 }
 
 self.addEventListener('message', async (e) => {
-  const { type, rawPcm, modelId, options } = e.data || {};
+  const { type, rawPcm, modelId, options, fileName } = e.data || {};
 
   if (type === 'init' || type === 'transcribe') {
     const targetModel = modelId || currentModelId;
@@ -123,7 +151,7 @@ self.addEventListener('message', async (e) => {
         return;
       }
 
-      const result = await runTranscriptionAttempts(rawPcm, options);
+      const result = await runTranscriptionAttempts(rawPcm, options, fileName);
       self.postMessage({ type: 'done', result });
     } catch (err) {
       self.postMessage({ type: 'error', error: err.message || String(err) });

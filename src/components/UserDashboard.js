@@ -2187,7 +2187,6 @@ export class UserDashboard {
           fontMenu.classList.add('is-open');
           fontTrigger.classList.add('is-active');
         }
-        syncActiveSegment();
       });
 
       fontMenu?.querySelectorAll('.seg-font-option').forEach(opt => {
@@ -2341,7 +2340,6 @@ export class UserDashboard {
           animMenu.classList.add('is-open');
           animTrigger.classList.add('is-active');
         }
-        syncActiveSegment();
       });
 
       animMenu?.querySelectorAll('.seg-anim-option').forEach(opt => {
@@ -2411,15 +2409,59 @@ export class UserDashboard {
     });
   }
 
-  breakCurrentSegmentIntoWords() {
-    const time = this.videoElement ? this.videoElement.currentTime : 0;
+  getCurrentEditableSegmentIndex() {
     const sentences = captionEngine.sentences || [];
-    const idx = sentences.findIndex((s, i) => {
+
+    const activeAnchor = this.container.querySelector('#user-caption-live-overlay .caption-segment-anchor[data-sentence-id]');
+    const activeId = activeAnchor?.getAttribute('data-sentence-id');
+    if (activeId) {
+      const byId = sentences.findIndex(s => String(s.id || '') === activeId);
+      if (byId >= 0) return byId;
+    }
+
+    const expandedIdx = this.expandedSegments && this.expandedSegments.size > 0
+      ? [...this.expandedSegments][0]
+      : null;
+    if (Number.isInteger(expandedIdx) && expandedIdx >= 0 && expandedIdx < sentences.length) {
+      return expandedIdx;
+    }
+
+    const activeCardId = this.container.querySelector('.seg-mini-card.is-active')?.id || '';
+    const cardMatch = activeCardId.match(/seg-mini-(\d+)/);
+    if (cardMatch) {
+      const cardIdx = Number(cardMatch[1]);
+      if (Number.isInteger(cardIdx) && cardIdx >= 0 && cardIdx < sentences.length) return cardIdx;
+    }
+
+    const time = this.videoElement ? this.videoElement.currentTime : 0;
+    const timeIdx = sentences.findIndex((s, i) => {
       const sStart = Number(s.start ?? s.startTime ?? 0);
       const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
       const isLast = (i === sentences.length - 1);
       return time >= sStart && (isLast ? time <= sEnd : time < sEnd);
     });
+    if (timeIdx >= 0) return timeIdx;
+
+    if (sentences.length > 0) {
+      let nearestIdx = 0;
+      let nearestDistance = Infinity;
+      sentences.forEach((s, i) => {
+        const sStart = Number(s.start ?? s.startTime ?? 0);
+        const distance = Math.abs(sStart - time);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIdx = i;
+        }
+      });
+      return nearestIdx;
+    }
+
+    return -1;
+  }
+
+  breakCurrentSegmentIntoWords() {
+    const sentences = captionEngine.sentences || [];
+    const idx = this.getCurrentEditableSegmentIndex();
 
     if (idx < 0) {
       this.showToast('No active caption segment to break.', 'info');
@@ -2429,9 +2471,14 @@ export class UserDashboard {
     const source = sentences[idx];
     const sourceStart = Number(source.start ?? source.startTime ?? 0);
     const sourceEnd = Number(source.end ?? source.endTime ?? (sourceStart + 1));
-    const words = Array.isArray(source.words) && source.words.length > 0
+    const textTokens = (source.text || '').trim().split(/\s+/).filter(Boolean);
+    let words = Array.isArray(source.words) && source.words.length > 0
       ? source.words
       : captionEngine.createWordLevelTimestamps(source.text || '', sourceStart, sourceEnd);
+
+    if ((!words || words.length <= 1) && textTokens.length > 1) {
+      words = captionEngine.createWordLevelTimestamps(source.text || '', sourceStart, sourceEnd);
+    }
 
     if (!words || words.length <= 1) {
       this.showToast('This segment is already a single word.', 'info');
@@ -2481,6 +2528,7 @@ export class UserDashboard {
     ];
 
     captionEngine.setSentences(updated);
+    this.expandedSegments = new Set([idx]);
     this.lastRenderedSentenceKey = null;
     if (this.videoElement) this.videoElement.currentTime = wordSegments[0].start + 0.01;
     this.updateCaptionOverlay(wordSegments[0]);
@@ -2759,6 +2807,7 @@ export class UserDashboard {
     const pct = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
     btn.style.setProperty('--behind-progress', `${pct}`);
     btn.classList.add('is-processing');
+    btn.title = `Processing behind cutouts ${pct}%`;
     btn.innerHTML = `<span class="sidebar-icon-glyph">↻</span><span id="behind-active-badge" class="behind-count-pill">${count}</span>`;
   }
 

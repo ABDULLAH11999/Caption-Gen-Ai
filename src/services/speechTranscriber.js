@@ -264,24 +264,52 @@ class SpeechTranscriberService {
     return !!(result && typeof result.text === 'string' && result.text.trim().length > 0);
   }
 
-  async runWhisperAttempts(transcriber, rawPcm, duration, onProgress = () => {}) {
-    const attempts = [
-      {
-        label: 'Transcribing spoken words with Whisper...',
-        percent: 80,
-        options: { return_timestamps: 'word', chunk_length_s: 30, stride_length_s: 5, task: 'transcribe' }
-      },
-      {
-        label: 'Retrying with phrase timestamps...',
-        percent: 84,
-        options: { return_timestamps: true, chunk_length_s: 20, stride_length_s: 4, task: 'transcribe' }
-      },
-      {
-        label: 'Retrying plain transcript extraction...',
-        percent: 88,
-        options: { return_timestamps: false, chunk_length_s: 20, stride_length_s: 4, task: 'transcribe' }
-      }
-    ];
+  getLanguageHintOrder(fileBlob = null) {
+    const name = (fileBlob?.name || '').toLowerCase();
+    if (/(urdu|hindi|roman|hinglish|pakistan|india)/i.test(name)) {
+      return ['hindi', 'urdu', null, 'english'];
+    }
+    if (/(english|eng|test-run|showcase)/i.test(name)) {
+      return ['english', null, 'hindi', 'urdu'];
+    }
+    return [null, 'english', 'hindi', 'urdu'];
+  }
+
+  buildWhisperAttempts(fileBlob = null) {
+    const languageHints = this.getLanguageHintOrder(fileBlob);
+    const attempts = [];
+    const seen = new Set();
+    const addAttempt = (timestampMode, language, basePercent, labelPrefix) => {
+      const key = `${timestampMode}:${language || 'auto'}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      attempts.push({
+        label: language
+          ? `${labelPrefix} (${language})...`
+          : `${labelPrefix}...`,
+        percent: Math.min(91, basePercent + attempts.length),
+        options: {
+          return_timestamps: timestampMode,
+          chunk_length_s: 30,
+          stride_length_s: 5,
+          task: 'transcribe',
+          ...(language ? { language } : {})
+        }
+      });
+    };
+
+    languageHints.forEach((language) => {
+      addAttempt('word', language, 80, 'Transcribing spoken words with Whisper');
+    });
+    languageHints.forEach((language) => {
+      addAttempt(true, language, 86, 'Retrying with phrase timestamps');
+    });
+
+    return attempts;
+  }
+
+  async runWhisperAttempts(transcriber, rawPcm, duration, onProgress = () => {}, fileBlob = null) {
+    const attempts = this.buildWhisperAttempts(fileBlob);
 
     let lastError = null;
     for (const attempt of attempts) {
@@ -652,7 +680,8 @@ class SpeechTranscriberService {
           type: 'transcribe',
           rawPcm: rawPcm,
           duration,
-          modelId: this.modelId
+          modelId: this.modelId,
+          fileName: this._activeFileName || ''
         });
       } catch (postErr) {
         cleanup();
@@ -665,6 +694,7 @@ class SpeechTranscriberService {
    * Transcribes the audio file using neural in-browser Whisper AI
    */
   async transcribeAudio(fileBlob, onProgress = () => {}) {
+    this._activeFileName = fileBlob?.name || '';
     onProgress({ status: 'extracting', message: 'Decoding audio tracks...', percent: 20 });
 
     const duration = await this.getVideoDurationFromBlob(fileBlob);
@@ -720,12 +750,27 @@ class SpeechTranscriberService {
           }
 
           await new Promise(r => setTimeout(r, 40));
-          result = await this.runWhisperAttempts(this.pipeline, rawPcm, duration, onProgress);
+          result = await this.runWhisperAttempts(this.pipeline, rawPcm, duration, onProgress, fileBlob);
         }
 
         if (this.hasTranscriptText(result)) {
           onProgress({ status: 'translating', message: 'Synchronizing English captions...', percent: 92 });
           const rawSentences = this.formatWhisperResultToSentences(result, duration, speechSegments);
+          const transcriptWordCount = rawSentences.reduce((sum, s) => {
+            if (Array.isArray(s.words) && s.words.length > 0) return sum + s.words.length;
+            return sum + (s.text || '').trim().split(/\s+/).filter(Boolean).length;
+          }, 0);
+          const firstStart = rawSentences.length
+            ? Math.min(...rawSentences.map(s => Number(s.start ?? s.startTime ?? 0)).filter(Number.isFinite))
+            : Infinity;
+
+          if (
+            duration > 8 &&
+            (rawSentences.length <= 1 || transcriptWordCount <= 6) &&
+            (transcriptWordCount <= 6 || firstStart > duration * 0.45)
+          ) {
+            throw new Error('Whisper returned an incomplete transcript. Please retry with a clear audio track.');
+          }
 
           // Guarantee 100% fluent English captions with word-level sync
           const englishSentences = await translationService.translateSentencesToEnglish(rawSentences, (tp) => {
@@ -752,7 +797,10 @@ class SpeechTranscriberService {
       } catch (err) {
         if (!this.pipeline) this.pipelinePromise = null;
         console.warn('[speechTranscriber] Whisper inference failed:', err.message);
-        throw new Error(`Transcript missing dependency: ${err.message || 'Whisper transcription failed'}`);
+        const message = err.message || 'Whisper transcription failed';
+        throw new Error(message.startsWith('Transcript missing dependency:')
+          ? message
+          : `Transcript missing dependency: ${message}`);
       }
     }
 
