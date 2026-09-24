@@ -235,6 +235,76 @@ class SpeechTranscriberService {
     return Math.sqrt(sum / Math.max(1, count)) > 0.0004;
   }
 
+  normalizePcmForWhisper(rawPcm) {
+    if (!rawPcm || rawPcm.length === 0) return rawPcm;
+
+    let sum = 0;
+    let peak = 0;
+    for (let i = 0; i < rawPcm.length; i++) {
+      sum += rawPcm[i];
+      const abs = Math.abs(rawPcm[i]);
+      if (abs > peak) peak = abs;
+    }
+
+    if (!Number.isFinite(peak) || peak <= 0) return rawPcm;
+
+    const mean = sum / rawPcm.length;
+    const gain = peak < 0.45 ? Math.min(12, 0.88 / peak) : 1;
+    if (Math.abs(mean) < 0.00001 && gain === 1) return rawPcm;
+
+    const normalized = new Float32Array(rawPcm.length);
+    for (let i = 0; i < rawPcm.length; i++) {
+      const v = (rawPcm[i] - mean) * gain;
+      normalized[i] = Math.max(-1, Math.min(1, v));
+    }
+    return normalized;
+  }
+
+  hasTranscriptText(result) {
+    return !!(result && typeof result.text === 'string' && result.text.trim().length > 0);
+  }
+
+  async runWhisperAttempts(transcriber, rawPcm, duration, onProgress = () => {}) {
+    const attempts = [
+      {
+        label: 'Transcribing spoken words with Whisper...',
+        percent: 80,
+        options: { return_timestamps: 'word', chunk_length_s: 30, stride_length_s: 5, task: 'transcribe' }
+      },
+      {
+        label: 'Retrying with phrase timestamps...',
+        percent: 84,
+        options: { return_timestamps: true, chunk_length_s: 20, stride_length_s: 4, task: 'transcribe' }
+      },
+      {
+        label: 'Retrying plain transcript extraction...',
+        percent: 88,
+        options: { return_timestamps: false, chunk_length_s: 20, stride_length_s: 4, task: 'transcribe' }
+      }
+    ];
+
+    let lastError = null;
+    for (const attempt of attempts) {
+      try {
+        onProgress({ status: 'transcribing', message: attempt.label, percent: attempt.percent });
+        const result = await this.withTimeout(
+          transcriber(rawPcm, attempt.options),
+          this.getInferenceTimeoutMs(duration),
+          `${attempt.label} took too long`
+        );
+        if (this.hasTranscriptText(result)) return result;
+        lastError = new Error('Whisper returned an empty transcript for this attempt');
+      } catch (err) {
+        lastError = err;
+        console.warn('[speechTranscriber] Whisper attempt failed:', err.message);
+      }
+
+      await new Promise(r => setTimeout(r, 40));
+    }
+
+    throw lastError || new Error('Whisper did not detect any transcript text in this video.');
+  }
+
   async waitForMediaReady(video, timeoutMs = 12000) {
     if (video.readyState >= 2 && Number.isFinite(video.duration)) return;
 
@@ -581,6 +651,7 @@ class SpeechTranscriberService {
         worker.postMessage({
           type: 'transcribe',
           rawPcm: rawPcm,
+          duration,
           modelId: this.modelId
         });
       } catch (postErr) {
@@ -597,10 +668,11 @@ class SpeechTranscriberService {
     onProgress({ status: 'extracting', message: 'Decoding audio tracks...', percent: 20 });
 
     const duration = await this.getVideoDurationFromBlob(fileBlob);
-    const { rawPcm } = await this.extractAudioData(fileBlob, onProgress);
+    let { rawPcm } = await this.extractAudioData(fileBlob, onProgress);
 
     if (rawPcm && rawPcm.length > 0) {
       const speechSegments = this.detectSpeechSegments(rawPcm, 16000);
+      rawPcm = this.normalizePcmForWhisper(rawPcm);
 
       onProgress({ status: 'loading_model', message: 'Loading Whisper speech recognition model...', percent: 45 });
 
@@ -610,6 +682,10 @@ class SpeechTranscriberService {
         // 1. Try dedicated Web Worker first — ensures main thread stays 100% responsive
         try {
           result = await this._transcribeWithWorker(rawPcm, duration, onProgress);
+          if (!this.hasTranscriptText(result)) {
+            console.warn('[speechTranscriber] Worker returned empty transcript, retrying in-thread.');
+            result = null;
+          }
         } catch (workerErr) {
           console.warn('[speechTranscriber] Web Worker transcription failed, falling back to in-thread:', workerErr.message);
         }
@@ -644,36 +720,10 @@ class SpeechTranscriberService {
           }
 
           await new Promise(r => setTimeout(r, 40));
-          onProgress({ status: 'transcribing', message: 'Transcribing spoken words with Whisper…', percent: 80 });
-
-          try {
-            result = await this.withTimeout(
-              this.pipeline(rawPcm, {
-                return_timestamps: 'word',
-                chunk_length_s: 30,
-                stride_length_s: 5,
-                task: 'transcribe'
-              }),
-              this.getInferenceTimeoutMs(duration),
-              'Whisper word-timestamp transcription took too long'
-            );
-          } catch (wordTsErr) {
-            console.warn('[speechTranscriber] Word timestamps failed, retrying with chunk timestamps:', wordTsErr.message);
-            onProgress({ status: 'transcribing', message: 'Retrying transcription…', percent: 82 });
-            result = await this.withTimeout(
-              this.pipeline(rawPcm, {
-                return_timestamps: true,
-                chunk_length_s: 30,
-                stride_length_s: 5,
-                task: 'transcribe'
-              }),
-              this.getInferenceTimeoutMs(duration),
-              'Whisper transcription took too long'
-            );
-          }
+          result = await this.runWhisperAttempts(this.pipeline, rawPcm, duration, onProgress);
         }
 
-        if (result && result.text && result.text.trim()) {
+        if (this.hasTranscriptText(result)) {
           onProgress({ status: 'translating', message: 'Synchronizing English captions...', percent: 92 });
           const rawSentences = this.formatWhisperResultToSentences(result, duration, speechSegments);
 
@@ -865,21 +915,35 @@ class SpeechTranscriberService {
    * Formats Whisper output (with chunks/timestamps) into structured sentences
    */
   formatWhisperResultToSentences(whisperResult, totalDuration, speechSegments) {
-    const rawText = this.normalizeTranscriptText(whisperResult.text);
+    const rawText = this.normalizeTranscriptText(whisperResult?.text || '');
     const words = this.extractWhisperWords(whisperResult);
 
-    // Check whether Whisper returned real word-level timestamps
+    // 1. Check whether Whisper returned real word-level timestamps
     const hasRealTimestamps = words.length > 0 && typeof words[0] === 'object' &&
       Number.isFinite(words[0].start) && Number.isFinite(words[0].end);
 
     if (hasRealTimestamps) {
-      // Build captions directly from Whisper's own word timing — no VAD needed
-      return this.buildSentencesFromTimedWords(words, totalDuration);
+      // Build captions directly from Whisper's own word timing
+      const timedSentences = this.buildSentencesFromTimedWords(words, totalDuration);
+      if (timedSentences && timedSentences.length > 0) {
+        return timedSentences;
+      }
     }
 
-    // Fallback: plain string words → align against VAD speech energy segments
+    // 2. Fallback: plain string words → align against VAD speech energy segments
     const sourceWords = words.length > 0 ? words : rawText.split(/\s+/).filter(Boolean);
-    return this.buildVoiceAlignedSentences(sourceWords, totalDuration, speechSegments);
+    const alignedSentences = this.buildVoiceAlignedSentences(sourceWords, totalDuration, speechSegments);
+    if (alignedSentences && alignedSentences.length > 0) {
+      return alignedSentences;
+    }
+
+    // 3. Last-resort fallback: synthesize timing across total duration
+    const fallbackTokens = rawText.split(/\s+/).filter(Boolean);
+    if (fallbackTokens.length > 0) {
+      return this.buildVoiceAlignedSentences(fallbackTokens, totalDuration, speechSegments);
+    }
+
+    return [];
   }
 
   /**
@@ -893,25 +957,32 @@ class SpeechTranscriberService {
     const minCaptionDuration = 0.35;
     const sentences = [];
 
-    // Normalise word objects
-    const words = timedWords.map(w => ({
-      word: this.normalizeTranscriptText(typeof w === 'string' ? w : w.word),
-      start: typeof w === 'object' ? Number(w.start) : 0,
-      end: typeof w === 'object' ? Number(w.end) : 0
-    })).filter(w => w.word);
+    // Normalise word objects and ensure valid timestamps
+    let lastEnd = 0;
+    const words = timedWords.map(w => {
+      const wordText = this.normalizeTranscriptText(typeof w === 'string' ? w : w.word);
+      let wStart = typeof w === 'object' && Number.isFinite(w.start) ? Number(w.start) : lastEnd;
+      let wEnd = typeof w === 'object' && Number.isFinite(w.end) ? Number(w.end) : wStart + 0.3;
+      if (wEnd <= wStart) wEnd = wStart + 0.25;
+      lastEnd = wEnd;
+      return {
+        word: wordText,
+        start: parseFloat(wStart.toFixed(3)),
+        end: parseFloat(wEnd.toFixed(3))
+      };
+    }).filter(w => w.word);
 
     let i = 0;
     while (i < words.length) {
       const chunk = words.slice(i, i + maxWordsPerCaption);
       i += maxWordsPerCaption;
+      if (chunk.length === 0) continue;
 
       const chunkStart = chunk[0].start;
-      const chunkEnd = Math.max(chunk[chunk.length - 1].end, chunkStart + minCaptionDuration);
-
-      // Ensure minimum visible caption duration
-      if (chunk[chunk.length - 1].end < chunkStart + minCaptionDuration) {
-        chunk[chunk.length - 1].end = chunkStart + minCaptionDuration;
-      }
+      const lastWord = chunk[chunk.length - 1];
+      const rawEnd = lastWord.end;
+      const chunkEnd = Math.max(rawEnd, parseFloat((chunkStart + minCaptionDuration).toFixed(3)));
+      lastWord.end = chunkEnd;
 
       const timedChunk = chunk.map(w => ({
         word: w.word,
@@ -939,30 +1010,32 @@ class SpeechTranscriberService {
   extractWhisperWords(whisperResult) {
     const chunks = whisperResult?.chunks || [];
     const timedWords = [];
+    let lastTime = 0;
 
-    // Prefer real per-word timestamps from Whisper (return_timestamps: 'word')
+    // Prefer real per-word timestamps from Whisper (return_timestamps: 'word' or true)
     chunks.forEach((chunk) => {
-      const [chunkStart, chunkEnd] = Array.isArray(chunk.timestamp) ? chunk.timestamp : [null, null];
+      const [rawStart, rawEnd] = Array.isArray(chunk.timestamp) ? chunk.timestamp : [null, null];
       const tokens = this.tokenizeChunkText(chunk.text || '');
       if (tokens.length === 0) return;
 
-      const hasRealTimestamps = chunkStart !== null && chunkEnd !== null &&
-        Number.isFinite(chunkStart) && Number.isFinite(chunkEnd) && chunkEnd > chunkStart;
+      const chunkStart = Number.isFinite(rawStart) ? Math.max(0, rawStart) : lastTime;
+      let chunkEnd = Number.isFinite(rawEnd) && rawEnd > chunkStart ? rawEnd : null;
 
-      if (hasRealTimestamps) {
-        // Distribute the chunk's time window evenly across its tokens
-        const wordDur = (chunkEnd - chunkStart) / tokens.length;
-        tokens.forEach((token, i) => {
-          timedWords.push({
-            word: token,
-            start: parseFloat((chunkStart + i * wordDur).toFixed(3)),
-            end: parseFloat((chunkStart + (i + 1) * wordDur).toFixed(3))
-          });
-        });
-      } else {
-        // No timestamp on this chunk — push plain strings; fallback aligner will handle
-        tokens.forEach((token) => timedWords.push(token));
+      if (chunkEnd === null) {
+        chunkEnd = chunkStart + Math.max(0.4, tokens.length * 0.32);
       }
+
+      const wordDur = Math.max(0.08, (chunkEnd - chunkStart) / tokens.length);
+      tokens.forEach((token, i) => {
+        const wStart = parseFloat((chunkStart + i * wordDur).toFixed(3));
+        const wEnd = parseFloat((chunkStart + (i + 1) * wordDur).toFixed(3));
+        timedWords.push({
+          word: token,
+          start: wStart,
+          end: wEnd
+        });
+        lastTime = wEnd;
+      });
     });
 
     if (timedWords.length > 0) return timedWords;
