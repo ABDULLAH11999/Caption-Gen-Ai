@@ -39,7 +39,7 @@ function getDominantNgramRatio(words, size = 2) {
 
 function isRepetitiveTranscriptText(text) {
   const words = (text || '').toLowerCase().split(/\s+/).filter(Boolean);
-  if (words.length < 8) return false;
+  if (words.length < 5) return false;
   const uniqueRatio = new Set(words).size / Math.max(1, words.length);
   return uniqueRatio < 0.45 ||
     getDominantNgramRatio(words, 2) > 0.34 ||
@@ -128,7 +128,7 @@ function getLanguageHintOrder(fileName = '') {
   if (hintType === 'english') {
     return ['english', null, 'hindi', 'urdu'];
   }
-  return [null, 'hindi', 'urdu', 'english'];
+  return [null, 'english', 'hindi', 'urdu'];
 }
 
 function buildTranscriptionAttempts(fileName = '') {

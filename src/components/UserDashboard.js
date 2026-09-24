@@ -1669,6 +1669,7 @@ export class UserDashboard {
       this.lastRenderedSentenceKey = null;
       return;
     }
+    this.activeEditableSegmentId = currentSentence.id || this.activeEditableSegmentId || null;
 
     // 3. Resolve active template and user custom/studio configurations
     const tpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
@@ -2092,6 +2093,7 @@ export class UserDashboard {
           }
         }
         this.lastRenderedSentenceKey = null;
+        this.activeEditableSegmentId = s.id || null;
         this.updateCaptionOverlay(s);
         this.renderCutoutIfActiveBehind(s);
         this.highlightActiveSegment(idx);
@@ -2422,6 +2424,11 @@ export class UserDashboard {
   getCurrentEditableSegmentIndex() {
     const sentences = captionEngine.sentences || [];
 
+    if (this.activeEditableSegmentId) {
+      const byActiveId = sentences.findIndex(s => String(s.id || '') === String(this.activeEditableSegmentId));
+      if (byActiveId >= 0) return byActiveId;
+    }
+
     const activeAnchor = this.container.querySelector('#user-caption-live-overlay .caption-segment-anchor[data-sentence-id]');
     const activeId = activeAnchor?.getAttribute('data-sentence-id');
     if (activeId) {
@@ -2436,7 +2443,7 @@ export class UserDashboard {
       return expandedIdx;
     }
 
-    const activeCardId = this.container.querySelector('.seg-mini-card.is-active')?.id || '';
+    const activeCardId = this.container.querySelector('.seg-card-item.is-active')?.id || '';
     const cardMatch = activeCardId.match(/seg-mini-(\d+)/);
     if (cardMatch) {
       const cardIdx = Number(cardMatch[1]);
@@ -2566,6 +2573,7 @@ export class UserDashboard {
     this.expandedSegments = new Set([idx]);
     this.lastRenderedSentenceKey = null;
     const firstWordSegment = captionEngine.sentences[idx] || wordSegments[0];
+    this.activeEditableSegmentId = firstWordSegment.id || null;
     if (this.videoElement) this.videoElement.currentTime = firstWordSegment.start + 0.01;
     this.updateCaptionOverlay(firstWordSegment);
     this.renderMiniSegmentsList();

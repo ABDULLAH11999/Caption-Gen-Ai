@@ -460,7 +460,7 @@ export class VideoRenderer {
     });
 
     // 9. Layout positioning (Defaults to Middle-Left: 6% X, 50% Y)
-    const defaultPosMeta = CAPTION_POSITIONS.find(p => p.id === (config.position || 'middle-left')) || CAPTION_POSITIONS[3];
+    const defaultPosMeta = CAPTION_POSITIONS.find(p => p.id === 'middle-left') || CAPTION_POSITIONS[3];
     const hasCustomPos = currentSentence.posX !== undefined && currentSentence.posY !== undefined;
     
     let posX = hasCustomPos ? (canvasWidth * Number(currentSentence.posX)) / 100 : (canvasWidth * 0.06);

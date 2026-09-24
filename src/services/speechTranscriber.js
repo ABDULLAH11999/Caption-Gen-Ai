@@ -293,11 +293,57 @@ class SpeechTranscriberService {
 
   isRepetitiveTranscriptText(text) {
     const words = (text || '').toLowerCase().split(/\s+/).filter(Boolean);
-    if (words.length < 8) return false;
+    if (words.length < 5) return false;
     const uniqueRatio = new Set(words).size / Math.max(1, words.length);
     return uniqueRatio < 0.45 ||
       this.getDominantNgramRatio(words, 2) > 0.34 ||
       this.getDominantNgramRatio(words, 3) > 0.28;
+  }
+
+  isLikelyFillerHallucination(text) {
+    const clean = (text || '')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!clean) return true;
+
+    const words = clean.split(/\s+/).filter(Boolean);
+    if (words.length === 0) return true;
+    const uniqueWords = new Set(words);
+    const joined = words.join(' ');
+
+    if (words.length >= 3 && uniqueWords.size <= 2) return true;
+    if (/\b(sir\s+){2,}sir\b/i.test(joined)) return true;
+    if (/\b(hay\s+sakta|sakta\s+hay)(\s+(hay|sakta)){2,}\b/i.test(joined)) return true;
+    if (this.isRepetitiveTranscriptText(clean)) return true;
+
+    return false;
+  }
+
+  sanitizeCaptionSentences(sentences, totalDuration = 0) {
+    const cleaned = [];
+    (sentences || []).forEach((sentence) => {
+      const text = this.normalizeTranscriptText(sentence?.text || '');
+      const words = Array.isArray(sentence?.words) ? sentence.words : [];
+      const duration = Number(sentence?.end ?? sentence?.endTime ?? 0) - Number(sentence?.start ?? sentence?.startTime ?? 0);
+      const isTinyLateBurst = totalDuration > 8 &&
+        Number(sentence?.start ?? sentence?.startTime ?? 0) > totalDuration * 0.7 &&
+        duration <= 0.6 &&
+        words.length >= 3;
+
+      if (this.isLikelyFillerHallucination(text) || (isTinyLateBurst && this.isRepetitiveTranscriptText(text))) {
+        return;
+      }
+
+      cleaned.push({
+        ...sentence,
+        text,
+        words: words.filter(w => !this.isLikelyFillerHallucination(w.word || '') || words.length === 1)
+      });
+    });
+
+    return cleaned.filter(sentence => (sentence.text || '').trim() && (!sentence.words || sentence.words.length > 0));
   }
 
   getLanguageHintOrder(fileBlob = null) {
@@ -308,7 +354,7 @@ class SpeechTranscriberService {
     if (hintType === 'english') {
       return ['english', null, 'hindi', 'urdu'];
     }
-    return [null, 'hindi', 'urdu', 'english'];
+    return [null, 'english', 'hindi', 'urdu'];
   }
 
   scoreTranscriptCandidate(result, language = null, hintType = 'auto') {
@@ -875,7 +921,9 @@ class SpeechTranscriberService {
             ? Math.min(...rawSentences.map(s => Number(s.start ?? s.startTime ?? 0)).filter(Number.isFinite))
             : Infinity;
 
+          const languageHintType = this.getLanguageHintType(fileBlob);
           if (
+            languageHintType !== 'south_asian' &&
             duration > 8 &&
             (rawSentences.length <= 1 || transcriptWordCount <= 6) &&
             (transcriptWordCount <= 6 || firstStart > duration * 0.45)
@@ -1083,7 +1131,10 @@ class SpeechTranscriberService {
 
     if (hasRealTimestamps) {
       // Build captions directly from Whisper's own word timing
-      const timedSentences = this.buildSentencesFromTimedWords(words, totalDuration);
+      const timedSentences = this.sanitizeCaptionSentences(
+        this.buildSentencesFromTimedWords(words, totalDuration),
+        totalDuration
+      );
       if (timedSentences && timedSentences.length > 0) {
         return timedSentences;
       }
@@ -1091,7 +1142,10 @@ class SpeechTranscriberService {
 
     // 2. Fallback: plain string words → align against VAD speech energy segments
     const sourceWords = words.length > 0 ? words : rawText.split(/\s+/).filter(Boolean);
-    const alignedSentences = this.buildVoiceAlignedSentences(sourceWords, totalDuration, speechSegments);
+    const alignedSentences = this.sanitizeCaptionSentences(
+      this.buildVoiceAlignedSentences(sourceWords, totalDuration, speechSegments),
+      totalDuration
+    );
     if (alignedSentences && alignedSentences.length > 0) {
       return alignedSentences;
     }
@@ -1099,7 +1153,10 @@ class SpeechTranscriberService {
     // 3. Last-resort fallback: synthesize timing across total duration
     const fallbackTokens = rawText.split(/\s+/).filter(Boolean);
     if (fallbackTokens.length > 0) {
-      return this.buildVoiceAlignedSentences(fallbackTokens, totalDuration, speechSegments);
+      return this.sanitizeCaptionSentences(
+        this.buildVoiceAlignedSentences(fallbackTokens, totalDuration, speechSegments),
+        totalDuration
+      );
     }
 
     return [];
