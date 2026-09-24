@@ -358,8 +358,8 @@ class SelfieSegmenterService {
     if (behindSegments.length === 0 || !this.isReady() || !videoElement) return [];
 
     const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    // 20-25 keyframes/sec for pixel-perfect motion tracking without edge ghosting
-    const sampleStep = isMobile ? 0.05 : 0.035;
+    // Smooth behind-caption playback cache. Dense enough for 60 FPS interpolation without mobile memory blowups.
+    const sampleStep = isMobile ? 0.033 : 0.02;
     const samples = [];
     const seen = new Set();
 

@@ -686,17 +686,27 @@ class SpeechTranscriberService {
             });
           });
 
+          const finalSentences = englishSentences && englishSentences.length > 0
+            ? englishSentences
+            : rawSentences;
+
+          if (!finalSentences || finalSentences.length === 0) {
+            throw new Error('Whisper returned text but no timestamped caption segments.');
+          }
+
           onProgress({ status: 'complete', message: 'Captions generated & synchronized!', percent: 100 });
-          return englishSentences;
+          return finalSentences;
         }
+
+        throw new Error('Whisper did not detect any transcript text in this video.');
       } catch (err) {
         if (!this.pipeline) this.pipelinePromise = null;
-        console.warn('[speechTranscriber] Whisper inference fallback:', err.message);
+        console.warn('[speechTranscriber] Whisper inference failed:', err.message);
+        throw new Error(`Transcript missing dependency: ${err.message || 'Whisper transcription failed'}`);
       }
     }
 
-    onProgress({ status: 'complete', message: 'No speech transcript detected.', percent: 100 });
-    return [];
+    throw new Error('Transcript missing dependency: browser audio decoding returned no readable audio track.');
   }
 
   normalizeTranscriptText(text) {

@@ -47,7 +47,7 @@ export class UserDashboard {
     this.cutoutCanvas = null;
     this.rotoscopingLoopRunning = false;
     this.isPlaying = false;
-    this.enhanceVideoQuality = true; // default enabled
+    this.enhanceVideoQuality = false; // default disabled
     this.expandedSegments = new Set([0]); // Default open menu of the first item (#1)
     this.isProcessing = false;
     this.processingProgress = 20;
@@ -77,17 +77,20 @@ export class UserDashboard {
   }
 
   async init() {
-    await this.loadUserData();
-    await this.loadQuotaData();
     if (this.initialFile && !this.initialFileStarted) {
       this.initialFileStarted = true;
       const file = this.initialFile;
       this.initialFile = null;
-      setTimeout(() => {
+      setTimeout(async () => {
+        await this.loadUserData();
+        await this.loadQuotaData();
         this.switchTab('apply');
         this.handleVideoFile(file);
       }, 0);
+      return;
     }
+    await this.loadUserData();
+    await this.loadQuotaData();
   }
 
   getSystemRequirementsProfile() {
@@ -532,7 +535,7 @@ export class UserDashboard {
             </div>
           </div>
         </div>
-      </aside>
+        </aside>
 
       <!-- Main Workspace -->
       <main class="user-main-workspace" id="user-workspace-content">
@@ -813,6 +816,34 @@ export class UserDashboard {
   // ==========================================================================
   // TAB 2: APPLY CAPTIONS (With 20%-100% Loader & Cancel Button)
   // ==========================================================================
+  renderCaptionWorkflowSteps(activeStep = 'upload') {
+    const steps = [
+      ['upload', 'Upload'],
+      ['whisper', 'Whisper transcript'],
+      ['settings', 'Configure segments'],
+      ['layers', 'Front / Behind'],
+      ['animations', 'Set animations'],
+      ['export', 'Export 60 FPS HD+']
+    ];
+
+    return `
+      <aside class="apply-steps-sidebar" aria-label="Caption workflow steps">
+        <div class="apply-steps-title">Caption <span>Steps</span></div>
+        <div class="apply-steps-list">
+          ${steps.map(([key, label], index) => `
+            <div class="apply-step-wrap">
+              <div class="apply-step-box ${key === activeStep ? 'is-active' : ''}">
+                <span class="apply-step-num">${index + 1}</span>
+                <span>${label}</span>
+              </div>
+              ${index < steps.length - 1 ? '<div class="apply-step-arrow">&#8595;</div>' : ''}
+            </div>
+          `).join('')}
+        </div>
+      </aside>
+    `;
+  }
+
   renderApplyCaptionsTab(parent) {
     if (!parent) {
       parent = this.container?.querySelector('#user-workspace-content');
@@ -832,7 +863,9 @@ export class UserDashboard {
             </div>
           </header>
 
-          <div class="dashboard-content-scroll" style="display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 0;">
+          <div class="dashboard-content-scroll apply-prep-scroll">
+            <div class="apply-prep-layout">
+              <div class="apply-prep-main">
             <div class="processing-progress-card" style="margin: 20px auto; width: min(760px, 94%);">
               <div class="processing-spinner"></div>
               <div class="processing-status-text" id="proc-status-text">${this.processingStatus}</div>
@@ -852,8 +885,12 @@ export class UserDashboard {
             </div>
 
             <!-- Important Notice regarding Client-Side Hardware Processing -->
-            <div class="client-processing-notice" style="max-width: 760px; margin: 0 auto; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 12px 18px; text-align: center; font-size: 13px; color: #9a3412; display: flex; align-items: center; justify-content: center; gap: 8px;">
-              <span>⚠ <strong style="color: #7c2d12;">100% Local:</strong> All processing runs on your device — speed depends on your system.</span>
+            <div class="client-processing-notice local-info-notice" style="max-width: 760px; margin: 0 auto;">
+              <button id="btn-sysreq-info" title="View System Requirements" class="notice-info-button">i</button>
+              <span><strong>100% Local:</strong> All processing runs on your device - speed depends on your system.</span>
+            </div>
+              </div>
+              ${this.renderCaptionWorkflowSteps('whisper')}
             </div>
           </div>
 
@@ -888,7 +925,9 @@ export class UserDashboard {
             </button>
           </header>
 
-          <div class="dashboard-content-scroll">
+          <div class="dashboard-content-scroll apply-prep-scroll">
+            <div class="apply-prep-layout">
+              <div class="apply-prep-main">
             ${isQuotaFull ? `
               <div class="quota-warning-banner" id="quota-warning-banner" style="max-width: 800px; margin: 0 auto 16px auto; background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 12px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; color: #991b1b; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.08);">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -901,7 +940,7 @@ export class UserDashboard {
               </div>
             ` : ''}
 
-            <div class="upload-card" id="user-drop-zone" style="max-width: 780px; margin: 16px auto 24px auto; background: #ffffff; border: 1.5px dashed ${isQuotaFull ? '#fca5a5' : '#cbd5e1'}; border-radius: 24px; padding: 48px 32px; text-align: center; cursor: pointer; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);">
+            <div class="upload-card" id="user-drop-zone" style="max-width: 900px; margin: 16px auto 24px auto; background: #ffffff; border: 1.5px dashed ${isQuotaFull ? '#fca5a5' : '#cbd5e1'}; border-radius: 24px; padding: 48px 32px; text-align: center; cursor: pointer; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);">
               <input type="file" id="user-file-input" accept="video/*,video/mp4,video/quicktime,video/webm" style="display: none;">
               
               <div style="width: 56px; height: 56px; border-radius: 50%; background: #f1f5f9; color: #090a14; display: flex; align-items: center; justify-content: center; margin: 0 auto 18px auto; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
@@ -930,7 +969,7 @@ export class UserDashboard {
               </div>
 
               <!-- Video Quality Enhancement Checkbox -->
-              <div style="display: inline-flex; align-items: center; gap: 10px; background: #fafbfe; border: 1px solid #e2e8f0; padding: 9px 18px; border-radius: var(--radius-pill);">
+              <div style="display: none; align-items: center; gap: 10px; background: #fafbfe; border: 1px solid #e2e8f0; padding: 9px 18px; border-radius: var(--radius-pill);">
                 <input type="checkbox" id="user-enhance-quality" ${this.enhanceVideoQuality ? 'checked' : ''} style="accent-color: #000000; cursor: pointer; width: 16px; height: 16px;">
                 <label for="user-enhance-quality" style="font-size: 13px; font-weight: 700; color: #1e293b; cursor: pointer;">
                   ✨ Enhance Video Quality
@@ -939,9 +978,12 @@ export class UserDashboard {
             </div>
 
             <!-- Important Notice regarding Client-Side Hardware Processing -->
-            <div class="client-processing-notice" style="max-width: 780px; margin: 0 auto; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 12px 18px; text-align: center; font-size: 13px; color: #9a3412; display: flex; align-items: center; justify-content: center; gap: 8px;">
-              <span>⚠ <strong style="color: #7c2d12;">100% Local:</strong> All processing runs on your device — speed depends on your system.</span>
-              <button id="btn-sysreq-info" title="View System Requirements" style="background: none; border: 1.5px solid #ea580c; color: #ea580c; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 1; padding: 0;">i</button>
+            <div class="client-processing-notice local-info-notice" style="max-width: 900px; margin: 0 auto;">
+                          <button id="btn-sysreq-info" title="View System Requirements" class="notice-info-button">i</button>
+              <span><strong>100% Local:</strong> All processing runs on your device - speed depends on your system.</span>
+            </div>
+              </div>
+              ${this.renderCaptionWorkflowSteps('upload')}
             </div>
           </div>
 
@@ -1286,6 +1328,41 @@ export class UserDashboard {
     this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
   }
 
+  escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  showTranscriptErrorPopup(message) {
+    const existing = document.getElementById('transcript-error-popup');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'transcript-error-popup';
+    modal.className = 'transcript-error-backdrop';
+    modal.innerHTML = `
+      <div class="transcript-error-card" role="alertdialog" aria-modal="true" aria-labelledby="transcript-error-title">
+        <button type="button" class="transcript-error-close" id="btn-transcript-error-close" aria-label="Close">×</button>
+        <div class="transcript-error-icon">!</div>
+        <h2 id="transcript-error-title">Transcript Missing Dependency</h2>
+        <p>${this.escapeHtml(message || 'Whisper could not extract a real transcript from this video. No fallback captions were loaded.')}</p>
+        <button type="button" class="btn btn-black transcript-error-action" id="btn-transcript-error-ok">OK</button>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    const close = () => modal.remove();
+    modal.querySelector('#btn-transcript-error-close')?.addEventListener('click', close);
+    modal.querySelector('#btn-transcript-error-ok')?.addEventListener('click', close);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) close();
+    });
+  }
+
   async handleVideoFile(file) {
     if (!file) return;
 
@@ -1311,7 +1388,10 @@ export class UserDashboard {
       await this.processVideoBlob(file);
     } catch (err) {
       if (!this.processingCancelled) {
-        this.showToast('Video processing error: ' + err.message, 'error');
+        captionEngine.setSentences([]);
+        const message = err.message || 'Whisper could not extract a real transcript from this video.';
+        this.showToast(message, 'error');
+        this.showTranscriptErrorPopup(message);
         this.isProcessing = false;
         this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
       }
@@ -1340,7 +1420,8 @@ export class UserDashboard {
         captionEngine.setSentences(transcribeResult.sentences);
       } else {
         captionEngine.setSentences([]);
-        this.showToast('No speech transcript was detected. Use Edit Segments to add words manually.', 'info');
+        const message = 'Transcript missing dependency: Whisper did not return any real caption segments.';
+        throw new Error(message);
       }
 
       this.updateProcessingProgress(100, 'Transcription complete! Loading workspace...');
@@ -1797,6 +1878,9 @@ export class UserDashboard {
             </span>
             <button type="button" class="caption-toolbar-btn btn-follow-all" id="btn-follow-all-segments" title="Apply this style, color, size, animation, and position to ALL segments">
               <span>Apply to All</span>
+            </button>
+            <button type="button" class="caption-toolbar-btn btn-break-words" id="btn-break-segment-words" title="Break this caption line into one segment per word">
+              <span>Break into words</span>
             </button>
             <button type="button" class="caption-toolbar-btn btn-reset-pos" id="btn-reset-segment-pos" title="Reset this segment to default middle-left">
               <span>↺ Reset</span>
@@ -2327,6 +2411,83 @@ export class UserDashboard {
     });
   }
 
+  breakCurrentSegmentIntoWords() {
+    const time = this.videoElement ? this.videoElement.currentTime : 0;
+    const sentences = captionEngine.sentences || [];
+    const idx = sentences.findIndex((s, i) => {
+      const sStart = Number(s.start ?? s.startTime ?? 0);
+      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+      const isLast = (i === sentences.length - 1);
+      return time >= sStart && (isLast ? time <= sEnd : time < sEnd);
+    });
+
+    if (idx < 0) {
+      this.showToast('No active caption segment to break.', 'info');
+      return;
+    }
+
+    const source = sentences[idx];
+    const sourceStart = Number(source.start ?? source.startTime ?? 0);
+    const sourceEnd = Number(source.end ?? source.endTime ?? (sourceStart + 1));
+    const words = Array.isArray(source.words) && source.words.length > 0
+      ? source.words
+      : captionEngine.createWordLevelTimestamps(source.text || '', sourceStart, sourceEnd);
+
+    if (!words || words.length <= 1) {
+      this.showToast('This segment is already a single word.', 'info');
+      return;
+    }
+
+    const styleKeys = [
+      'posX', 'posY', 'boxWidth', 'fontSize', 'fontFamily',
+      'textColor', 'prominentColor', 'strokeEnabled', 'strokeColor',
+      'glowColor', 'animation', 'behind'
+    ];
+
+    const wordSegments = words.map((w, wordIdx) => {
+      const wStart = Number(w.start ?? w.startTime ?? sourceStart);
+      const wEnd = Number(w.end ?? w.endTime ?? Math.min(sourceEnd, wStart + 0.35));
+      const seg = {
+        id: `${source.id || 'sentence'}_word_${wordIdx + 1}_${Date.now()}`,
+        start: parseFloat(wStart.toFixed(3)),
+        end: parseFloat(Math.max(wStart + 0.12, wEnd).toFixed(3)),
+        startTime: parseFloat(wStart.toFixed(3)),
+        endTime: parseFloat(Math.max(wStart + 0.12, wEnd).toFixed(3)),
+        text: w.word || '',
+        words: [{
+          word: w.word || '',
+          start: parseFloat(wStart.toFixed(3)),
+          end: parseFloat(Math.max(wStart + 0.12, wEnd).toFixed(3)),
+          startTime: parseFloat(wStart.toFixed(3)),
+          endTime: parseFloat(Math.max(wStart + 0.12, wEnd).toFixed(3))
+        }]
+      };
+
+      styleKeys.forEach(key => {
+        if (source[key] !== undefined) seg[key] = source[key];
+      });
+      return seg;
+    }).filter(seg => seg.text.trim());
+
+    if (wordSegments.length <= 1) {
+      this.showToast('This segment is already a single word.', 'info');
+      return;
+    }
+
+    const updated = [
+      ...sentences.slice(0, idx),
+      ...wordSegments,
+      ...sentences.slice(idx + 1)
+    ];
+
+    captionEngine.setSentences(updated);
+    this.lastRenderedSentenceKey = null;
+    if (this.videoElement) this.videoElement.currentTime = wordSegments[0].start + 0.01;
+    this.updateCaptionOverlay(wordSegments[0]);
+    this.renderMiniSegmentsList();
+    this.showToast(`Broke segment into ${wordSegments.length} word segments.`, 'success');
+  }
+
   setupCaptionDragAndResize(wrap) {
     const videoWrapper = wrap.querySelector('#user-video-wrapper');
     const overlay = wrap.querySelector('#user-caption-live-overlay');
@@ -2529,12 +2690,20 @@ export class UserDashboard {
     // Overlay toolbar click actions
     overlay.addEventListener('click', (e) => {
       const followAllBtn = e.target.closest('#btn-follow-all-segments');
+      const breakWordsBtn = e.target.closest('#btn-break-segment-words');
       const resetBtn = e.target.closest('#btn-reset-segment-pos');
 
       if (followAllBtn) {
         e.stopPropagation();
         e.preventDefault();
         applyCurrentPosToAll();
+        return;
+      }
+
+      if (breakWordsBtn) {
+        e.stopPropagation();
+        e.preventDefault();
+        this.breakCurrentSegmentIntoWords();
         return;
       }
 

@@ -105,26 +105,26 @@ export class VideoRenderer {
 
     switch (animId) {
       case 'anim-slide-left-right': {
-        const p = clamp(elapsed / 0.4);
-        state.blockOffsetX = (1 - p) * -40 * scale;
+        const p = clamp(elapsed / 0.5);
+        state.blockOffsetX = (1 - p) * -52 * scale;
         state.blockOpacity = p;
         break;
       }
       case 'anim-slide-right-left': {
-        const p = clamp(elapsed / 0.4);
-        state.blockOffsetX = (1 - p) * 40 * scale;
+        const p = clamp(elapsed / 0.5);
+        state.blockOffsetX = (1 - p) * 52 * scale;
         state.blockOpacity = p;
         break;
       }
       case 'anim-slide-top-bottom': {
-        const p = clamp(elapsed / 0.38);
-        state.blockOffsetY = (1 - p) * -30 * scale;
+        const p = clamp(elapsed / 0.48);
+        state.blockOffsetY = (1 - p) * -42 * scale;
         state.blockOpacity = p;
         break;
       }
       case 'anim-slide-bottom-top': {
-        const p = clamp(elapsed / 0.38);
-        state.blockOffsetY = (1 - p) * 30 * scale;
+        const p = clamp(elapsed / 0.48);
+        state.blockOffsetY = (1 - p) * 42 * scale;
         state.blockOpacity = p;
         break;
       }
@@ -217,7 +217,7 @@ export class VideoRenderer {
         break;
       }
       case 'anim-pop': {
-        const p = clamp(elapsed / 0.32);
+        const p = clamp(elapsed / 0.4);
         if (p <= 0.6) state.blockScale = 0.65 + 0.5 * (p / 0.6);
         else state.blockScale = 1.15 - 0.15 * ((p - 0.6) / 0.4);
         state.blockOpacity = Math.min(1, p / 0.15);
@@ -669,8 +669,8 @@ export class VideoRenderer {
     if (behindSegments.length === 0 || !selfieSegmenterService.isReady()) return;
 
     const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    // 25-30 keyframes/sec (33ms step) ensures sub-frame temporal alignment between video and cutout
-    const sampleStep = isMobile ? 0.045 : 0.033;
+    // Dense cache for smooth 60 FPS exports; mobile uses a slightly wider step to avoid memory spikes.
+    const sampleStep = isMobile ? 0.025 : 0.0167;
     const samples = [];
     const seen = new Set();
 
