@@ -282,6 +282,18 @@ export class LandingPage {
               A 100% free captions generator customizable for TikTok, YouTube Shorts, Real Estate, and Instagram Reels. Every template is engineered for maximum retention, instant virality, and crisp mobile viewing.
             </p>
 
+            <div class="presets-split-cta-group">
+              <button class="btn btn-black" id="btn-hero-launch-studio">
+                <span>⚡ Open Studio Presets</span>
+              </button>
+              <button class="btn btn-outline" id="btn-toggle-all-templates">
+                <span id="btn-toggle-templates-label">Explore All 16 Presets ↓</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- RIGHT SIDE: Feature Perks List -->
+          <div class="presets-split-right">
             <div class="presets-perks-list">
               <div class="presets-perk-item">
                 <div class="perk-icon-circle">⚡</div>
@@ -306,27 +318,6 @@ export class LandingPage {
                   <p>Your video never leaves your browser. Private, ultra-fast 60 FPS GPU rendering.</p>
                 </div>
               </div>
-            </div>
-
-            <div class="presets-split-cta-group">
-              <button class="btn btn-black" id="btn-hero-launch-studio">
-                <span>⚡ Open Studio Presets</span>
-              </button>
-              <button class="btn btn-outline" id="btn-toggle-all-templates">
-                <span id="btn-toggle-templates-label">Explore All 16 Presets ↓</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- RIGHT SIDE: 3 Popular Presets -->
-          <div class="presets-split-right">
-            <div class="popular-presets-header">
-              <span class="popular-fire-badge">🔥 TOP 3 POPULAR PRESETS</span>
-              <span class="popular-hint">Click any preset to load directly in Studio</span>
-            </div>
-
-            <div class="popular-presets-grid" id="popular-presets-container">
-              <!-- Populated with 3 Popular: September Pop, Viral Reel Hormozi, Emily Luxury -->
             </div>
           </div>
         </div>
@@ -516,18 +507,18 @@ export class LandingPage {
   renderTemplatesShowcase() {
     const popularContainer = this.container.querySelector('#popular-presets-container');
     const fullGrid = this.container.querySelector('#templates-grid');
-    if (!popularContainer || !fullGrid) return;
+    if (!fullGrid) return;
 
-    popularContainer.innerHTML = '';
+    if (popularContainer) {
+      popularContainer.innerHTML = '';
+      const popularTemplates = CAPTION_TEMPLATES.slice(0, 3);
+      popularTemplates.forEach((tmpl, idx) => {
+        const card = this.createTemplateCard(tmpl, true, idx + 1);
+        popularContainer.appendChild(card);
+      });
+    }
+
     fullGrid.innerHTML = '';
-
-    // Top 3 Most Popular Presets
-    const popularTemplates = CAPTION_TEMPLATES.slice(0, 3);
-
-    popularTemplates.forEach((tmpl, idx) => {
-      const card = this.createTemplateCard(tmpl, true, idx + 1);
-      popularContainer.appendChild(card);
-    });
 
     // All 16 Presets for Expandable Drawer
     CAPTION_TEMPLATES.forEach(tmpl => {
@@ -676,25 +667,47 @@ export class LandingPage {
     const displayPlans = this.plans.length > 0 ? this.plans : defaultPlans;
 
     displayPlans.forEach(plan => {
+      const isPopular = plan.is_popular || plan.id === 'creator-pro' || plan.id === 'creator';
       const card = document.createElement('div');
-      card.className = `pricing-card ${plan.is_popular ? 'is-popular' : ''}`;
+      card.className = `pricing-card ${isPopular ? 'is-popular' : ''}`;
       
-      const featuresList = (plan.features || []).map(f => `
-        <li class="pricing-feature-item">
-          <svg class="feature-check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          <span>${f}</span>
-        </li>
-      `).join('');
+      let rawFeatures = plan.features;
+      if (typeof rawFeatures === 'string') {
+        try { rawFeatures = JSON.parse(rawFeatures); } catch (e) { rawFeatures = []; }
+      }
+      if (!Array.isArray(rawFeatures)) rawFeatures = [];
+
+      const featuresList = rawFeatures.map(f => {
+        const text = typeof f === 'object' && f !== null ? (f.text || f.name || '') : String(f || '');
+        const included = typeof f === 'object' && f !== null ? (f.included !== false) : true;
+        if (!text) return '';
+        return `
+          <li class="pricing-feature-item ${included ? '' : 'not-included'}">
+            <svg class="feature-check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>${text}</span>
+          </li>
+        `;
+      }).filter(Boolean).join('');
+
+      const priceDisplay = typeof plan.price === 'number'
+        ? `$${plan.price}`
+        : (String(plan.price || '$0').startsWith('$') ? plan.price : `$${plan.price}`);
+
+      const billingDisplay = plan.billing || (plan.billing_cycle === 'month' ? 'mo' : plan.billing_cycle) || 'mo';
+      const descriptionDisplay = plan.description || plan.short_desc || '';
+      const isFree = plan.id === 'free' || plan.is_default_free || plan.price === 0 || plan.price === '$0';
+      const btnText = plan.btn_text || (isFree ? 'Start Free Now' : `Get ${plan.name}`);
+      const btnAction = plan.btn_action || (isFree ? 'start' : 'request');
 
       card.innerHTML = `
-        ${plan.is_popular ? `<div class="popular-ribbon"><span>MOST POPULAR</span></div>` : ''}
+        ${isPopular ? `<div class="popular-ribbon"><span>MOST POPULAR</span></div>` : ''}
         
         <div class="pricing-card-header">
           <h3 class="plan-name">${plan.name}</h3>
-          <p class="plan-desc">${plan.description || ''}</p>
+          <p class="plan-desc">${descriptionDisplay}</p>
           <div class="plan-price-row">
-            <span class="plan-price">${plan.price}</span>
-            <span class="plan-billing">/ ${plan.billing || 'mo'}</span>
+            <span class="plan-price">${priceDisplay}</span>
+            <span class="plan-billing">/ ${billingDisplay}</span>
           </div>
         </div>
 
@@ -702,16 +715,16 @@ export class LandingPage {
           ${featuresList}
         </ul>
 
-        <button class="btn btn-black btn-block btn-select-plan" data-plan-id="${plan.id}" data-action="${plan.btn_action || 'request'}">
-          <span>${plan.btn_text || 'Select Plan'}</span>
+        <button class="btn btn-black btn-block btn-select-plan" data-plan-id="${plan.id}" data-action="${btnAction}">
+          <span>${btnText}</span>
         </button>
       `;
 
       card.querySelector('.btn-select-plan')?.addEventListener('click', () => {
-        if (plan.id === 'free' || plan.btn_action === 'start') {
+        if (isFree || btnAction === 'start') {
           this.onNavigate('app');
         } else {
-          this.openPurchaseModal(plan);
+          this.openPurchaseModal({ ...plan, name: plan.name, price: priceDisplay });
         }
       });
 

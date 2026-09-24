@@ -90,7 +90,9 @@ export class BlogListPage {
     grid.querySelectorAll('.blog-card').forEach(card => {
       card.addEventListener('click', () => {
         const slug = card.getAttribute('data-slug');
-        this.onNavigate('blog-detail', `slug=${slug}`);
+        if (slug) {
+          this.onNavigate('blog-detail', { slug });
+        }
       });
     });
   }

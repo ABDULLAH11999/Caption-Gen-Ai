@@ -528,6 +528,68 @@ class SpeechTranscriberService {
     }));
   }
 
+  _getWorker() {
+    if (this._worker) return this._worker;
+    try {
+      this._worker = new Worker(new URL('./transcription.worker.js', import.meta.url), { type: 'module' });
+      return this._worker;
+    } catch (e) {
+      console.warn('[speechTranscriber] Could not instantiate Web Worker:', e);
+      return null;
+    }
+  }
+
+  async _transcribeWithWorker(rawPcm, duration, onProgress) {
+    const worker = this._getWorker();
+    if (!worker) throw new Error('Web Worker not supported');
+
+    return new Promise((resolve, reject) => {
+      const timeoutMs = this.getInferenceTimeoutMs(duration);
+      let timer = setTimeout(() => {
+        cleanup();
+        reject(new Error('Transcription timed out in worker'));
+      }, timeoutMs);
+
+      const onMessage = (e) => {
+        const data = e.data || {};
+        if (data.type === 'progress') {
+          onProgress(data);
+        } else if (data.type === 'done') {
+          cleanup();
+          resolve(data.result);
+        } else if (data.type === 'error') {
+          cleanup();
+          reject(new Error(data.error || 'Worker error'));
+        }
+      };
+
+      const onError = (err) => {
+        cleanup();
+        reject(err || new Error('Worker thread crashed'));
+      };
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        worker.removeEventListener('message', onMessage);
+        worker.removeEventListener('error', onError);
+      };
+
+      worker.addEventListener('message', onMessage);
+      worker.addEventListener('error', onError);
+
+      try {
+        worker.postMessage({
+          type: 'transcribe',
+          rawPcm: rawPcm,
+          modelId: this.modelId
+        });
+      } catch (postErr) {
+        cleanup();
+        reject(postErr);
+      }
+    });
+  }
+
   /**
    * Transcribes the audio file using neural in-browser Whisper AI
    */
@@ -543,59 +605,72 @@ class SpeechTranscriberService {
       onProgress({ status: 'loading_model', message: 'Loading Whisper speech recognition model...', percent: 45 });
 
       try {
-        if (!this.pipeline) {
-          if (!this.pipelinePromise) {
-            this.pipelinePromise = pipeline('automatic-speech-recognition', this.modelId, {
-              quantized: true,
-              progress_callback: (prog) => {
-                const progress = Number(prog?.progress ?? 0);
-                if (Number.isFinite(progress) && progress > 0) {
-                  onProgress({
-                    status: 'loading_model',
-                    message: `Loading Whisper model (${Math.round(progress)}%)...`,
-                    percent: Math.min(75, 45 + Math.round(progress * 0.3))
-                  });
-                }
-              }
-            });
-          }
+        let result = null;
 
-          this.pipeline = await this.withTimeout(
-            this.pipelinePromise,
-            this.getModelTimeoutMs(),
-            'Whisper model setup took too long'
-          );
+        // 1. Try dedicated Web Worker first — ensures main thread stays 100% responsive
+        try {
+          result = await this._transcribeWithWorker(rawPcm, duration, onProgress);
+        } catch (workerErr) {
+          console.warn('[speechTranscriber] Web Worker transcription failed, falling back to in-thread:', workerErr.message);
         }
 
-        onProgress({ status: 'transcribing', message: 'Transcribing spoken words with Whisper…', percent: 80 });
+        // 2. In-thread fallback if Worker failed or unavailable
+        if (!result) {
+          // Yield to event loop before starting heavy WASM work
+          await new Promise(r => setTimeout(r, 60));
 
-        // iOS/Safari: word-level timestamps add ~30% overhead on a single-threaded
-        // WASM runtime. Try 'word' first; if it throws fall back to chunk timestamps.
-        let result;
-        try {
-          result = await this.withTimeout(
-            this.pipeline(rawPcm, {
-              return_timestamps: 'word',
-              chunk_length_s: 30,
-              stride_length_s: 5,
-              task: 'transcribe'
-            }),
-            this.getInferenceTimeoutMs(duration),
-            'Whisper word-timestamp transcription took too long'
-          );
-        } catch (wordTsErr) {
-          console.warn('[speechTranscriber] Word timestamps failed, retrying with chunk timestamps:', wordTsErr.message);
-          onProgress({ status: 'transcribing', message: 'Retrying transcription…', percent: 82 });
-          result = await this.withTimeout(
-            this.pipeline(rawPcm, {
-              return_timestamps: true,   // chunk-level — faster, always supported
-              chunk_length_s: 30,
-              stride_length_s: 5,
-              task: 'transcribe'
-            }),
-            this.getInferenceTimeoutMs(duration),
-            'Whisper transcription took too long'
-          );
+          if (!this.pipeline) {
+            if (!this.pipelinePromise) {
+              this.pipelinePromise = pipeline('automatic-speech-recognition', this.modelId, {
+                quantized: true,
+                progress_callback: (prog) => {
+                  const progress = Number(prog?.progress ?? 0);
+                  if (Number.isFinite(progress) && progress > 0) {
+                    onProgress({
+                      status: 'loading_model',
+                      message: `Loading Whisper model (${Math.round(progress)}%)...`,
+                      percent: Math.min(75, 45 + Math.round(progress * 0.3))
+                    });
+                  }
+                }
+              });
+            }
+
+            this.pipeline = await this.withTimeout(
+              this.pipelinePromise,
+              this.getModelTimeoutMs(),
+              'Whisper model setup took too long'
+            );
+          }
+
+          await new Promise(r => setTimeout(r, 40));
+          onProgress({ status: 'transcribing', message: 'Transcribing spoken words with Whisper…', percent: 80 });
+
+          try {
+            result = await this.withTimeout(
+              this.pipeline(rawPcm, {
+                return_timestamps: 'word',
+                chunk_length_s: 30,
+                stride_length_s: 5,
+                task: 'transcribe'
+              }),
+              this.getInferenceTimeoutMs(duration),
+              'Whisper word-timestamp transcription took too long'
+            );
+          } catch (wordTsErr) {
+            console.warn('[speechTranscriber] Word timestamps failed, retrying with chunk timestamps:', wordTsErr.message);
+            onProgress({ status: 'transcribing', message: 'Retrying transcription…', percent: 82 });
+            result = await this.withTimeout(
+              this.pipeline(rawPcm, {
+                return_timestamps: true,
+                chunk_length_s: 30,
+                stride_length_s: 5,
+                task: 'transcribe'
+              }),
+              this.getInferenceTimeoutMs(duration),
+              'Whisper transcription took too long'
+            );
+          }
         }
 
         if (result && result.text && result.text.trim()) {

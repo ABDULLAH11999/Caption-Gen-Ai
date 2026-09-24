@@ -526,6 +526,62 @@ textarea.form-control {
   line-height: 1.4;
 }
 
+.auth-footer-prompt {
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  text-align: center;
+  font-size: 13.5px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.auth-footer-prompt span {
+  color: #64748b;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.auth-footer-prompt .btn-link,
+.btn-link {
+  background: transparent;
+  border: none;
+  color: #090a14;
+  font-weight: 800;
+  font-size: 13.5px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  outline: none;
+}
+
+.auth-footer-prompt .btn-link:hover,
+.btn-link:hover {
+  color: #ff5533;
+  text-decoration-color: #ff5533;
+}
+
+#link-goto-signup,
+#link-goto-signin {
+  color: #ff5533;
+  font-weight: 800;
+}
+
+#link-goto-signup:hover,
+#link-goto-signin:hover {
+  color: #e04424;
+  text-decoration-thickness: 2px;
+}
+
 /* ==========================================================================
    SAAS FOOTER (CAPTIONS.AI / APPLE MINIMALIST LIGHT GLASS DESIGN)
    ========================================================================== */

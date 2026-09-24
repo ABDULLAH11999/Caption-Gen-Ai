@@ -115,7 +115,6 @@ export class BlogDetailPage {
           </h1>
 
           <div class="blog-author-bar">
-            <div class="blog-author-avatar">⚡</div>
             <div class="blog-author-info">
               <span class="blog-author-name">Zen AI Creator Lab</span>
               <div class="blog-meta-subline">
@@ -128,12 +127,6 @@ export class BlogDetailPage {
             </div>
           </div>
         </header>
-
-        ${b.featured_image ? `
-          <div class="blog-featured-media-frame">
-            <img src="${b.featured_image}" alt="${b.title}" class="blog-featured-img">
-          </div>
-        ` : ''}
 
         <!-- Main Reading Card (Frosted Glass Container) -->
         <main class="blog-glass-reading-card">

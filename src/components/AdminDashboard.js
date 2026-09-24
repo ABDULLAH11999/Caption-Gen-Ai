@@ -55,7 +55,7 @@ export class AdminDashboard {
               <span>📊</span><span>Overview</span>
             </li>
             <li class="admin-menu-item" data-tab="users">
-              <span>👥</span><span>Users (${this.users.length || '...'})</span>
+              <span>👥</span><span>Users</span>
             </li>
             <li class="admin-menu-item" data-tab="plans">
               <span>💳</span><span>Plans &amp; Quotas</span>
@@ -145,7 +145,7 @@ export class AdminDashboard {
     });
 
     const main = this.container.querySelector('#admin-main-view');
-    main.innerHTML = '<div style="padding: 40px;"><p>Loading data...</p></div>';
+    main.innerHTML = '<div class="admin-loading-spinner-wrap"><div class="admin-spinner"></div></div>';
 
     switch (tab) {
       case 'overview':
@@ -1077,7 +1077,7 @@ export class AdminDashboard {
         </div>
       </div>
 
-      <div class="card" style="max-width: 860px; padding: 36px; margin-bottom: 40px;">
+      <div class="card" style="max-width: 1100px; width: 100%; padding: 36px; margin-bottom: 40px;">
         <form id="form-site-settings">
           <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 18px; border-bottom: 1px solid #edf0f7; padding-bottom: 8px;">Branding</h3>
           
@@ -1280,7 +1280,7 @@ export class AdminDashboard {
               </tr>
             </thead>
             <tbody id="visitor-table-body">
-              <tr><td colspan="6" style="text-align: center; padding: 40px; color: #94a3b8;">Loading visitor data...</td></tr>
+              <tr><td colspan="6" style="text-align: center; padding: 40px;"><div class="admin-spinner" style="margin: 0 auto;"></div></td></tr>
             </tbody>
           </table>
         </div>

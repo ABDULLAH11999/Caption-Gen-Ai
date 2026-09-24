@@ -237,6 +237,10 @@ class ZenSaaSApp {
   }
 
   navigate(route, params = {}, pushState = true) {
+    if (typeof params === 'string') {
+      const match = params.match(/slug=([^&]+)/);
+      params = match ? { slug: decodeURIComponent(match[1]) } : { slug: params };
+    }
     this.currentRoute = route;
     this.routeParams = params;
 

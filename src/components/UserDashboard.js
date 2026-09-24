@@ -48,6 +48,7 @@ export class UserDashboard {
     this.rotoscopingLoopRunning = false;
     this.isPlaying = false;
     this.enhanceVideoQuality = true; // default enabled
+    this.expandedSegments = new Set([0]); // Default open menu of the first item (#1)
     this.isProcessing = false;
     this.processingProgress = 20;
     this.processingStatus = 'Initializing...';
@@ -822,31 +823,44 @@ export class UserDashboard {
     wrap.id = 'apply-captions-workspace-wrap';
 
     if (this.isProcessing) {
-      // PROCESSING VIEW (20% to 100% Loader + Cancel)
+      // PROCESSING VIEW (20% to 100% Loader + Cancel + Persistent Bottom Footer Dock)
       wrap.innerHTML = `
-        <div class="user-tab-header">
-          <div>
-            <h1 class="user-tab-title">Transcribing Audio & Generating Captions</h1>
-            <p style="color: #64748b; font-size: 14px;">Offline AI engine running locally in your browser with zero server latency.</p>
+        <div class="dashboard-page-container">
+          <header class="dashboard-top-bar">
+            <div>
+              <h1 class="user-tab-title">Transcribing Audio &amp; Generating Captions</h1>
+            </div>
+          </header>
+
+          <div class="dashboard-content-scroll" style="display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 0;">
+            <div class="processing-progress-card" style="margin: 20px auto; width: min(760px, 94%);">
+              <div class="processing-spinner"></div>
+              <div class="processing-status-text" id="proc-status-text">${this.processingStatus}</div>
+
+              <div class="processing-bar-outer">
+                <div class="processing-bar-inner" id="proc-bar-inner" style="width: ${this.processingProgress}%;"></div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 24px;">
+                <span>Current Operation</span>
+                <span id="proc-percent-text">${this.processingProgress}%</span>
+              </div>
+
+              <button class="btn btn-outline" id="btn-cancel-processing" style="border-color: #ef4444; color: #ef4444; padding: 10px 24px;">
+                ✕ Cancel Transcription
+              </button>
+            </div>
+
+            <!-- Important Notice regarding Client-Side Hardware Processing -->
+            <div class="client-processing-notice" style="max-width: 760px; margin: 0 auto; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 12px 18px; text-align: center; font-size: 13px; color: #9a3412; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span>⚠ <strong style="color: #7c2d12;">100% Local:</strong> All processing runs on your device — speed depends on your system.</span>
+            </div>
           </div>
-        </div>
 
-        <div class="processing-progress-card">
-          <div class="processing-spinner"></div>
-          <div class="processing-status-text" id="proc-status-text">${this.processingStatus}</div>
-
-          <div class="processing-bar-outer">
-            <div class="processing-bar-inner" id="proc-bar-inner" style="width: ${this.processingProgress}%;"></div>
-          </div>
-
-          <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 24px;">
-            <span>Current Operation</span>
-            <span id="proc-percent-text">${this.processingProgress}%</span>
-          </div>
-
-          <button class="btn btn-outline" id="btn-cancel-processing" style="border-color: #ef4444; color: #ef4444; padding: 10px 24px;">
-            ✕ Cancel Transcription
-          </button>
+          <footer class="dashboard-bottom-dock">
+            <span>⚡ Zen Caption AI Studio &bull; 100% Client-Side Privacy Guaranteed</span>
+            <span>Zero Watermarks &bull; Instant 60 FPS GPU Export</span>
+          </footer>
         </div>
       `;
 
@@ -1378,7 +1392,7 @@ export class UserDashboard {
       }
       const videoWrapper = wrap.querySelector('#user-video-wrapper');
       if (videoWrapper) {
-        videoWrapper.className = `video-container ${this.currentMode}`;
+        videoWrapper.className = `video-container ${this.currentMode} is-paused`;
         videoWrapper.style.aspectRatio = isPortrait ? '9/16' : '16/9';
       }
       if (scrubber) scrubber.max = this.videoDuration;
@@ -1387,6 +1401,14 @@ export class UserDashboard {
       this.updateCaptionOverlay();
       this.renderCutoutIfActiveBehind();
       this.startRotoscopingLoop();
+    });
+
+    this.videoElement.addEventListener('play', () => {
+      wrap.querySelector('#user-video-wrapper')?.classList.remove('is-paused');
+    });
+
+    this.videoElement.addEventListener('pause', () => {
+      wrap.querySelector('#user-video-wrapper')?.classList.add('is-paused');
     });
 
     this.videoElement.addEventListener('timeupdate', () => {
@@ -1838,6 +1860,8 @@ export class UserDashboard {
       item.className = `seg-card-item ${s.behind ? 'has-behind' : ''}`;
       item.dataset.idx = idx;
 
+      const isExpanded = this.expandedSegments ? this.expandedSegments.has(idx) : false;
+
       item.innerHTML = `
         <!-- 1. Header: Index, Time, Pos, Modern Behind Switch -->
         <div class="seg-card-header">
@@ -1855,103 +1879,113 @@ export class UserDashboard {
           </div>
         </div>
 
-        <!-- 2. Text Context Banner -->
-        <div class="seg-text-banner" title="Click to seek to this segment">
-          <span class="seg-play-icon">▶</span>
-          <span class="seg-text-string">${s.text || 'Caption Segment'}</span>
+        <!-- 2. Text Context Banner with Settings Dropdown Toggle Arrow -->
+        <div class="seg-text-banner" data-idx="${idx}" title="Click to seek / configure style">
+          <div class="seg-text-banner-left">
+            <span class="seg-play-icon">▶</span>
+            <span class="seg-text-string">${s.text || 'Caption Segment'}</span>
+          </div>
+          <button type="button" class="btn-seg-toggle-settings ${isExpanded ? 'is-active' : ''}" data-idx="${idx}" title="Configure style settings">
+            <svg class="seg-settings-arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
         </div>
 
-        <!-- 3. Typography Bar: Custom Font Dropdown (Opens Strictly Below) + Size Stepper -->
-        <div class="seg-typo-bar" onclick="event.stopPropagation()">
-          <div class="seg-font-picker-wrap">
-            <button type="button" class="seg-font-trigger" data-idx="${idx}" title="Select font for segment #${idx + 1}">
-              <span class="seg-font-trigger-text" style="font-family: ${curFontMeta.family};">
-                ${curFontMeta.name}
-              </span>
-              <svg class="seg-dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </button>
-            <div class="seg-font-dropdown-menu" id="seg-font-menu-${idx}">
-              ${FONTS.map(f => `
-                <div class="seg-font-option ${curFontMeta.id === f.id ? 'is-selected' : ''}" data-idx="${idx}" data-font="${f.id}" style="font-family: ${f.family};">
-                  <span class="opt-name">${f.name}</span>
-                  ${f.id === 'Italiana' ? '<span class="opt-tag">Image 2</span>' : ''}
+        <!-- Collapsible Settings Panel (Default Collapsed) -->
+        <div class="seg-card-settings-collapse ${isExpanded ? 'is-open' : ''}" id="seg-settings-${idx}">
+          <div class="seg-card-settings-inner">
+            <!-- 3. Typography Bar: Custom Font Dropdown (Opens Strictly Below) + Size Stepper -->
+            <div class="seg-typo-bar" onclick="event.stopPropagation()">
+              <div class="seg-font-picker-wrap">
+                <button type="button" class="seg-font-trigger" data-idx="${idx}" title="Select font for segment #${idx + 1}">
+                  <span class="seg-font-trigger-text" style="font-family: ${curFontMeta.family};">
+                    ${curFontMeta.name}
+                  </span>
+                  <svg class="seg-dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+                <div class="seg-font-dropdown-menu" id="seg-font-menu-${idx}">
+                  ${FONTS.map(f => `
+                    <div class="seg-font-option ${curFontMeta.id === f.id ? 'is-selected' : ''}" data-idx="${idx}" data-font="${f.id}" style="font-family: ${f.family};">
+                      <span class="opt-name">${f.name}</span>
+                      ${f.id === 'Italiana' ? '<span class="opt-tag">Image 2</span>' : ''}
+                    </div>
+                  `).join('')}
                 </div>
-              `).join('')}
-            </div>
-          </div>
-
-          <div class="seg-stepper-box" title="Font size in pixels">
-            <button type="button" class="btn-step btn-minus" data-idx="${idx}" title="Decrease font size">−</button>
-            <div class="step-val-wrap">
-              <input type="number" class="step-num-input" data-idx="${idx}" value="${curSize}" min="12" max="80">
-              <span class="step-unit">px</span>
-            </div>
-            <button type="button" class="btn-step btn-plus" data-idx="${idx}" title="Increase font size">+</button>
-          </div>
-        </div>
-
-        <!-- 4. Effects Bar: Text Color | Stroke | Radiant Neon Glow -->
-        <div class="seg-effects-bar" onclick="event.stopPropagation()">
-          
-          <!-- Cell 1: Dual Colors (Base Text & Prominent Highlight Word) -->
-          <div class="seg-effect-cell seg-colors-dual-cell" title="Base text & prominent highlight word colors">
-            <span class="effect-label">Color</span>
-            <div class="seg-color-swatches-group">
-              <label class="color-swatch-wrap" title="Base text color">
-                <input type="color" class="hidden-color-input seg-text-color-picker" data-idx="${idx}" value="${curColor}">
-                <span class="color-swatch-circle" id="text-swatch-${idx}" style="background-color: ${curColor};"></span>
-              </label>
-              <label class="color-swatch-wrap" title="Prominent word highlight color">
-                <input type="color" class="hidden-color-input seg-prominent-color-picker" data-idx="${idx}" value="${curProminentColor}">
-                <span class="color-swatch-circle prominent-swatch" id="prominent-swatch-${idx}" style="background-color: ${curProminentColor};"></span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Cell 2: Outline Stroke -->
-          <div class="seg-effect-cell" title="Outline Stroke">
-            <label class="effect-chk-label">
-              <input type="checkbox" class="chk-seg-stroke" data-idx="${idx}" ${strokeEnabled ? 'checked' : ''}>
-              <span class="effect-label">Stroke</span>
-            </label>
-            <label class="color-swatch-wrap ${!strokeEnabled ? 'is-disabled' : ''}">
-              <input type="color" class="hidden-color-input seg-stroke-color-picker" data-idx="${idx}" value="${curStrokeColor}" ${!strokeEnabled ? 'disabled' : ''}>
-              <span class="color-swatch-circle" id="stroke-swatch-${idx}" style="background-color: ${curStrokeColor};"></span>
-            </label>
-          </div>
-
-          <!-- Cell 3: Radiant Neon Glow (Image 3 Parity) -->
-          <div class="seg-effect-cell ${hasGlow ? 'glow-active' : ''}" title="Neon Outer Glow (Image 3)">
-            <label class="effect-chk-label">
-              <input type="checkbox" class="chk-seg-glow" data-idx="${idx}" ${hasGlow ? 'checked' : ''}>
-              <span class="effect-label">Glow</span>
-            </label>
-            <label class="color-swatch-wrap ${!hasGlow ? 'is-disabled' : ''}">
-              <input type="color" class="hidden-color-input seg-glow-color-picker" data-idx="${idx}" value="${curGlowColor}" ${!hasGlow ? 'disabled' : ''}>
-              <span class="color-swatch-circle glow-preview" id="glow-swatch-${idx}" style="background-color: ${hasGlow ? curGlowColor : '#cbd5e1'}; ${hasGlow ? `box-shadow: 0 0 8px ${curGlowColor};` : ''}"></span>
-            </label>
-            ${hasGlow ? `<button type="button" class="btn-clear-glow-x" data-idx="${idx}" title="Turn off glow">✕</button>` : ''}
-          </div>
-
-        </div>
-
-        <!-- 5. Animation Bar: Custom Segment Animation Dropdown -->
-        <div class="seg-anim-bar" onclick="event.stopPropagation()">
-          <div class="seg-anim-picker-wrap">
-            <button type="button" class="seg-anim-trigger" data-idx="${idx}" title="Select animation for segment #${idx + 1}">
-              <div class="seg-anim-lead">
-                <span class="seg-anim-icon-tag">⚡ Anim</span>
-                <span class="seg-anim-trigger-text">${curAnimMeta.name}</span>
               </div>
-              <svg class="seg-dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </button>
-            <div class="seg-anim-dropdown-menu" id="seg-anim-menu-${idx}">
-              ${CAPTION_ANIMATIONS.map(a => `
-                <div class="seg-anim-option ${curAnim === a.id ? 'is-selected' : ''}" data-idx="${idx}" data-anim="${a.id}">
-                  <span class="anim-opt-name">${a.name}</span>
-                  <span class="anim-opt-desc">${a.description}</span>
+
+              <div class="seg-stepper-box" title="Font size in pixels">
+                <button type="button" class="btn-step btn-minus" data-idx="${idx}" title="Decrease font size">−</button>
+                <div class="step-val-wrap">
+                  <input type="number" class="step-num-input" data-idx="${idx}" value="${curSize}" min="12" max="80">
+                  <span class="step-unit">px</span>
                 </div>
-              `).join('')}
+                <button type="button" class="btn-step btn-plus" data-idx="${idx}" title="Increase font size">+</button>
+              </div>
+            </div>
+
+            <!-- 4. Effects Bar: Text Color | Stroke | Radiant Neon Glow -->
+            <div class="seg-effects-bar" onclick="event.stopPropagation()">
+              
+              <!-- Cell 1: Dual Colors (Base Text & Prominent Highlight Word) -->
+              <div class="seg-effect-cell seg-colors-dual-cell" title="Base text & prominent highlight word colors">
+                <span class="effect-label">Color</span>
+                <div class="seg-color-swatches-group">
+                  <label class="color-swatch-wrap" title="Base text color">
+                    <input type="color" class="hidden-color-input seg-text-color-picker" data-idx="${idx}" value="${curColor}">
+                    <span class="color-swatch-circle" id="text-swatch-${idx}" style="background-color: ${curColor};"></span>
+                  </label>
+                  <label class="color-swatch-wrap" title="Prominent word highlight color">
+                    <input type="color" class="hidden-color-input seg-prominent-color-picker" data-idx="${idx}" value="${curProminentColor}">
+                    <span class="color-swatch-circle prominent-swatch" id="prominent-swatch-${idx}" style="background-color: ${curProminentColor};"></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Cell 2: Outline Stroke -->
+              <div class="seg-effect-cell" title="Outline Stroke">
+                <label class="effect-chk-label">
+                  <input type="checkbox" class="chk-seg-stroke" data-idx="${idx}" ${strokeEnabled ? 'checked' : ''}>
+                  <span class="effect-label">Stroke</span>
+                </label>
+                <label class="color-swatch-wrap ${!strokeEnabled ? 'is-disabled' : ''}">
+                  <input type="color" class="hidden-color-input seg-stroke-color-picker" data-idx="${idx}" value="${curStrokeColor}" ${!strokeEnabled ? 'disabled' : ''}>
+                  <span class="color-swatch-circle" id="stroke-swatch-${idx}" style="background-color: ${curStrokeColor};"></span>
+                </label>
+              </div>
+
+              <!-- Cell 3: Radiant Neon Glow (Image 3 Parity) -->
+              <div class="seg-effect-cell ${hasGlow ? 'glow-active' : ''}" title="Neon Outer Glow (Image 3)">
+                <label class="effect-chk-label">
+                  <input type="checkbox" class="chk-seg-glow" data-idx="${idx}" ${hasGlow ? 'checked' : ''}>
+                  <span class="effect-label">Glow</span>
+                </label>
+                <label class="color-swatch-wrap ${!hasGlow ? 'is-disabled' : ''}">
+                  <input type="color" class="hidden-color-input seg-glow-color-picker" data-idx="${idx}" value="${curGlowColor}" ${!hasGlow ? 'disabled' : ''}>
+                  <span class="color-swatch-circle glow-preview" id="glow-swatch-${idx}" style="background-color: ${hasGlow ? curGlowColor : '#cbd5e1'}; ${hasGlow ? `box-shadow: 0 0 8px ${curGlowColor};` : ''}"></span>
+                </label>
+                ${hasGlow ? `<button type="button" class="btn-clear-glow-x" data-idx="${idx}" title="Turn off glow">✕</button>` : ''}
+              </div>
+
+            </div>
+
+            <!-- 5. Animation Bar: Custom Segment Animation Dropdown -->
+            <div class="seg-anim-bar" onclick="event.stopPropagation()">
+              <div class="seg-anim-picker-wrap">
+                <button type="button" class="seg-anim-trigger" data-idx="${idx}" title="Select animation for segment #${idx + 1}">
+                  <div class="seg-anim-lead">
+                    <span class="seg-anim-icon-tag">⚡ Anim</span>
+                    <span class="seg-anim-trigger-text">${curAnimMeta.name}</span>
+                  </div>
+                  <svg class="seg-dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+                <div class="seg-anim-dropdown-menu" id="seg-anim-menu-${idx}">
+                  ${CAPTION_ANIMATIONS.map(a => `
+                    <div class="seg-anim-option ${curAnim === a.id ? 'is-selected' : ''}" data-idx="${idx}" data-anim="${a.id}">
+                      <span class="anim-opt-name">${a.name}</span>
+                      <span class="anim-opt-desc">${a.description}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1971,20 +2005,55 @@ export class UserDashboard {
         this.highlightActiveSegment(idx);
       };
 
-      // Card-level click: focus & preview this segment, closing other segment dropdowns
-      item.addEventListener('click', (e) => {
-        list.querySelectorAll('.seg-font-dropdown-menu.is-open').forEach(m => {
-          if (!item.contains(m)) m.classList.remove('is-open');
+      // Accordion toggle: toggles this segment open/closed, closing any other open segment
+      const toggleSegmentAccordion = () => {
+        const isCurrentlyOpen = this.expandedSegments ? this.expandedSegments.has(idx) : false;
+        if (!this.expandedSegments) this.expandedSegments = new Set();
+        this.expandedSegments.clear(); // Close all other segments
+        if (!isCurrentlyOpen) {
+          this.expandedSegments.add(idx); // Open this segment
+        }
+
+        // Synchronize DOM state across all cards
+        list.querySelectorAll('.seg-card-item').forEach(card => {
+          const cardIdx = parseInt(card.dataset.idx, 10);
+          const shouldBeOpen = this.expandedSegments.has(cardIdx);
+          const collapse = card.querySelector(`#seg-settings-${cardIdx}`);
+          const toggleBtn = card.querySelector('.btn-seg-toggle-settings');
+          collapse?.classList.toggle('is-open', shouldBeOpen);
+          toggleBtn?.classList.toggle('is-active', shouldBeOpen);
+
+          if (!shouldBeOpen) {
+            card.querySelectorAll('.seg-font-dropdown-menu.is-open').forEach(m => m.classList.remove('is-open'));
+            card.querySelectorAll('.seg-anim-dropdown-menu.is-open').forEach(m => m.classList.remove('is-open'));
+            card.querySelectorAll('.seg-font-trigger.is-active').forEach(t => t.classList.remove('is-active'));
+            card.querySelectorAll('.seg-anim-trigger.is-active').forEach(t => t.classList.remove('is-active'));
+          }
         });
-        list.querySelectorAll('.seg-anim-dropdown-menu.is-open').forEach(m => {
-          if (!item.contains(m)) m.classList.remove('is-open');
-        });
-        list.querySelectorAll('.seg-font-trigger.is-active').forEach(t => {
-          if (!item.contains(t)) t.classList.remove('is-active');
-        });
-        list.querySelectorAll('.seg-anim-trigger.is-active').forEach(t => {
-          if (!item.contains(t)) t.classList.remove('is-active');
-        });
+      };
+
+      // Clicking line text banner toggles accordion and syncs active segment preview
+      item.querySelector('.seg-text-banner')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSegmentAccordion();
+        syncActiveSegment();
+      });
+
+      // Toggle settings dropdown button
+      item.querySelector('.btn-seg-toggle-settings')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        toggleSegmentAccordion();
+        syncActiveSegment();
+      });
+
+      // Stop propagation inside settings panel so interactions don't close accordion
+      item.querySelector(`#seg-settings-${idx}`)?.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+
+      // Card-level click: focus & preview this segment
+      item.addEventListener('click', () => {
         syncActiveSegment();
       });
 
@@ -2991,7 +3060,7 @@ export class UserDashboard {
           </div>
 
           <div style="background: #fafbfe; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748b;">
-            💡 Quotas reset every 24 hours at 00:00 UTC. Unregistered guest usage is tracked by IP.
+            💡 Quotas reset every 24 hours at 00:00 UTC.
           </div>
         </div>
 

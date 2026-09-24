@@ -55,6 +55,7 @@ export class Navbar {
     if (!actions) return;
 
     const user = api.currentUser;
+    this.container?.classList.toggle('is-logged-in', !!user);
     if (user) {
       const isAdmin = user.role === 'admin';
       actions.innerHTML = `
