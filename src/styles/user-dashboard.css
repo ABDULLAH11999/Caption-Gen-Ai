@@ -1328,6 +1328,7 @@ body.app-shell-locked {
   background: conic-gradient(#000000 calc(var(--behind-progress) * 1%), #ff3b30 0);
   box-shadow: 0 4px 14px rgba(255, 59, 48, 0.22);
   overflow: hidden;
+  font-size: 0;
   animation: behindRingGlow 1.2s ease-in-out infinite;
 }
 
@@ -1445,6 +1446,11 @@ body.app-shell-locked {
   gap: 10px;
 }
 
+.studio-segments-list:has(.seg-font-dropdown-menu.is-open),
+.studio-segments-list:has(.seg-anim-dropdown-menu.is-open) {
+  padding-bottom: 220px;
+}
+
 /* ==========================================================================
    LINE SEGMENT CARD (CLEAN APPLE LIGHT GLASS)
    ========================================================================== */
@@ -1474,6 +1480,16 @@ body.app-shell-locked {
   border-color: #000000 !important;
   box-shadow: 0 0 0 1.5px #000000, 0 6px 18px rgba(0, 0, 0, 0.08) !important;
   background: #ffffff !important;
+}
+
+.seg-card-item.has-open-selector,
+.seg-card-item:has(.seg-font-dropdown-menu.is-open),
+.seg-card-item:has(.seg-anim-dropdown-menu.is-open) {
+  z-index: 120;
+}
+
+.seg-card-item.has-open-selector {
+  isolation: isolate;
 }
 
 .seg-card-item.has-behind {
@@ -1747,7 +1763,7 @@ body.app-shell-locked {
   border: 1px solid rgba(226, 232, 240, 0.95);
   border-radius: 14px;
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15);
-  z-index: 5000;
+  z-index: 50;
   display: none;
 }
 
@@ -1991,7 +2007,7 @@ body.app-shell-locked {
   border-radius: 14px;
   max-height: 190px;
   overflow-y: auto;
-  z-index: 5000;
+  z-index: 50;
   display: none;
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15);
 }

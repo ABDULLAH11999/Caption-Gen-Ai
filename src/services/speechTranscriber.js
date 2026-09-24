@@ -264,15 +264,69 @@ class SpeechTranscriberService {
     return !!(result && typeof result.text === 'string' && result.text.trim().length > 0);
   }
 
-  getLanguageHintOrder(fileBlob = null) {
+  getLanguageHintType(fileBlob = null) {
     const name = (fileBlob?.name || '').toLowerCase();
-    if (/(urdu|hindi|roman|hinglish|pakistan|india)/i.test(name)) {
+    if (/(urdu|hindi|roman|hinglish|pakistan|india|desi|bharat)/i.test(name)) return 'south_asian';
+    if (/(english|eng|test-run|showcase)/i.test(name)) return 'english';
+    return 'auto';
+  }
+
+  getLanguageHintOrder(fileBlob = null) {
+    const hintType = this.getLanguageHintType(fileBlob);
+    if (hintType === 'south_asian') {
       return ['hindi', 'urdu', null, 'english'];
     }
-    if (/(english|eng|test-run|showcase)/i.test(name)) {
+    if (hintType === 'english') {
       return ['english', null, 'hindi', 'urdu'];
     }
-    return [null, 'english', 'hindi', 'urdu'];
+    return [null, 'hindi', 'urdu', 'english'];
+  }
+
+  scoreTranscriptCandidate(result, language = null, hintType = 'auto') {
+    const text = (result?.text || '').replace(/\s+/g, ' ').trim();
+    if (!text) return -Infinity;
+
+    const words = text.split(/\s+/).filter(Boolean);
+    const lower = text.toLowerCase();
+    const uniqueRatio = new Set(words.map(w => w.toLowerCase())).size / Math.max(1, words.length);
+    const hasSouthAsianScript = /[\u0600-\u06FF\u0900-\u097F]/.test(text);
+    const hasRomanSouthAsian = /\b(kya|kyun|kaise|kese|aap|tum|hum|hai|hain|nahi|haan|acha|bhai|dost|raha|rahi|rahe|kar|karo|aur|bhi|main|mera|meri|apka|shukriya|assalam|namaste)\b/i.test(text);
+    const hasCommonEnglish = /\b(the|and|you|to|of|this|that|with|for|have|will|not|switch|come)\b/i.test(text);
+    const irrelevantEnglishLoop = /\b(come to you|switch to this|you will not have to|we all have|grand theft|caption generation studio)\b/i.test(lower);
+
+    let score = words.length + Math.min(12, uniqueRatio * 12);
+    if (Array.isArray(result?.chunks) && result.chunks.length > 0) score += Math.min(10, result.chunks.length);
+
+    if (hintType === 'south_asian') {
+      if (language === 'hindi' || language === 'urdu') score += 18;
+      if (hasSouthAsianScript) score += 32;
+      if (hasRomanSouthAsian) score += 18;
+      if (language === 'english' && !hasSouthAsianScript && !hasRomanSouthAsian) score -= 22;
+      if (hasCommonEnglish && !hasSouthAsianScript && !hasRomanSouthAsian) score -= 10;
+      if (irrelevantEnglishLoop) score -= 35;
+    } else if (hintType === 'english') {
+      if (language === 'english') score += 16;
+      if (hasSouthAsianScript) score -= 20;
+    }
+
+    if (words.length <= 3) score -= 16;
+    if (uniqueRatio < 0.45 && words.length > 8) score -= 12;
+
+    return score;
+  }
+
+  isLikelyWeakEnglishHallucination(result) {
+    const text = (result?.text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!text) return false;
+    if (/[\u0600-\u06FF\u0900-\u097F]/.test(text)) return false;
+
+    const words = text.split(/\s+/).filter(Boolean);
+    const uniqueRatio = new Set(words).size / Math.max(1, words.length);
+    const knownWeakLoop = /\b(come to you|switch to this|you will not have to|we all have|grand theft|caption generation studio)\b/i.test(text);
+    const repeatedShortEnglish = words.length >= 8 && uniqueRatio < 0.55;
+    const tinyChunkCoverage = Array.isArray(result?.chunks) && result.chunks.length <= 1 && words.length >= 10;
+
+    return knownWeakLoop || (repeatedShortEnglish && tinyChunkCoverage);
   }
 
   buildWhisperAttempts(fileBlob = null) {
@@ -287,6 +341,7 @@ class SpeechTranscriberService {
         label: language
           ? `${labelPrefix} (${language})...`
           : `${labelPrefix}...`,
+        language,
         percent: Math.min(91, basePercent + attempts.length),
         options: {
           return_timestamps: timestampMode,
@@ -310,8 +365,11 @@ class SpeechTranscriberService {
 
   async runWhisperAttempts(transcriber, rawPcm, duration, onProgress = () => {}, fileBlob = null) {
     const attempts = this.buildWhisperAttempts(fileBlob);
+    const hintType = this.getLanguageHintType(fileBlob);
+    const shouldCompareCandidates = hintType === 'south_asian';
 
     let lastError = null;
+    let bestCandidate = null;
     for (const attempt of attempts) {
       try {
         onProgress({ status: 'transcribing', message: attempt.label, percent: attempt.percent });
@@ -320,7 +378,22 @@ class SpeechTranscriberService {
           this.getInferenceTimeoutMs(duration),
           `${attempt.label} took too long`
         );
-        if (this.hasTranscriptText(result)) return result;
+        if (this.hasTranscriptText(result)) {
+          const shouldKeepTryingForAuto = hintType === 'auto' &&
+            !attempt.language &&
+            this.isLikelyWeakEnglishHallucination(result);
+
+          if (!shouldCompareCandidates && !shouldKeepTryingForAuto) return result;
+
+          const score = this.scoreTranscriptCandidate(result, attempt.language, hintType);
+          if (!bestCandidate || score > bestCandidate.score) {
+            bestCandidate = { result, score };
+          }
+
+          if (score >= 55 && /[\u0600-\u06FF\u0900-\u097F]/.test(result.text || '')) {
+            return result;
+          }
+        }
         lastError = new Error('Whisper returned an empty transcript for this attempt');
       } catch (err) {
         lastError = err;
@@ -330,6 +403,7 @@ class SpeechTranscriberService {
       await new Promise(r => setTimeout(r, 40));
     }
 
+    if (bestCandidate?.result) return bestCandidate.result;
     throw lastError || new Error('Whisper did not detect any transcript text in this video.');
   }
 

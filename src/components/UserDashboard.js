@@ -1233,7 +1233,7 @@ export class UserDashboard {
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 8px;">
               <div>
                 <div style="font-size: 14px; font-weight: 800; color: #0c0c0e; letter-spacing: -0.2px;">CAPTIONS & WORDS</div>
-                <div style="font-size: 11px; color: #64748b;" id="user-sentence-count">${captionEngine.sentences.length} Line Segments</div>
+                <div style="font-size: 11px; color: #64748b;" id="user-sentence-count">${captionEngine.sentences.length} Segments</div>
               </div>
               <div class="studio-sidebar-icon-actions">
                 <button class="sidebar-icon-action sidebar-icon-reload" id="btn-process-behind-again" title="Process behind-text cutouts">
@@ -1926,6 +1926,7 @@ export class UserDashboard {
     list.innerHTML = '';
 
     const sentences = captionEngine.sentences || [];
+    this.updateSegmentCountBadge();
     const cfg = this.activeConfig || {};
     const defaultNormalFont = cfg.normalFontFamily || 'Inter';
     const defaultFontSize = (this.currentMode === 'portrait' ? 25 : ((cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28));
@@ -2119,6 +2120,7 @@ export class UserDashboard {
             card.querySelectorAll('.seg-anim-dropdown-menu.is-open').forEach(m => m.classList.remove('is-open'));
             card.querySelectorAll('.seg-font-trigger.is-active').forEach(t => t.classList.remove('is-active'));
             card.querySelectorAll('.seg-anim-trigger.is-active').forEach(t => t.classList.remove('is-active'));
+            card.classList.remove('has-open-selector');
           }
         });
       };
@@ -2183,9 +2185,11 @@ export class UserDashboard {
         list.querySelectorAll('.seg-font-trigger.is-active').forEach(t => t.classList.remove('is-active'));
         list.querySelectorAll('.seg-anim-dropdown-menu.is-open').forEach(m => m.classList.remove('is-open'));
         list.querySelectorAll('.seg-anim-trigger.is-active').forEach(t => t.classList.remove('is-active'));
+        list.querySelectorAll('.seg-card-item.has-open-selector').forEach(card => card.classList.remove('has-open-selector'));
         if (!isOpen && fontMenu) {
           fontMenu.classList.add('is-open');
           fontTrigger.classList.add('is-active');
+          item.classList.add('has-open-selector');
         }
       });
 
@@ -2205,6 +2209,7 @@ export class UserDashboard {
           });
           fontMenu.classList.remove('is-open');
           fontTrigger?.classList.remove('is-active');
+          item.classList.remove('has-open-selector');
           soundFx.playKeyBeep(600);
           syncActiveSegment();
         });
@@ -2336,9 +2341,11 @@ export class UserDashboard {
         list.querySelectorAll('.seg-font-trigger.is-active').forEach(t => t.classList.remove('is-active'));
         list.querySelectorAll('.seg-anim-dropdown-menu.is-open').forEach(m => m.classList.remove('is-open'));
         list.querySelectorAll('.seg-anim-trigger.is-active').forEach(t => t.classList.remove('is-active'));
+        list.querySelectorAll('.seg-card-item.has-open-selector').forEach(card => card.classList.remove('has-open-selector'));
         if (!isOpen && animMenu) {
           animMenu.classList.add('is-open');
           animTrigger.classList.add('is-active');
+          item.classList.add('has-open-selector');
         }
       });
 
@@ -2357,6 +2364,7 @@ export class UserDashboard {
           });
           animMenu.classList.remove('is-open');
           animTrigger?.classList.remove('is-active');
+          item.classList.remove('has-open-selector');
           soundFx.playKeyBeep(640);
           syncActiveSegment();
         });
@@ -2378,10 +2386,12 @@ export class UserDashboard {
         if (!e.target.closest('.seg-font-picker-wrap')) {
           document.querySelectorAll('.seg-font-dropdown-menu.is-open').forEach(m => m.classList.remove('is-open'));
           document.querySelectorAll('.seg-font-trigger.is-active').forEach(t => t.classList.remove('is-active'));
+          document.querySelectorAll('.seg-card-item.has-open-selector:not(:has(.seg-anim-dropdown-menu.is-open))').forEach(card => card.classList.remove('has-open-selector'));
         }
         if (!e.target.closest('.seg-anim-picker-wrap')) {
           document.querySelectorAll('.seg-anim-dropdown-menu.is-open').forEach(m => m.classList.remove('is-open'));
           document.querySelectorAll('.seg-anim-trigger.is-active').forEach(t => t.classList.remove('is-active'));
+          document.querySelectorAll('.seg-card-item.has-open-selector:not(:has(.seg-font-dropdown-menu.is-open))').forEach(card => card.classList.remove('has-open-selector'));
         }
       });
     }
@@ -2472,13 +2482,32 @@ export class UserDashboard {
     const sourceStart = Number(source.start ?? source.startTime ?? 0);
     const sourceEnd = Number(source.end ?? source.endTime ?? (sourceStart + 1));
     const textTokens = (source.text || '').trim().split(/\s+/).filter(Boolean);
-    let words = Array.isArray(source.words) && source.words.length > 0
-      ? source.words
-      : captionEngine.createWordLevelTimestamps(source.text || '', sourceStart, sourceEnd);
+    const sourceWords = Array.isArray(source.words) ? source.words.filter(w => (w.word || '').trim()) : [];
+    const duration = Math.max(0.12, sourceEnd - sourceStart);
+    const evenWordDuration = duration / Math.max(1, textTokens.length);
+    const words = textTokens.map((token, wordIdx) => {
+      const matchingWord = sourceWords.length === textTokens.length ? sourceWords[wordIdx] : null;
+      let wStart = matchingWord
+        ? Number(matchingWord.start ?? matchingWord.startTime ?? (sourceStart + wordIdx * evenWordDuration))
+        : sourceStart + wordIdx * evenWordDuration;
+      let wEnd = matchingWord
+        ? Number(matchingWord.end ?? matchingWord.endTime ?? (sourceStart + (wordIdx + 1) * evenWordDuration))
+        : sourceStart + (wordIdx + 1) * evenWordDuration;
 
-    if ((!words || words.length <= 1) && textTokens.length > 1) {
-      words = captionEngine.createWordLevelTimestamps(source.text || '', sourceStart, sourceEnd);
-    }
+      wStart = Math.max(sourceStart, Math.min(sourceEnd, wStart));
+      wEnd = Math.max(wStart + 0.12, Math.min(sourceEnd, wEnd));
+
+      if (wordIdx === textTokens.length - 1) wEnd = sourceEnd;
+      if (wordIdx === 0) wStart = sourceStart;
+
+      return {
+        word: token,
+        start: wStart,
+        end: wEnd,
+        startTime: wStart,
+        endTime: wEnd
+      };
+    });
 
     if (!words || words.length <= 1) {
       this.showToast('This segment is already a single word.', 'info');
@@ -2501,6 +2530,8 @@ export class UserDashboard {
         startTime: parseFloat(wStart.toFixed(3)),
         endTime: parseFloat(Math.max(wStart + 0.12, wEnd).toFixed(3)),
         text: w.word || '',
+        parentSegmentId: source.id || null,
+        isWordSegment: true,
         words: [{
           word: w.word || '',
           start: parseFloat(wStart.toFixed(3)),
@@ -2527,13 +2558,23 @@ export class UserDashboard {
       ...sentences.slice(idx + 1)
     ];
 
-    captionEngine.setSentences(updated);
+    if (typeof captionEngine.setSegmentsDirect === 'function') {
+      captionEngine.setSegmentsDirect(updated);
+    } else {
+      captionEngine.sentences = updated;
+    }
     this.expandedSegments = new Set([idx]);
     this.lastRenderedSentenceKey = null;
-    if (this.videoElement) this.videoElement.currentTime = wordSegments[0].start + 0.01;
-    this.updateCaptionOverlay(wordSegments[0]);
+    const firstWordSegment = captionEngine.sentences[idx] || wordSegments[0];
+    if (this.videoElement) this.videoElement.currentTime = firstWordSegment.start + 0.01;
+    this.updateCaptionOverlay(firstWordSegment);
     this.renderMiniSegmentsList();
-    this.showToast(`Broke segment into ${wordSegments.length} word segments.`, 'success');
+    this.showToast(`Broke segment into ${wordSegments.length} word segments using the original time range.`, 'success');
+  }
+
+  updateSegmentCountBadge() {
+    const countBadge = this.container?.querySelector('#user-sentence-count');
+    if (countBadge) countBadge.textContent = `${(captionEngine.sentences || []).length} Segments`;
   }
 
   setupCaptionDragAndResize(wrap) {
@@ -3261,8 +3302,7 @@ export class UserDashboard {
       this.updateCaptionOverlay();
       this.renderCutoutIfActiveBehind();
       this.updateBehindCountBadge();
-      const countBadge = this.container.querySelector('#user-sentence-count');
-      if (countBadge) countBadge.textContent = `${captionEngine.sentences.length} Line Segments`;
+      this.updateSegmentCountBadge();
       this.showToast('Line segments updated and synchronized!', 'success');
       closeDrawer();
     });

@@ -432,6 +432,51 @@ export class CaptionEngine {
     this.sentences.sort((a, b) => a.start - b.start);
   }
 
+  setSegmentsDirect(sentences) {
+    this.sentences = (sentences || []).map((s, idx) => {
+      let start = s.start !== undefined ? Number(s.start) : (s.startTime !== undefined ? Number(s.startTime) : idx * 3);
+      let end = s.end !== undefined ? Number(s.end) : (s.endTime !== undefined ? Number(s.endTime) : start + 0.35);
+      if (end <= start) end = start + 0.12;
+
+      const words = (s.words && s.words.length > 0)
+        ? s.words.map((w, wIdx) => {
+            let wStart = w.start !== undefined ? Number(w.start) : (w.startTime !== undefined ? Number(w.startTime) : start);
+            let wEnd = w.end !== undefined ? Number(w.end) : (w.endTime !== undefined ? Number(w.endTime) : end);
+            if (wEnd <= wStart) wEnd = wStart + Math.max(0.12, (end - start) / Math.max(1, s.words.length));
+            return {
+              ...w,
+              start: parseFloat(wStart.toFixed(3)),
+              end: parseFloat(wEnd.toFixed(3)),
+              startTime: parseFloat(wStart.toFixed(3)),
+              endTime: parseFloat(wEnd.toFixed(3))
+            };
+          })
+        : this.createWordLevelTimestamps(s.text || '', start, end, s.language || 'en');
+
+      return {
+        ...s,
+        id: s.id || `sentence_${idx + 1}`,
+        start: parseFloat(start.toFixed(3)),
+        end: parseFloat(end.toFixed(3)),
+        startTime: parseFloat(start.toFixed(3)),
+        endTime: parseFloat(end.toFixed(3)),
+        words,
+        posX: s.posX !== undefined ? s.posX : (s.x !== undefined ? s.x : 6),
+        posY: s.posY !== undefined ? s.posY : (s.y !== undefined ? s.y : 50),
+        boxWidth: s.boxWidth || s.width || null,
+        behind: !!s.behind,
+        fontSize: s.fontSize,
+        fontFamily: s.fontFamily,
+        textColor: s.textColor,
+        prominentColor: s.prominentColor,
+        strokeEnabled: s.strokeEnabled,
+        strokeColor: s.strokeColor,
+        glowColor: s.glowColor,
+        animation: s.animation
+      };
+    }).sort((a, b) => a.start - b.start);
+  }
+
   updateSentenceText(sentenceId, newText) {
     const s = this.sentences.find(item => item.id === sentenceId);
     if (!s) return;
