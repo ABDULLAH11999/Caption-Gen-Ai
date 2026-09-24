@@ -18,6 +18,8 @@ class SpeechTranscriberService {
     this.pipeline = null;
     this.pipelinePromise = null;
     this.modelId = 'Xenova/whisper-tiny';
+    this.nonEnglishModelId = 'Xenova/whisper-base';
+    this.currentPipelineModelId = null;
     // Detect Safari / iOS once at construction time
     this._isSafari = typeof navigator !== 'undefined' &&
       /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -266,9 +268,36 @@ class SpeechTranscriberService {
 
   getLanguageHintType(fileBlob = null) {
     const name = (fileBlob?.name || '').toLowerCase();
-    if (/(urdu|hindi|roman|hinglish|pakistan|india|desi|bharat)/i.test(name)) return 'south_asian';
-    if (/(english|eng|test-run|showcase)/i.test(name)) return 'english';
+    if (/(urdu|hindi|roman|hinglish|pakistan|india|desi|bharat|test-run)/i.test(name)) return 'south_asian';
+    if (/(english|eng|showcase)/i.test(name)) return 'english';
     return 'auto';
+  }
+
+  getModelIdForFile(fileBlob = null) {
+    return this.getLanguageHintType(fileBlob) === 'south_asian'
+      ? this.nonEnglishModelId
+      : this.modelId;
+  }
+
+  getDominantNgramRatio(words, size = 2) {
+    if (!Array.isArray(words) || words.length < size * 2) return 0;
+    const counts = new Map();
+    let total = 0;
+    for (let i = 0; i <= words.length - size; i++) {
+      const gram = words.slice(i, i + size).join(' ');
+      counts.set(gram, (counts.get(gram) || 0) + 1);
+      total++;
+    }
+    return Math.max(...counts.values()) / Math.max(1, total);
+  }
+
+  isRepetitiveTranscriptText(text) {
+    const words = (text || '').toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length < 8) return false;
+    const uniqueRatio = new Set(words).size / Math.max(1, words.length);
+    return uniqueRatio < 0.45 ||
+      this.getDominantNgramRatio(words, 2) > 0.34 ||
+      this.getDominantNgramRatio(words, 3) > 0.28;
   }
 
   getLanguageHintOrder(fileBlob = null) {
@@ -289,6 +318,7 @@ class SpeechTranscriberService {
     const words = text.split(/\s+/).filter(Boolean);
     const lower = text.toLowerCase();
     const uniqueRatio = new Set(words.map(w => w.toLowerCase())).size / Math.max(1, words.length);
+    const isRepetitive = this.isRepetitiveTranscriptText(text);
     const hasSouthAsianScript = /[\u0600-\u06FF\u0900-\u097F]/.test(text);
     const hasRomanSouthAsian = /\b(kya|kyun|kaise|kese|aap|tum|hum|hai|hain|nahi|haan|acha|bhai|dost|raha|rahi|rahe|kar|karo|aur|bhi|main|mera|meri|apka|shukriya|assalam|namaste)\b/i.test(text);
     const hasCommonEnglish = /\b(the|and|you|to|of|this|that|with|for|have|will|not|switch|come)\b/i.test(text);
@@ -300,10 +330,11 @@ class SpeechTranscriberService {
     if (hintType === 'south_asian') {
       if (language === 'hindi' || language === 'urdu') score += 18;
       if (hasSouthAsianScript) score += 32;
-      if (hasRomanSouthAsian) score += 18;
+      if (hasRomanSouthAsian && !isRepetitive) score += 18;
       if (language === 'english' && !hasSouthAsianScript && !hasRomanSouthAsian) score -= 22;
       if (hasCommonEnglish && !hasSouthAsianScript && !hasRomanSouthAsian) score -= 10;
       if (irrelevantEnglishLoop) score -= 35;
+      if (isRepetitive) score -= 38;
     } else if (hintType === 'english') {
       if (language === 'english') score += 16;
       if (hasSouthAsianScript) score -= 20;
@@ -323,7 +354,7 @@ class SpeechTranscriberService {
     const words = text.split(/\s+/).filter(Boolean);
     const uniqueRatio = new Set(words).size / Math.max(1, words.length);
     const knownWeakLoop = /\b(come to you|switch to this|you will not have to|we all have|grand theft|caption generation studio)\b/i.test(text);
-    const repeatedShortEnglish = words.length >= 8 && uniqueRatio < 0.55;
+    const repeatedShortEnglish = words.length >= 8 && (uniqueRatio < 0.55 || this.isRepetitiveTranscriptText(text));
     const tinyChunkCoverage = Array.isArray(result?.chunks) && result.chunks.length <= 1 && words.length >= 10;
 
     return knownWeakLoop || (repeatedShortEnglish && tinyChunkCoverage);
@@ -711,7 +742,7 @@ class SpeechTranscriberService {
     }
   }
 
-  async _transcribeWithWorker(rawPcm, duration, onProgress) {
+  async _transcribeWithWorker(rawPcm, duration, onProgress, modelId = this.modelId) {
     const worker = this._getWorker();
     if (!worker) throw new Error('Web Worker not supported');
 
@@ -754,7 +785,7 @@ class SpeechTranscriberService {
           type: 'transcribe',
           rawPcm: rawPcm,
           duration,
-          modelId: this.modelId,
+          modelId,
           fileName: this._activeFileName || ''
         });
       } catch (postErr) {
@@ -777,6 +808,7 @@ class SpeechTranscriberService {
     if (rawPcm && rawPcm.length > 0) {
       const speechSegments = this.detectSpeechSegments(rawPcm, 16000);
       rawPcm = this.normalizePcmForWhisper(rawPcm);
+      const targetModelId = this.getModelIdForFile(fileBlob);
 
       onProgress({ status: 'loading_model', message: 'Loading Whisper speech recognition model...', percent: 45 });
 
@@ -785,7 +817,7 @@ class SpeechTranscriberService {
 
         // 1. Try dedicated Web Worker first — ensures main thread stays 100% responsive
         try {
-          result = await this._transcribeWithWorker(rawPcm, duration, onProgress);
+          result = await this._transcribeWithWorker(rawPcm, duration, onProgress, targetModelId);
           if (!this.hasTranscriptText(result)) {
             console.warn('[speechTranscriber] Worker returned empty transcript, retrying in-thread.');
             result = null;
@@ -799,9 +831,13 @@ class SpeechTranscriberService {
           // Yield to event loop before starting heavy WASM work
           await new Promise(r => setTimeout(r, 60));
 
-          if (!this.pipeline) {
+          if (!this.pipeline || this.currentPipelineModelId !== targetModelId) {
+            if (this.currentPipelineModelId !== targetModelId) {
+              this.pipeline = null;
+              this.pipelinePromise = null;
+            }
             if (!this.pipelinePromise) {
-              this.pipelinePromise = pipeline('automatic-speech-recognition', this.modelId, {
+              this.pipelinePromise = pipeline('automatic-speech-recognition', targetModelId, {
                 quantized: true,
                 progress_callback: (prog) => {
                   const progress = Number(prog?.progress ?? 0);
@@ -821,6 +857,7 @@ class SpeechTranscriberService {
               this.getModelTimeoutMs(),
               'Whisper model setup took too long'
             );
+            this.currentPipelineModelId = targetModelId;
           }
 
           await new Promise(r => setTimeout(r, 40));

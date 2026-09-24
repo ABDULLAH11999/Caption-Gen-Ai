@@ -20,9 +20,30 @@ function hasTranscriptText(result) {
 
 function getLanguageHintType(fileName = '') {
   const name = String(fileName || '').toLowerCase();
-  if (/(urdu|hindi|roman|hinglish|pakistan|india|desi|bharat)/i.test(name)) return 'south_asian';
-  if (/(english|eng|test-run|showcase)/i.test(name)) return 'english';
+  if (/(urdu|hindi|roman|hinglish|pakistan|india|desi|bharat|test-run)/i.test(name)) return 'south_asian';
+  if (/(english|eng|showcase)/i.test(name)) return 'english';
   return 'auto';
+}
+
+function getDominantNgramRatio(words, size = 2) {
+  if (!Array.isArray(words) || words.length < size * 2) return 0;
+  const counts = new Map();
+  let total = 0;
+  for (let i = 0; i <= words.length - size; i++) {
+    const gram = words.slice(i, i + size).join(' ');
+    counts.set(gram, (counts.get(gram) || 0) + 1);
+    total++;
+  }
+  return Math.max(...counts.values()) / Math.max(1, total);
+}
+
+function isRepetitiveTranscriptText(text) {
+  const words = (text || '').toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length < 8) return false;
+  const uniqueRatio = new Set(words).size / Math.max(1, words.length);
+  return uniqueRatio < 0.45 ||
+    getDominantNgramRatio(words, 2) > 0.34 ||
+    getDominantNgramRatio(words, 3) > 0.28;
 }
 
 function scoreTranscriptCandidate(result, language = null, hintType = 'auto') {
@@ -32,6 +53,7 @@ function scoreTranscriptCandidate(result, language = null, hintType = 'auto') {
   const words = text.split(/\s+/).filter(Boolean);
   const lower = text.toLowerCase();
   const uniqueRatio = new Set(words.map(w => w.toLowerCase())).size / Math.max(1, words.length);
+  const isRepetitive = isRepetitiveTranscriptText(text);
   const hasSouthAsianScript = /[\u0600-\u06FF\u0900-\u097F]/.test(text);
   const hasRomanSouthAsian = /\b(kya|kyun|kaise|kese|aap|tum|hum|hai|hain|nahi|haan|acha|bhai|dost|raha|rahi|rahe|kar|karo|aur|bhi|main|mera|meri|apka|shukriya|assalam|namaste)\b/i.test(text);
   const hasCommonEnglish = /\b(the|and|you|to|of|this|that|with|for|have|will|not|switch|come)\b/i.test(text);
@@ -43,10 +65,11 @@ function scoreTranscriptCandidate(result, language = null, hintType = 'auto') {
   if (hintType === 'south_asian') {
     if (language === 'hindi' || language === 'urdu') score += 18;
     if (hasSouthAsianScript) score += 32;
-    if (hasRomanSouthAsian) score += 18;
+    if (hasRomanSouthAsian && !isRepetitive) score += 18;
     if (language === 'english' && !hasSouthAsianScript && !hasRomanSouthAsian) score -= 22;
     if (hasCommonEnglish && !hasSouthAsianScript && !hasRomanSouthAsian) score -= 10;
     if (irrelevantEnglishLoop) score -= 35;
+    if (isRepetitive) score -= 38;
   } else if (hintType === 'english') {
     if (language === 'english') score += 16;
     if (hasSouthAsianScript) score -= 20;
@@ -66,7 +89,7 @@ function isLikelyWeakEnglishHallucination(result) {
   const words = text.split(/\s+/).filter(Boolean);
   const uniqueRatio = new Set(words).size / Math.max(1, words.length);
   const knownWeakLoop = /\b(come to you|switch to this|you will not have to|we all have|grand theft|caption generation studio)\b/i.test(text);
-  const repeatedShortEnglish = words.length >= 8 && uniqueRatio < 0.55;
+  const repeatedShortEnglish = words.length >= 8 && (uniqueRatio < 0.55 || isRepetitiveTranscriptText(text));
   const tinyChunkCoverage = Array.isArray(result?.chunks) && result.chunks.length <= 1 && words.length >= 10;
 
   return knownWeakLoop || (repeatedShortEnglish && tinyChunkCoverage);
