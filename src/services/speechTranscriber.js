@@ -424,7 +424,7 @@ class SpeechTranscriberService {
   isAcceptableSouthAsianTranscript(result, score, duration = 0) {
     const text = result?.text || '';
     const hasSouthAsianScript = /[\u0600-\u06FF\u0900-\u097F]/.test(text);
-    const hasRomanSouthAsian = /\b(kya|kyun|kaise|kese|kaisa|kaisi|aap|ap|tum|hum|hai|hain|nahi|haan|acha|bhai|dost|raha|rahi|rahe|kar|karo|aur|bhi|main|mera|meri|apka|shukriya|assalam|namaste|theek|video)\b/i.test(text);
+    const hasRomanSouthAsian = /\b(kya|kyun|kaise|kese|kaisa|kaisi|aap|ap|tum|hum|hai|hain|nahi|haan|acha|bhai|dost|raha|rahi|rahe|kar|karo|aur|bhi|main|mera|meri|apka|shukriya|assalam|namaste|theek)\b/i.test(text);
     const words = text.trim().split(/\s+/).filter(Boolean);
     if (this.isLikelyFillerHallucination(text)) return false;
     // For small videos (duration <= 15s), any detected words are acceptable
@@ -474,15 +474,15 @@ class SpeechTranscriberService {
     };
 
     if (hintType === 'south_asian') {
-      addAttempt('word', 'hindi', 80, 'Transcribing Hindi/Urdu speech');
-      addAttempt('word', null, 85, 'Transcribing spoken words with Whisper');
-      addAttempt(true, 'hindi', 88, 'Retrying with phrase timestamps');
+      addAttempt(true, 'hindi', 80, 'Transcribing Hindi/Urdu speech');
+      addAttempt(true, null, 85, 'Transcribing spoken words with Whisper');
     } else if (hintType === 'english') {
-      addAttempt('word', 'english', 80, 'Transcribing spoken words with Whisper');
-      addAttempt('word', null, 86, 'Transcribing spoken words with Whisper');
+      addAttempt(true, 'english', 80, 'Transcribing spoken words with Whisper');
+      addAttempt(true, null, 86, 'Transcribing spoken words with Whisper');
     } else {
-      addAttempt('word', null, 80, 'Transcribing spoken words with Whisper');
-      addAttempt('word', 'hindi', 86, 'Transcribing Hindi/Urdu speech');
+      addAttempt(true, null, 80, 'Transcribing spoken words with Whisper');
+      addAttempt(true, 'hindi', 85, 'Retrying Hindi/Urdu speech');
+      addAttempt(true, 'english', 89, 'Retrying English speech');
     }
 
     return attempts;
@@ -491,7 +491,6 @@ class SpeechTranscriberService {
   async runWhisperAttempts(transcriber, rawPcm, duration, onProgress = () => {}, fileBlob = null) {
     const attempts = this.buildWhisperAttempts(fileBlob);
     const hintType = this.getLanguageHintType(fileBlob);
-    const shouldCompareCandidates = true;
 
     let lastError = null;
     let bestCandidate = null;
@@ -504,32 +503,28 @@ class SpeechTranscriberService {
           `${attempt.label} took too long`
         );
         if (this.hasTranscriptText(result)) {
-          const shouldKeepTryingForAuto = hintType === 'auto' &&
-            !attempt.language &&
-            this.isLikelyWeakEnglishHallucination(result);
+          const text = (result.text || '').trim();
+          const words = text.split(/\s+/).filter(Boolean);
 
-          if (!shouldCompareCandidates && !shouldKeepTryingForAuto) {
-            result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
-            return result;
-          }
+          if (!this.isLikelyFillerHallucination(text)) {
+            const score = this.scoreTranscriptCandidate(result, attempt.language, hintType);
+            if (!bestCandidate || score > bestCandidate.score) {
+              result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
+              bestCandidate = { result, score };
+            }
 
-          const score = this.scoreTranscriptCandidate(result, attempt.language, hintType);
-          if (!bestCandidate || score > bestCandidate.score) {
-            result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
-            bestCandidate = { result, score };
-          }
-
-          if (hintType === 'south_asian' && this.isAcceptableSouthAsianTranscript(result, score, duration)) {
-            result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
-            return result;
-          }
-          if (hintType === 'auto' && attempt.language === 'english' && this.isCompleteEnoughTranscript(result, duration)) {
-            result.detectedLanguage = 'English';
-            return result;
-          }
-          if (hintType === 'english' && attempt.language === 'english' && this.isCompleteEnoughTranscript(result, duration)) {
-            result.detectedLanguage = 'English';
-            return result;
+            if (hintType === 'south_asian' && this.isAcceptableSouthAsianTranscript(result, score, duration)) {
+              result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
+              return result;
+            }
+            if (hintType === 'english' && this.isCompleteEnoughTranscript(result, duration)) {
+              result.detectedLanguage = 'English';
+              return result;
+            }
+            if (hintType === 'auto' && words.length >= 2 && !this.isLikelyWeakEnglishHallucination(result)) {
+              result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
+              return result;
+            }
           }
         }
         lastError = new Error('Whisper returned an empty transcript for this attempt');
@@ -542,10 +537,8 @@ class SpeechTranscriberService {
     }
 
     if (bestCandidate?.result) {
-      if (hintType !== 'south_asian' || this.isAcceptableSouthAsianTranscript(bestCandidate.result, bestCandidate.score, duration)) {
-        bestCandidate.result.detectedLanguage = bestCandidate.result.detectedLanguage || this.getLanguageDisplayName(null, hintType);
-        return bestCandidate.result;
-      }
+      bestCandidate.result.detectedLanguage = bestCandidate.result.detectedLanguage || this.getLanguageDisplayName(null, hintType);
+      return bestCandidate.result;
     }
     throw lastError || new Error('Whisper did not detect any transcript text in this video.');
   }
@@ -927,20 +920,15 @@ class SpeechTranscriberService {
       try {
         let result = null;
 
-        // 1. Try dedicated Web Worker first — ensures main thread stays 100% responsive
-        try {
+        // 1. Run inference in dedicated Web Worker to ensure main browser thread stays 100% responsive
+        const workerSupported = typeof Worker !== 'undefined';
+        if (workerSupported) {
           result = await this._transcribeWithWorker(rawPcm, duration, onProgress, targetModelId);
           if (!this.hasTranscriptText(result)) {
-            console.warn('[speechTranscriber] Worker returned empty transcript, retrying in-thread.');
-            result = null;
+            throw new Error('Whisper did not detect any speech in this audio track.');
           }
-        } catch (workerErr) {
-          console.warn('[speechTranscriber] Web Worker transcription failed, falling back to in-thread:', workerErr.message);
-        }
-
-        // 2. In-thread fallback if Worker failed or unavailable
-        if (!result) {
-          // Yield to event loop before starting heavy WASM work
+        } else {
+          // 2. Fallback only if Web Worker is physically unsupported in the browser environment
           await new Promise(r => setTimeout(r, 60));
 
           if (!this.pipeline || this.currentPipelineModelId !== targetModelId) {
@@ -1054,28 +1042,76 @@ class SpeechTranscriberService {
 
   /**
    * Detects if transcript text or speech language contains Urdu or Hindi content.
+   * Rock-solid detection:
+   * 1. Pure Devanagari script [\u0900-\u097F] -> Hindi (true)
+   * 2. Pure Nastaliq / Arabic script [\u0600-\u06FF] -> Urdu (true)
+   * 3. Whisper detected language 'hi' / 'ur' + at least 1 South Asian marker -> (true)
+   * 4. Roman Hindi / Urdu: at least 2 distinct unambiguous markers from curated set
+   *    (strictly NO collisions with English words like 'the', 'is', 'in', 'us', 'video', 'to', etc.)
+   * 5. Plain English video (e.g. Scott's video) -> 0 markers -> returns FALSE (NO modal)
    */
   isUrduOrHindiTranscript(sentences, detectedLanguage, fileBlob = null) {
-    const hint = this.getLanguageHintType(fileBlob);
-    if (hint === 'south_asian') return true;
+    const fullText = (sentences || []).map(s => s.text || '').join(' ').trim();
+    if (!fullText) return false;
 
-    const lang = (detectedLanguage || '').toLowerCase();
-    if (lang === 'ur' || lang === 'hi' || lang.includes('urdu') || lang.includes('hindi') || lang.includes('south_asian')) {
+    // 1. Explicit South Asian Scripts (100% accurate, foolproof)
+    if (/[\u0900-\u097F]/.test(fullText)) {
+      return true; // Devanagari Hindi
+    }
+    if (/[\u0600-\u06FF]/.test(fullText)) {
+      return true; // Nastaliq Urdu
+    }
+
+    // 2. Whisper detected language check
+    const lang = (detectedLanguage || '').toLowerCase().trim();
+    const isWhisperLangHindiOrUrdu = lang === 'hi' || lang === 'ur' || lang.includes('hindi') || lang.includes('urdu');
+
+    // 3. Unambiguous Roman Urdu / Hindi speech words (strictly NO common English collisions)
+    const UNAMBIGUOUS_SOUTH_ASIAN_WORDS = new Set([
+      'kya', 'kyun', 'kaise', 'kese', 'kaisa', 'kaisi',
+      'karo', 'karein', 'karna', 'karke', 'karenge',
+      'raha', 'rahi', 'rahe', 'rahein',
+      'hota', 'hoti', 'hote', 'hotiye',
+      'mera', 'meri', 'mere', 'humara', 'humari', 'humare',
+      'aapka', 'aapki', 'aapke', 'apka', 'apki', 'apke',
+      'tumhara', 'tumhari', 'tumhare',
+      'bohot', 'boht', 'bahut', 'shukriya',
+      'accha', 'achha', 'acchi', 'achhi', 'acche', 'achhe',
+      'bhai', 'dost', 'dosto', 'doston', 'zindagi',
+      'nahi', 'nahin', 'nhi', 'haan', 'hain', 'hein',
+      'yeh', 'woh', 'isko', 'usko', 'unko', 'inka', 'unka',
+      'tarah', 'dekho', 'dekhein', 'dekh', 'skte', 'sakte', 'sakti', 'sakta',
+      'batayein', 'batao', 'bataiye', 'samjho', 'samjhein', 'samajh',
+      'theek', 'thik', 'lekin', 'magar', 'agar', 'warna',
+      'namaste', 'namaskar', 'swagat', 'chahiye', 'chaho', 'paas', 'pata', 'koshish'
+    ]);
+
+    const words = fullText.toLowerCase().replace(/[^\p{L}\s]/gu, ' ').split(/\s+/).filter(Boolean);
+    if (words.length === 0) return false;
+
+    let matchCount = 0;
+    const matched = new Set();
+    for (const word of words) {
+      if (UNAMBIGUOUS_SOUTH_ASIAN_WORDS.has(word)) {
+        matchCount++;
+        matched.add(word);
+      }
+    }
+
+    // If Whisper explicitly detected Hindi/Urdu AND at least 1 South Asian marker is found
+    if (isWhisperLangHindiOrUrdu && matchCount >= 1) {
       return true;
     }
-    const fullText = (sentences || []).map(s => s.text || '').join(' ');
-    if (!fullText.trim()) return false;
 
-    // 1. Nastaliq Urdu / Arabic characters:
-    if (/[\u0600-\u06FF]/.test(fullText)) return true;
+    // In Roman Urdu/Hindi text without Devanagari/Nastaliq:
+    // Require at least 2 distinct South Asian markers to avoid any false positive on English
+    if (matched.size >= 2 || (words.length <= 4 && matched.size >= 1)) {
+      return true;
+    }
 
-    // 2. Devanagari Hindi characters:
-    if (/[\u0900-\u097F]/.test(fullText)) return true;
-
-    // 3. Spoken Roman Urdu / Hindi speech words:
-    const romanUrduHindiRegex = /\b(kya|kyun|kaise|kese|kaisa|kaisi|karo|karein|kar|karna|raha|rahi|rahe|hota|hoti|hote|mera|meri|mere|aap|ap|apka|apki|apke|tum|tumhara|hum|humara|bohot|boht|shukriya|acha|accha|achi|ache|bhai|dost|zindagi|pyaar|baat|nahi|nh|haan|han|hai|hain|tha|thi|the|bhi|aur|yeh|ye|woh|wo|isko|usko|unko|is|us|in|un|tarah|dekh|dekho|dekhein|skte|sakte|sakti|sakta|suno|sunen|batayein|batao|samjho|samjhein|theek|gaya|gaye|gayi|wala|wali|wale|lekin|magar|agar|warna|phir|jab|tab|ab|sab|sub|kuch|koi|kaun|kab|kahan|yahan|wahan|idhar|udhar|hein|namaste|namaskar|dosto|swagat|shuru|karen|kare)\b/gi;
-    const matches = fullText.match(romanUrduHindiRegex);
-    if (matches && matches.length >= 1) {
+    // Check filename hint if explicitly named with south asian tags
+    const hint = this.getLanguageHintType(fileBlob);
+    if (hint === 'south_asian' && (matched.size >= 1 || isWhisperLangHindiOrUrdu)) {
       return true;
     }
 

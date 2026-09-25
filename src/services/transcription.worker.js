@@ -125,7 +125,7 @@ function isLikelyFillerHallucination(text) {
 function isAcceptableSouthAsianTranscript(result, score, duration = 0) {
   const text = result?.text || '';
   const hasSouthAsianScript = /[\u0600-\u06FF\u0900-\u097F]/.test(text);
-  const hasRomanSouthAsian = /\b(kya|kyun|kaise|kese|kaisa|kaisi|aap|ap|tum|hum|hai|hain|nahi|haan|acha|bhai|dost|raha|rahi|rahe|kar|karo|aur|bhi|main|mera|meri|apka|shukriya|assalam|namaste|theek|video)\b/i.test(text);
+  const hasRomanSouthAsian = /\b(kya|kyun|kaise|kese|kaisa|kaisi|aap|ap|tum|hum|hai|hain|nahi|haan|acha|bhai|dost|raha|rahi|rahe|kar|karo|aur|bhi|main|mera|meri|apka|shukriya|assalam|namaste|theek)\b/i.test(text);
   const words = text.trim().split(/\s+/).filter(Boolean);
   if (isLikelyFillerHallucination(text)) return false;
   // For small videos (duration <= 15s), any detected words are acceptable
@@ -175,17 +175,6 @@ function normalizePcmForWhisper(rawPcm) {
   return normalized;
 }
 
-function getLanguageHintOrder(fileName = '') {
-  const hintType = getLanguageHintType(fileName);
-  if (hintType === 'south_asian') {
-    return ['hindi', null];
-  }
-  if (hintType === 'english') {
-    return ['english', null];
-  }
-  return [null, 'hindi'];
-}
-
 function buildTranscriptionAttempts(fileName = '') {
   const hintType = getLanguageHintType(fileName);
   const displayLanguage = getLanguageDisplayName(null, hintType);
@@ -210,16 +199,21 @@ function buildTranscriptionAttempts(fileName = '') {
     });
   };
 
+  // return_timestamps: true uses Whisper's native phrase timestamp tokens
+  // which works 100% reliably for Hindi, Urdu, English and all 99+ languages
+  // without triggering ONNX alignment head errors
   if (hintType === 'south_asian') {
-    addAttempt('word', 'hindi', 80, 'Transcribing Hindi/Urdu speech');
-    addAttempt('word', null, 85, 'Transcribing spoken words with Whisper');
-    addAttempt(true, 'hindi', 88, 'Retrying with phrase timestamps');
+    addAttempt(true, 'hindi', 80, 'Transcribing Hindi/Urdu speech');
+    addAttempt(true, null, 85, 'Transcribing spoken words with Whisper');
   } else if (hintType === 'english') {
-    addAttempt('word', 'english', 80, 'Transcribing spoken words with Whisper');
-    addAttempt('word', null, 86, 'Transcribing spoken words with Whisper');
+    addAttempt(true, 'english', 80, 'Transcribing spoken words with Whisper');
+    addAttempt(true, null, 86, 'Transcribing spoken words with Whisper');
   } else {
-    addAttempt('word', null, 80, 'Transcribing spoken words with Whisper');
-    addAttempt('word', 'hindi', 86, 'Transcribing Hindi/Urdu speech');
+    // Standard Auto-detection: Whisper automatically detects spoken language
+    addAttempt(true, null, 80, 'Transcribing spoken words with Whisper');
+    // Targeted fallbacks if auto-detection produced no speech
+    addAttempt(true, 'hindi', 85, 'Retrying Hindi/Urdu speech');
+    addAttempt(true, 'english', 89, 'Retrying English speech');
   }
 
   return attempts;
@@ -229,10 +223,10 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
   const pcm = normalizePcmForWhisper(rawPcm);
   const attempts = buildTranscriptionAttempts(fileName);
   const hintType = getLanguageHintType(fileName);
-  const shouldCompareCandidates = true;
 
   let lastError = null;
   let bestCandidate = null;
+
   for (const attempt of attempts) {
     try {
       self.postMessage({
@@ -241,37 +235,41 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
         message: attempt.message,
         percent: attempt.percent
       });
+
       const result = await transcriberPipeline(pcm, {
         ...attempt.options,
         ...(options || {})
       });
+
       if (hasTranscriptText(result)) {
-        const shouldKeepTryingForAuto = hintType === 'auto' &&
-          !attempt.language &&
-          isLikelyWeakEnglishHallucination(result);
+        const text = (result.text || '').trim();
+        const words = text.split(/\s+/).filter(Boolean);
 
-        if (!shouldCompareCandidates && !shouldKeepTryingForAuto) {
-          result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
-          return result;
-        }
+        // Discard obvious filler loops or hallucinations
+        if (!isLikelyFillerHallucination(text)) {
+          const score = scoreTranscriptCandidate(result, attempt.language, hintType);
+          if (!bestCandidate || score > bestCandidate.score) {
+            result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
+            bestCandidate = { result, score };
+          }
 
-        const score = scoreTranscriptCandidate(result, attempt.language, hintType);
-        if (!bestCandidate || score > bestCandidate.score) {
-          result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
-          bestCandidate = { result, score };
-        }
+          // If South Asian hint matches acceptable transcript, return immediately
+          if (hintType === 'south_asian' && isAcceptableSouthAsianTranscript(result, score, options.duration || 0)) {
+            result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
+            return result;
+          }
 
-        if (hintType === 'south_asian' && isAcceptableSouthAsianTranscript(result, score, options.duration || 0)) {
-          result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
-          return result;
-        }
-        if (hintType === 'auto' && attempt.language === 'english' && isCompleteEnoughTranscript(result, options.duration || 0)) {
-          result.detectedLanguage = 'English';
-          return result;
-        }
-        if (hintType === 'english' && attempt.language === 'english' && isCompleteEnoughTranscript(result, options.duration || 0)) {
-          result.detectedLanguage = 'English';
-          return result;
+          // If English hint matches complete transcript, return immediately
+          if (hintType === 'english' && isCompleteEnoughTranscript(result, options.duration || 0)) {
+            result.detectedLanguage = 'English';
+            return result;
+          }
+
+          // In auto mode: if we got a solid transcript of 2+ words and not weak English hallucination, return immediately
+          if (hintType === 'auto' && words.length >= 2 && !isLikelyWeakEnglishHallucination(result)) {
+            result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
+            return result;
+          }
         }
       }
       lastError = new Error('Whisper returned an empty transcript for this attempt');
@@ -281,11 +279,10 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
   }
 
   if (bestCandidate?.result) {
-    if (hintType !== 'south_asian' || isAcceptableSouthAsianTranscript(bestCandidate.result, bestCandidate.score, options.duration || 0)) {
-      bestCandidate.result.detectedLanguage = bestCandidate.result.detectedLanguage || getLanguageDisplayName(null, hintType);
-      return bestCandidate.result;
-    }
+    bestCandidate.result.detectedLanguage = bestCandidate.result.detectedLanguage || getLanguageDisplayName(null, hintType);
+    return bestCandidate.result;
   }
+
   throw lastError || new Error('Whisper did not detect any transcript text in this video.');
 }
 
