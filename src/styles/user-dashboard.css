@@ -885,9 +885,7 @@ body.app-shell-locked {
 }
 
 .video-container .studio-video-element.video-enhanced,
-.video-container .cutout-live-canvas.video-enhanced,
-#user-main-video.video-enhanced,
-#user-cutout-canvas.video-enhanced {
+#user-main-video.video-enhanced {
   filter: contrast(1.18) saturate(1.28) brightness(1.02) !important;
 }
 
@@ -912,6 +910,7 @@ body.app-shell-locked {
   box-sizing: border-box;
   background: transparent !important;
   object-fit: contain;
+  filter: none !important;
 }
 
 .video-container .caption-front-overlay,
