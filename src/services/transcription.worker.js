@@ -125,13 +125,15 @@ function isLikelyFillerHallucination(text) {
 function isAcceptableSouthAsianTranscript(result, score, duration = 0) {
   const text = result?.text || '';
   const hasSouthAsianScript = /[\u0600-\u06FF\u0900-\u097F]/.test(text);
-  const hasRomanSouthAsian = /\b(kya|kyun|kaise|kese|aap|tum|hum|hai|hain|nahi|haan|acha|bhai|dost|raha|rahi|rahe|kar|karo|aur|bhi|main|mera|meri|apka|shukriya|assalam|namaste)\b/i.test(text);
+  const hasRomanSouthAsian = /\b(kya|kyun|kaise|kese|kaisa|kaisi|aap|ap|tum|hum|hai|hain|nahi|haan|acha|bhai|dost|raha|rahi|rahe|kar|karo|aur|bhi|main|mera|meri|apka|shukriya|assalam|namaste|theek|video)\b/i.test(text);
   const words = text.trim().split(/\s+/).filter(Boolean);
-  const coverage = getTranscriptCoverage(result, duration);
   if (isLikelyFillerHallucination(text)) return false;
-  if (!hasSouthAsianScript && !hasRomanSouthAsian) return false;
-  if (duration > 10 && coverage > 0 && coverage < 0.18 && words.length < 12) return false;
-  return score >= 25;
+  // For small videos (duration <= 15s), any detected words are acceptable
+  if (!duration || duration <= 15) {
+    return words.length >= 1;
+  }
+  if (!hasSouthAsianScript && !hasRomanSouthAsian && words.length < 3) return false;
+  return words.length >= 2;
 }
 
 function isLikelyWeakEnglishHallucination(result) {
@@ -176,16 +178,15 @@ function normalizePcmForWhisper(rawPcm) {
 function getLanguageHintOrder(fileName = '') {
   const hintType = getLanguageHintType(fileName);
   if (hintType === 'south_asian') {
-    return ['hindi', 'urdu', null, 'english'];
+    return ['hindi', null];
   }
   if (hintType === 'english') {
     return ['english', null];
   }
-  return [null, 'english', 'hindi', 'urdu'];
+  return [null, 'hindi'];
 }
 
 function buildTranscriptionAttempts(fileName = '') {
-  const languageHints = getLanguageHintOrder(fileName);
   const hintType = getLanguageHintType(fileName);
   const displayLanguage = getLanguageDisplayName(null, hintType);
   const attempts = [];
@@ -209,18 +210,16 @@ function buildTranscriptionAttempts(fileName = '') {
     });
   };
 
-  if (hintType === 'english') {
+  if (hintType === 'south_asian') {
+    addAttempt('word', 'hindi', 80, 'Transcribing Hindi/Urdu speech');
+    addAttempt('word', null, 85, 'Transcribing spoken words with Whisper');
+    addAttempt(true, 'hindi', 88, 'Retrying with phrase timestamps');
+  } else if (hintType === 'english') {
     addAttempt('word', 'english', 80, 'Transcribing spoken words with Whisper');
-    addAttempt(true, 'english', 84, 'Retrying with phrase timestamps');
-    addAttempt('word', null, 88, 'Transcribing spoken words with Whisper');
-    addAttempt(true, null, 90, 'Retrying with phrase timestamps');
+    addAttempt('word', null, 86, 'Transcribing spoken words with Whisper');
   } else {
-    languageHints.forEach((language) => {
-      addAttempt('word', language, 80, 'Transcribing spoken words with Whisper');
-    });
-    languageHints.forEach((language) => {
-      addAttempt(true, language, 86, 'Retrying with phrase timestamps');
-    });
+    addAttempt('word', null, 80, 'Transcribing spoken words with Whisper');
+    addAttempt('word', 'hindi', 86, 'Transcribing Hindi/Urdu speech');
   }
 
   return attempts;
