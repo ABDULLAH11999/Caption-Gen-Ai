@@ -25,6 +25,14 @@ function getLanguageHintType(fileName = '') {
   return 'auto';
 }
 
+function getLanguageDisplayName(language = null, hintType = 'auto') {
+  if (hintType === 'south_asian') return 'Hindi / Urdu (Roman)';
+  if (language === 'english' || hintType === 'english') return 'English';
+  if (language === 'hindi') return 'Hindi';
+  if (language === 'urdu') return 'Urdu';
+  return 'Detecting language';
+}
+
 function getDominantNgramRatio(words, size = 2) {
   if (!Array.isArray(words) || words.length < size * 2) return 0;
   const counts = new Map();
@@ -168,6 +176,8 @@ function getLanguageHintOrder(fileName = '') {
 
 function buildTranscriptionAttempts(fileName = '') {
   const languageHints = getLanguageHintOrder(fileName);
+  const hintType = getLanguageHintType(fileName);
+  const displayLanguage = getLanguageDisplayName(null, hintType);
   const attempts = [];
   const seen = new Set();
   const addAttempt = (timestampMode, language, basePercent, labelPrefix) => {
@@ -175,10 +185,9 @@ function buildTranscriptionAttempts(fileName = '') {
     if (seen.has(key)) return;
     seen.add(key);
     attempts.push({
-      message: language
-        ? `${labelPrefix} (${language})...`
-        : `${labelPrefix}...`,
+      message: `${labelPrefix} — ${displayLanguage}...`,
       language,
+      displayLanguage,
       percent: Math.min(91, basePercent + attempts.length),
       options: {
         return_timestamps: timestampMode,
@@ -225,7 +234,10 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
           !attempt.language &&
           isLikelyWeakEnglishHallucination(result);
 
-        if (!shouldCompareCandidates && !shouldKeepTryingForAuto) return result;
+        if (!shouldCompareCandidates && !shouldKeepTryingForAuto) {
+          result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
+          return result;
+        }
 
         const score = scoreTranscriptCandidate(result, attempt.language, hintType);
         if (!bestCandidate || score > bestCandidate.score) {
@@ -233,6 +245,7 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
         }
 
         if (hintType === 'south_asian' && isAcceptableSouthAsianTranscript(result, score, options.duration || 0)) {
+          result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
           return result;
         }
       }
@@ -244,6 +257,7 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
 
   if (bestCandidate?.result) {
     if (hintType !== 'south_asian' || isAcceptableSouthAsianTranscript(bestCandidate.result, bestCandidate.score, options.duration || 0)) {
+      bestCandidate.result.detectedLanguage = getLanguageDisplayName(null, hintType);
       return bestCandidate.result;
     }
   }

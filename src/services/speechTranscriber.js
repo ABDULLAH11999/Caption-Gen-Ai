@@ -273,6 +273,14 @@ class SpeechTranscriberService {
     return 'auto';
   }
 
+  getLanguageDisplayName(language = null, hintType = 'auto') {
+    if (hintType === 'south_asian') return 'Hindi / Urdu (Roman)';
+    if (language === 'english' || hintType === 'english') return 'English';
+    if (language === 'hindi') return 'Hindi';
+    if (language === 'urdu') return 'Urdu';
+    return 'Detecting language';
+  }
+
   getModelIdForFile(fileBlob = null) {
     return this.getLanguageHintType(fileBlob) === 'south_asian'
       ? this.nonEnglishModelId
@@ -432,6 +440,8 @@ class SpeechTranscriberService {
 
   buildWhisperAttempts(fileBlob = null) {
     const languageHints = this.getLanguageHintOrder(fileBlob);
+    const hintType = this.getLanguageHintType(fileBlob);
+    const displayLanguage = this.getLanguageDisplayName(null, hintType);
     const attempts = [];
     const seen = new Set();
     const addAttempt = (timestampMode, language, basePercent, labelPrefix) => {
@@ -439,10 +449,9 @@ class SpeechTranscriberService {
       if (seen.has(key)) return;
       seen.add(key);
       attempts.push({
-        label: language
-          ? `${labelPrefix} (${language})...`
-          : `${labelPrefix}...`,
+        label: `${labelPrefix} — ${displayLanguage}...`,
         language,
+        displayLanguage,
         percent: Math.min(91, basePercent + attempts.length),
         options: {
           return_timestamps: timestampMode,
@@ -484,7 +493,10 @@ class SpeechTranscriberService {
             !attempt.language &&
             this.isLikelyWeakEnglishHallucination(result);
 
-          if (!shouldCompareCandidates && !shouldKeepTryingForAuto) return result;
+          if (!shouldCompareCandidates && !shouldKeepTryingForAuto) {
+            result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
+            return result;
+          }
 
           const score = this.scoreTranscriptCandidate(result, attempt.language, hintType);
           if (!bestCandidate || score > bestCandidate.score) {
@@ -492,6 +504,7 @@ class SpeechTranscriberService {
           }
 
           if (hintType === 'south_asian' && this.isAcceptableSouthAsianTranscript(result, score, duration)) {
+            result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
             return result;
           }
         }
@@ -506,6 +519,7 @@ class SpeechTranscriberService {
 
     if (bestCandidate?.result) {
       if (hintType !== 'south_asian' || this.isAcceptableSouthAsianTranscript(bestCandidate.result, bestCandidate.score, duration)) {
+        bestCandidate.result.detectedLanguage = this.getLanguageDisplayName(null, hintType);
         return bestCandidate.result;
       }
     }
@@ -939,7 +953,8 @@ class SpeechTranscriberService {
         }
 
         if (this.hasTranscriptText(result)) {
-          onProgress({ status: 'translating', message: 'Synchronizing English captions...', percent: 92 });
+          const detectedLanguage = result.detectedLanguage || this.getLanguageDisplayName(null, this.getLanguageHintType(fileBlob));
+          onProgress({ status: 'translating', message: `Detected language: ${detectedLanguage}. Synchronizing captions...`, percent: 92 });
           const rawSentences = this.formatWhisperResultToSentences(result, duration, speechSegments);
           const transcriptWordCount = rawSentences.reduce((sum, s) => {
             if (Array.isArray(s.words) && s.words.length > 0) return sum + s.words.length;
