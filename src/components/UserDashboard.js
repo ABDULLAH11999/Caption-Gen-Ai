@@ -20,6 +20,7 @@ import { videoRenderer } from '../services/videoRenderer.js';
 import { speechTranscriber } from '../services/speechTranscriber.js';
 import { languageIdentifier } from '../services/languageIdentifier.js';
 import { translationService } from '../services/translationService.js';
+import { geminiTranslationService } from '../services/geminiTranslationService.js';
 import { generateDemoVideoBlob } from '../utils/sampleVideoGenerator.js';
 import { autoTypographyEngine } from '../services/autoTypographyEngine.js';
 import { videoColorAnalyzer } from '../services/videoColorAnalyzer.js';
@@ -1245,6 +1246,9 @@ export class UserDashboard {
                 <div style="font-size: 11px; color: #64748b;" id="user-sentence-count">${captionEngine.sentences.length} Segments</div>
               </div>
               <div class="studio-sidebar-icon-actions">
+                <button class="sidebar-icon-action" id="btn-retranslate-gemini" title="Translate or switch script with Gemini AI (Roman/Native Hindi/Urdu)" style="display: flex; align-items: center; justify-content: center; font-size: 13px;">
+                  <span>✨</span>
+                </button>
                 <button class="sidebar-icon-action sidebar-icon-reload" id="btn-process-behind-again" title="Process behind-text cutouts">
                   <span class="sidebar-icon-glyph">↻</span>
                   <span id="behind-active-badge" class="behind-count-pill">0</span>
@@ -1372,6 +1376,172 @@ export class UserDashboard {
     });
   }
 
+  showCaptionScriptModal(file = null) {
+    return new Promise((resolve) => {
+      const existing = document.getElementById('caption-script-modal');
+      if (existing) existing.remove();
+
+      const modal = document.createElement('div');
+      modal.id = 'caption-script-modal';
+      modal.className = 'script-selection-modal-backdrop';
+
+      const currentGeminiKey = geminiTranslationService.getApiKey() || '';
+
+      modal.innerHTML = `
+        <div class="script-modal-card" role="dialog" aria-modal="true" aria-labelledby="script-modal-title">
+          <div class="script-modal-header">
+            <div>
+              <div class="script-modal-badge">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                AI Transcript &amp; Localization
+              </div>
+              <h2 id="script-modal-title" class="script-modal-title">Choose Caption Style &amp; Script</h2>
+              <p class="script-modal-sub">Select your desired language and script format. Powered by Gemini AI with word-level speech sync.</p>
+            </div>
+            <button type="button" class="script-modal-close" id="btn-script-modal-close" aria-label="Close modal">✕</button>
+          </div>
+
+          <div class="script-options-grid">
+            <!-- Option 1: Roman Hindi & Urdu -->
+            <label class="script-option-card selected" for="opt-roman">
+              <input type="radio" name="caption_script" id="opt-roman" value="roman" checked class="script-option-radio" />
+              <div class="script-option-icon">💬</div>
+              <div class="script-option-content">
+                <div class="script-option-title-row">
+                  <span class="script-option-name">Roman Hindi / Urdu</span>
+                  <span class="script-option-tag tag-popular">POPULAR / VIRAL</span>
+                </div>
+                <div class="script-option-desc">Transliterates spoken Urdu and Hindi into natural Latin English alphabets (ideal for Reels, Shorts &amp; TikTok).</div>
+                <div class="script-option-preview">Preview: &ldquo;agar ap isko dekh skte hein toh like karein&rdquo;</div>
+              </div>
+            </label>
+
+            <!-- Option 2: Native Hindi -->
+            <label class="script-option-card" for="opt-hindi">
+              <input type="radio" name="caption_script" id="opt-hindi" value="hindi" class="script-option-radio" />
+              <div class="script-option-icon">🇮🇳</div>
+              <div class="script-option-content">
+                <div class="script-option-title-row">
+                  <span class="script-option-name">Native Hindi (हिन्दी)</span>
+                  <span class="script-option-tag tag-native">PURE DEVANAGARI</span>
+                </div>
+                <div class="script-option-desc">Pure Devanagari script for Hindi speech. Strictly zero English letters.</div>
+                <div class="script-option-preview">Preview: &ldquo;अगर आप इसको देख सकते हैं तो लाइक करें&rdquo;</div>
+              </div>
+            </label>
+
+            <!-- Option 3: Native Urdu -->
+            <label class="script-option-card" for="opt-urdu">
+              <input type="radio" name="caption_script" id="opt-urdu" value="urdu" class="script-option-radio" />
+              <div class="script-option-icon">🇵🇰</div>
+              <div class="script-option-content">
+                <div class="script-option-title-row">
+                  <span class="script-option-name">Native Urdu (اردو)</span>
+                  <span class="script-option-tag tag-native">PURE NASTALIQ</span>
+                </div>
+                <div class="script-option-desc">Authentic Nastaliq Urdu script. Strictly zero English letters.</div>
+                <div class="script-option-preview">Preview: &ldquo;اگر آپ اس کو دیکھ سکتے ہیں تو لائیک کریں&rdquo;</div>
+              </div>
+            </label>
+
+            <!-- Option 4: English / Global -->
+            <label class="script-option-card" for="opt-english">
+              <input type="radio" name="caption_script" id="opt-english" value="english" class="script-option-radio" />
+              <div class="script-option-icon">🌐</div>
+              <div class="script-option-content">
+                <div class="script-option-title-row">
+                  <span class="script-option-name">English / Global</span>
+                  <span class="script-option-tag">STANDARD</span>
+                </div>
+                <div class="script-option-desc">Clean English subtitles. Translates non-English speech directly to fluent English.</div>
+                <div class="script-option-preview">Preview: &ldquo;If you can see this, please like and subscribe&rdquo;</div>
+              </div>
+            </label>
+          </div>
+
+          <!-- Gemini AI Key Configuration Bar -->
+          <div style="background: rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.08); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: #475569;">
+              <span style="display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+                Gemini AI Engine (Flash 1.5/2.0)
+              </span>
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none; font-size: 11px;">Get Free API Key ↗</a>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <input 
+                type="password" 
+                id="script-modal-gemini-key" 
+                placeholder="${currentGeminiKey ? 'Gemini API Key active (change if needed)' : 'Paste custom Gemini API Key (optional)'}"
+                value="${currentGeminiKey || ''}" 
+                style="flex: 1; height: 34px; padding: 0 12px; font-size: 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff;"
+              />
+            </div>
+          </div>
+
+          <div class="script-modal-footer">
+            <button type="button" class="btn btn-script-cancel" id="btn-script-modal-cancel">Cancel</button>
+            <button type="button" class="btn btn-script-confirm" id="btn-script-modal-confirm">
+              Continue &amp; Generate Captions
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      // Card selection visual state toggle
+      const cards = modal.querySelectorAll('.script-option-card');
+      cards.forEach(card => {
+        card.addEventListener('click', () => {
+          cards.forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          const radio = card.querySelector('input[type="radio"]');
+          if (radio) radio.checked = true;
+        });
+      });
+
+      const cleanup = (result) => {
+        modal.remove();
+        resolve(result);
+      };
+
+      modal.querySelector('#btn-script-modal-close')?.addEventListener('click', () => cleanup(null));
+      modal.querySelector('#btn-script-modal-cancel')?.addEventListener('click', () => cleanup(null));
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) cleanup(null);
+      });
+
+      modal.querySelector('#btn-script-modal-confirm')?.addEventListener('click', () => {
+        const checked = modal.querySelector('input[name="caption_script"]:checked')?.value || 'roman';
+        const keyInput = modal.querySelector('#script-modal-gemini-key')?.value?.trim();
+        if (keyInput) {
+          geminiTranslationService.setCustomApiKey(keyInput);
+        }
+
+        let scriptMode = 'roman';
+        let languagePreference = 'roman';
+
+        if (checked === 'hindi') {
+          scriptMode = 'native';
+          languagePreference = 'hindi';
+        } else if (checked === 'urdu') {
+          scriptMode = 'native';
+          languagePreference = 'urdu';
+        } else if (checked === 'english') {
+          scriptMode = 'english';
+          languagePreference = 'en';
+        }
+
+        cleanup({
+          scriptMode,
+          languagePreference,
+          geminiKey: keyInput || undefined
+        });
+      });
+    });
+  }
+
   async handleVideoFile(file) {
     if (!file) return;
 
@@ -1384,6 +1554,10 @@ export class UserDashboard {
       return;
     }
 
+    // Prompt user for Script Mode: Roman Urdu/Hindi, Native Hindi, Native Urdu, or English
+    const selection = await this.showCaptionScriptModal(file);
+    if (!selection) return; // User dismissed or cancelled
+
     soundFx.playProcessStart();
     this.isProcessing = true;
     this.processingCancelled = false;
@@ -1394,7 +1568,7 @@ export class UserDashboard {
     try {
       if (this.processingCancelled) return;
 
-      await this.processVideoBlob(file);
+      await this.processVideoBlob(file, selection);
     } catch (err) {
       if (!this.processingCancelled) {
         captionEngine.setSentences([]);
@@ -1407,18 +1581,18 @@ export class UserDashboard {
     }
   }
 
-  async processVideoBlob(blob) {
+  async processVideoBlob(blob, options = {}) {
     this.videoBlob = blob;
 
     if (this.processingCancelled) return;
 
-    // Transcribe audio using offline speech transcriber
+    // Transcribe audio using offline speech transcriber with Gemini AI localization
     try {
       const transcribeResult = await speechTranscriber.transcribeVideoBlob(blob, (status, pct) => {
         if (this.processingCancelled) return;
         const mapped = Math.min(96, Math.max(20, Math.round(pct)));
         this.updateProcessingProgress(mapped, status);
-      });
+      }, options);
 
       if (this.processingCancelled) return;
 
@@ -1620,6 +1794,46 @@ export class UserDashboard {
     // OPEN LINE SEGMENTS EDIT MODAL
     wrap.querySelector('#btn-open-segments-modal')?.addEventListener('click', () => {
       this.openLineSegmentsModal();
+    });
+
+    // RETRANSLATE / SWITCH SCRIPT WITH GEMINI AI
+    wrap.querySelector('#btn-retranslate-gemini')?.addEventListener('click', async () => {
+      const sentences = captionEngine.sentences || [];
+      if (sentences.length === 0) {
+        this.showToast('No captions loaded yet to localize.', 'info');
+        return;
+      }
+
+      const selection = await this.showCaptionScriptModal();
+      if (!selection) return;
+
+      soundFx.playProcessStart();
+      this.showToast('Localizing captions with Gemini AI...', 'info');
+
+      try {
+        const translated = await geminiTranslationService.translateSentencesWithGemini(
+          sentences,
+          (tp) => {
+            this.showToast(tp.message || 'Localizing captions with Gemini AI...', 'info');
+          },
+          selection
+        );
+
+        if (translated && translated.length > 0) {
+          captionEngine.setSentences(translated);
+          this.renderMiniSegmentsList();
+          const firstSeg = captionEngine.sentences[0];
+          if (firstSeg) {
+            this.updateCaptionOverlay(firstSeg);
+            if (this.videoElement) this.videoElement.currentTime = firstSeg.start + 0.01;
+          }
+          soundFx.playOutputReady();
+          this.showToast('Captions successfully localized with Gemini AI!', 'success');
+        }
+      } catch (err) {
+        console.error('[Gemini AI] Localization error:', err);
+        this.showToast('Translation error: ' + (err.message || 'Failed'), 'error');
+      }
     });
 
     // Real-Time Draggable & Resizable Caption Setup

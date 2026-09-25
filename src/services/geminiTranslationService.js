@@ -22,11 +22,13 @@ class GeminiTranslationService {
     if (options?.geminiKey && typeof options.geminiKey === 'string' && options.geminiKey.trim()) {
       return options.geminiKey.trim();
     }
-    const local = localStorage.getItem('gemini_api_key');
+    const local = typeof localStorage !== 'undefined' ? localStorage.getItem('gemini_api_key') : null;
     if (local && local.trim()) {
       return local.trim();
     }
-    const envKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) || '';
+    const envKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) ||
+      (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
+      '';
     if (envKey && envKey.trim()) {
       return envKey.trim();
     }
@@ -37,6 +39,7 @@ class GeminiTranslationService {
    * Saves a user-provided Gemini API key to local storage for future video sessions.
    */
   setCustomApiKey(key) {
+    if (typeof localStorage === 'undefined') return;
     if (!key || !key.trim()) {
       localStorage.removeItem('gemini_api_key');
     } else {

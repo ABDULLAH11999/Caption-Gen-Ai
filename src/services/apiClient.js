@@ -1,17 +1,19 @@
 // API Client for Zen Caption AI
 class ApiClient {
   constructor() {
-    this.token = localStorage.getItem('zen_auth_token') || null;
+    this.token = typeof localStorage !== 'undefined' ? (localStorage.getItem('zen_auth_token') || null) : null;
     this.currentUser = null;
     this.listeners = [];
   }
 
   setToken(token) {
     this.token = token;
-    if (token) {
-      localStorage.setItem('zen_auth_token', token);
-    } else {
-      localStorage.removeItem('zen_auth_token');
+    if (typeof localStorage !== 'undefined') {
+      if (token) {
+        localStorage.setItem('zen_auth_token', token);
+      } else {
+        localStorage.removeItem('zen_auth_token');
+      }
     }
     this.notify();
   }
@@ -322,3 +324,4 @@ class ApiClient {
 }
 
 export const api = new ApiClient();
+export const apiClient = api;
