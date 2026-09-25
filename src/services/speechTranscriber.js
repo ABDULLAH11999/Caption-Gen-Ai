@@ -475,13 +475,16 @@ class SpeechTranscriberService {
 
     if (hintType === 'south_asian') {
       addAttempt(true, 'hindi', 80, 'Transcribing Hindi/Urdu speech');
+      addAttempt(false, 'hindi', 82, 'Retrying Hindi/Urdu speech (No TS)');
       addAttempt(true, null, 85, 'Transcribing spoken words with Whisper');
     } else if (hintType === 'english') {
       addAttempt(true, 'english', 80, 'Transcribing spoken words with Whisper');
       addAttempt(true, null, 86, 'Transcribing spoken words with Whisper');
     } else {
       addAttempt(true, null, 80, 'Transcribing spoken words with Whisper');
+      addAttempt(false, null, 82, 'Transcribing spoken words with Whisper (No TS)');
       addAttempt(true, 'hindi', 85, 'Retrying Hindi/Urdu speech');
+      addAttempt(false, 'hindi', 87, 'Retrying Hindi/Urdu speech (No TS)');
       addAttempt(true, 'english', 89, 'Retrying English speech');
     }
 
@@ -741,7 +744,11 @@ class SpeechTranscriberService {
         onProgress(msg, pct);
       }
     }, options);
-    return { sentences };
+    return {
+      sentences,
+      hasUrduOrHindi: !!this.lastHasUrduOrHindi,
+      detectedLanguage: this.lastDetectedLanguage || 'English'
+    };
   }
 
   /**
@@ -1023,6 +1030,8 @@ class SpeechTranscriberService {
           }
 
           onProgress({ status: 'complete', message: 'Captions generated & synchronized!', percent: 100 });
+          this.lastHasUrduOrHindi = !!hasUrduOrHindi;
+          this.lastDetectedLanguage = detectedLanguage;
           return finalSentences;
         }
 

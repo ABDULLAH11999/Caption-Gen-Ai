@@ -200,10 +200,12 @@ function buildTranscriptionAttempts(fileName = '') {
   };
 
   // return_timestamps: true uses Whisper's native phrase timestamp tokens
-  // which works 100% reliably for Hindi, Urdu, English and all 99+ languages
-  // without triggering ONNX alignment head errors
+  // which works reliably for Hindi without triggering ONNX alignment head errors.
+  // We also add `false` (no timestamps) as a fallback in case phrase timestamping
+  // fails and returns empty string.
   if (hintType === 'south_asian') {
     addAttempt(true, 'hindi', 80, 'Transcribing Hindi/Urdu speech');
+    addAttempt(false, 'hindi', 82, 'Retrying Hindi/Urdu speech (No TS)');
     addAttempt(true, null, 85, 'Transcribing spoken words with Whisper');
   } else if (hintType === 'english') {
     addAttempt(true, 'english', 80, 'Transcribing spoken words with Whisper');
@@ -211,8 +213,10 @@ function buildTranscriptionAttempts(fileName = '') {
   } else {
     // Standard Auto-detection: Whisper automatically detects spoken language
     addAttempt(true, null, 80, 'Transcribing spoken words with Whisper');
+    addAttempt(false, null, 82, 'Transcribing spoken words with Whisper (No TS)');
     // Targeted fallbacks if auto-detection produced no speech
     addAttempt(true, 'hindi', 85, 'Retrying Hindi/Urdu speech');
+    addAttempt(false, 'hindi', 87, 'Retrying Hindi/Urdu speech (No TS)');
     addAttempt(true, 'english', 89, 'Retrying English speech');
   }
 

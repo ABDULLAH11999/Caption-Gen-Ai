@@ -1246,7 +1246,7 @@ export class UserDashboard {
                 <div style="font-size: 11px; color: #64748b;" id="user-sentence-count">${captionEngine.sentences.length} Segments</div>
               </div>
               <div class="studio-sidebar-icon-actions">
-                <button class="sidebar-icon-action" id="btn-retranslate-gemini" title="Translate or switch script with Gemini AI (Roman/Native Hindi/Urdu)" style="display: flex; align-items: center; justify-content: center; font-size: 13px;">
+                <button class="sidebar-icon-action" id="btn-retranslate-gemini" title="Translate or switch script with Gemini AI (Roman/Native Hindi/Urdu)" style="display: ${this.isCurrentVideoNonEnglish() ? 'flex' : 'none'}; align-items: center; justify-content: center; font-size: 13px;">
                   <span>✨</span>
                 </button>
                 <button class="sidebar-icon-action sidebar-icon-reload" id="btn-process-behind-again" title="Process behind-text cutouts">
@@ -1513,6 +1513,7 @@ export class UserDashboard {
     soundFx.playProcessStart();
     this.isProcessing = true;
     this.processingCancelled = false;
+    this.isNonEnglishVideo = null;
     this.processingProgress = 15;
     this.processingStatus = 'Reading video file & metadata...';
     this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
@@ -1558,6 +1559,7 @@ export class UserDashboard {
 
       if (transcribeResult && transcribeResult.sentences && transcribeResult.sentences.length > 0) {
         captionEngine.setSentences(transcribeResult.sentences);
+        this.isNonEnglishVideo = !!(transcribeResult.hasUrduOrHindi || speechTranscriber.isUrduOrHindiTranscript(transcribeResult.sentences));
       } else {
         captionEngine.setSentences([]);
         const message = 'Transcript missing dependency: Whisper did not return any real caption segments.';
@@ -1777,7 +1779,12 @@ export class UserDashboard {
         );
 
         if (translated && translated.length > 0) {
-          captionEngine.setSentences(translated);
+          if (typeof captionEngine.setSegmentsDirect === 'function') {
+            captionEngine.setSegmentsDirect(translated);
+          } else {
+            captionEngine.setSentences(translated);
+          }
+          this.isNonEnglishVideo = true;
           this.renderMiniSegmentsList();
           const firstSeg = captionEngine.sentences[0];
           if (firstSeg) {
@@ -1795,6 +1802,15 @@ export class UserDashboard {
 
     // Real-Time Draggable & Resizable Caption Setup
     this.setupCaptionDragAndResize(wrap);
+  }
+
+  isCurrentVideoNonEnglish() {
+    if (this.isNonEnglishVideo !== undefined && this.isNonEnglishVideo !== null) {
+      return this.isNonEnglishVideo;
+    }
+    const sentences = captionEngine.sentences || [];
+    if (!sentences.length) return false;
+    return speechTranscriber.isUrduOrHindiTranscript(sentences);
   }
 
   updateTimeDisplay() {
@@ -1818,6 +1834,56 @@ export class UserDashboard {
     return found ? found.family : `'${fontId}', -apple-system, sans-serif`;
   }
 
+  findActiveSentence(sentences, time, sentenceOverride = null) {
+    if (sentenceOverride) return sentenceOverride;
+    if (!sentences || sentences.length === 0) return null;
+
+    // 1. Gather all candidates matching timeline window
+    const matching = [];
+    for (let i = 0; i < sentences.length; i++) {
+      const s = sentences[i];
+      const sStart = Number(s.start ?? s.startTime ?? 0);
+      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+      const isLast = (i === sentences.length - 1);
+      if (time >= sStart && (isLast ? time <= sEnd : time < sEnd)) {
+        matching.push({ sentence: s, index: i, start: sStart, end: sEnd });
+      }
+    }
+
+    if (matching.length === 1) {
+      return matching[0].sentence;
+    }
+
+    if (matching.length > 1) {
+      // Multiple segments share identical [start, end] window (e.g. broken word segments)
+      const first = matching[0];
+      const sameSpan = matching.filter(m => Math.abs(m.start - first.start) < 0.05 && Math.abs(m.end - first.end) < 0.05);
+      if (sameSpan.length > 1) {
+        const dur = Math.max(0.05, first.end - first.start);
+        const progress = Math.max(0, Math.min(0.999, (time - first.start) / dur));
+        const subIdx = Math.min(sameSpan.length - 1, Math.floor(progress * sameSpan.length));
+        return sameSpan[subIdx].sentence;
+      }
+      return matching[0].sentence;
+    }
+
+    // 2. Leeway fallback if slight audio gap
+    for (let i = sentences.length - 1; i >= 0; i--) {
+      const s = sentences[i];
+      const sStart = Number(s.start ?? s.startTime ?? 0);
+      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+      if (time >= sStart && time <= (sEnd + 0.35)) {
+        const nextS = sentences[i + 1];
+        const nextStart = nextS ? Number(nextS.start ?? nextS.startTime ?? Infinity) : Infinity;
+        if (time < nextStart) {
+          return s;
+        }
+      }
+    }
+
+    return null;
+  }
+
   updateCaptionOverlay(sentenceOverride = null) {
     const overlay = this.container.querySelector('#user-caption-live-overlay');
     if (!overlay || !this.videoElement) return;
@@ -1827,29 +1893,8 @@ export class UserDashboard {
       : (this.videoElement.currentTime || 0);
     const sentences = captionEngine.sentences || [];
 
-    // 1. Find active sentence strictly matching timeline (no backwards jumping to old segments)
-    let currentSentence = sentenceOverride || sentences.find((s, i) => {
-      const sStart = Number(s.start ?? s.startTime ?? 0);
-      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-      const isLast = (i === sentences.length - 1);
-      return time >= sStart && (isLast ? time <= sEnd : time < sEnd);
-    });
-
-    if (!currentSentence && sentences.length > 0) {
-      for (let i = sentences.length - 1; i >= 0; i--) {
-        const s = sentences[i];
-        const sStart = Number(s.start ?? s.startTime ?? 0);
-        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-        if (time >= sStart && time <= (sEnd + 0.35)) {
-          const nextS = sentences[i + 1];
-          const nextStart = nextS ? Number(nextS.start ?? nextS.startTime ?? Infinity) : Infinity;
-          if (time < nextStart) {
-            currentSentence = s;
-            break;
-          }
-        }
-      }
-    }
+    // 1. Find active sentence strictly matching timeline (supports multiple word segments with same start/end)
+    let currentSentence = this.findActiveSentence(sentences, time, sentenceOverride);
 
     if (!currentSentence) {
       overlay.innerHTML = '';
@@ -2115,6 +2160,12 @@ export class UserDashboard {
 
     const sentences = captionEngine.sentences || [];
     this.updateSegmentCountBadge();
+
+    const geminiBtn = this.container?.querySelector('#btn-retranslate-gemini');
+    if (geminiBtn) {
+      geminiBtn.style.display = this.isCurrentVideoNonEnglish() ? 'flex' : 'none';
+    }
+
     const cfg = this.activeConfig || {};
     const defaultNormalFont = cfg.normalFontFamily || 'Inter';
     const defaultFontSize = (this.currentMode === 'portrait' ? 25 : ((cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28));
@@ -2274,7 +2325,16 @@ export class UserDashboard {
       // Segment sync helper: seeks preview to this exact segment & updates overlay in real time
       const syncActiveSegment = () => {
         if (this.videoElement) {
-          const targetTime = Math.max(0, sStart + 0.05);
+          let targetTime = Math.max(0, sStart + 0.05);
+          // If this segment shares start/end with sibling word segments, seek into its proportional sub-slice
+          const sameSpan = sentences.filter(o => Math.abs((Number(o.start ?? o.startTime ?? 0)) - sStart) < 0.05 && Math.abs((Number(o.end ?? o.endTime ?? 0)) - sEnd) < 0.05);
+          if (sameSpan.length > 1) {
+            const myPos = sameSpan.findIndex(o => o.id === s.id);
+            if (myPos >= 0) {
+              const dur = Math.max(0.08, sEnd - sStart);
+              targetTime = sStart + (myPos / sameSpan.length) * dur + 0.02;
+            }
+          }
           if (Math.abs(this.videoElement.currentTime - targetTime) > 0.05) {
             this.videoElement.currentTime = targetTime;
           }
@@ -2592,18 +2652,19 @@ export class UserDashboard {
     if (!this.videoElement) return;
     const time = this.videoElement.currentTime || 0;
     const sentences = captionEngine.sentences || [];
+
+    let targetIdx = activeIdxOverride;
+    if (targetIdx === null || targetIdx === undefined) {
+      const active = this.findActiveSentence(sentences, time);
+      if (active) {
+        targetIdx = sentences.findIndex(s => s === active || s.id === active.id);
+      }
+    }
+
     sentences.forEach((s, idx) => {
       const el = this.container.querySelector(`#seg-mini-${idx}`);
       if (el) {
-        if (activeIdxOverride !== null && activeIdxOverride !== undefined) {
-          el.classList.toggle('is-active', idx === activeIdxOverride);
-        } else {
-          const sStart = Number(s.start ?? s.startTime ?? 0);
-          const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-          const isLast = (idx === sentences.length - 1);
-          const isActive = time >= sStart && (isLast ? time <= sEnd : time < sEnd);
-          el.classList.toggle('is-active', isActive);
-        }
+        el.classList.toggle('is-active', idx === targetIdx);
       }
     });
   }
@@ -2638,13 +2699,11 @@ export class UserDashboard {
     }
 
     const time = this.videoElement ? this.videoElement.currentTime : 0;
-    const timeIdx = sentences.findIndex((s, i) => {
-      const sStart = Number(s.start ?? s.startTime ?? 0);
-      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-      const isLast = (i === sentences.length - 1);
-      return time >= sStart && (isLast ? time <= sEnd : time < sEnd);
-    });
-    if (timeIdx >= 0) return timeIdx;
+    const activeSentence = this.findActiveSentence(sentences, time);
+    if (activeSentence) {
+      const activeIdx = sentences.findIndex(s => s === activeSentence || s.id === activeSentence.id);
+      if (activeIdx >= 0) return activeIdx;
+    }
 
     if (sentences.length > 0) {
       let nearestIdx = 0;
@@ -2676,44 +2735,16 @@ export class UserDashboard {
     const sourceStart = Number(source.start ?? source.startTime ?? 0);
     const sourceEnd = Number(source.end ?? source.endTime ?? (sourceStart + 1));
     const textTokens = (source.text || '').trim().split(/\s+/).filter(Boolean);
-    const sourceWords = Array.isArray(source.words) ? source.words.filter(w => (w.word || '').trim()) : [];
-    const duration = Math.max(0.12, sourceEnd - sourceStart);
-    const evenWordDuration = duration / Math.max(1, textTokens.length);
-    const words = textTokens.map((token, wordIdx) => {
-      const matchingWord = sourceWords.length === textTokens.length ? sourceWords[wordIdx] : null;
-      const evenStart = sourceStart + wordIdx * evenWordDuration;
-      const evenEnd = sourceStart + (wordIdx + 1) * evenWordDuration;
 
-      // Only trust word-level timing when it's actually within the segment's own range.
-      // If start/end are zero, negative, or both collapse to the same value as sourceStart,
-      // the word-timing data is absent/invalid — fall back to even distribution so every
-      // word-segment gets a distinct, non-overlapping time window.
-      let rawStart = matchingWord ? Number(matchingWord.start ?? matchingWord.startTime ?? evenStart) : evenStart;
-      let rawEnd   = matchingWord ? Number(matchingWord.end   ?? matchingWord.endTime   ?? evenEnd)   : evenEnd;
-      const timingIsUsable = matchingWord && rawStart > 0 && rawEnd > rawStart && rawStart >= sourceStart && rawEnd <= sourceEnd + 0.05;
-
-      let wStart = timingIsUsable ? rawStart : evenStart;
-      let wEnd   = timingIsUsable ? rawEnd   : evenEnd;
-
-      wStart = Math.max(sourceStart, Math.min(sourceEnd, wStart));
-      wEnd = Math.max(wStart + 0.12, Math.min(sourceEnd, wEnd));
-
-      if (wordIdx === textTokens.length - 1) wEnd = sourceEnd;
-      if (wordIdx === 0) wStart = sourceStart;
-
-      return {
-        word: token,
-        start: wStart,
-        end: wEnd,
-        startTime: wStart,
-        endTime: wEnd
-      };
-    });
-
-    if (!words || words.length <= 1) {
+    if (textTokens.length <= 1) {
       this.showToast('This segment is already a single word.', 'info');
       return;
     }
+
+    const N = textTokens.length;
+    // As requested: all broken word segments inherit the full segment's start and end time
+    const fStart = parseFloat(sourceStart.toFixed(2));
+    const fEnd = parseFloat(sourceEnd.toFixed(2));
 
     const styleKeys = [
       'posX', 'posY', 'boxWidth', 'fontSize', 'fontFamily',
@@ -2721,37 +2752,33 @@ export class UserDashboard {
       'glowColor', 'animation', 'behind'
     ];
 
-    const wordSegments = words.map((w, wordIdx) => {
-      const wStart = Number(w.start ?? w.startTime ?? sourceStart);
-      const wEnd = Number(w.end ?? w.endTime ?? Math.min(sourceEnd, wStart + 0.35));
+    const wordSegments = textTokens.map((token, i) => {
       const seg = {
-        id: `${source.id || 'sentence'}_word_${wordIdx + 1}_${Date.now()}`,
-        start: parseFloat(wStart.toFixed(3)),
-        end: parseFloat(Math.max(wStart + 0.12, wEnd).toFixed(3)),
-        startTime: parseFloat(wStart.toFixed(3)),
-        endTime: parseFloat(Math.max(wStart + 0.12, wEnd).toFixed(3)),
-        text: w.word || '',
+        id: `${source.id || 'sentence'}_word_${i + 1}_${Date.now()}_${i}`,
+        start: fStart,
+        end: fEnd,
+        startTime: fStart,
+        endTime: fEnd,
+        text: token,
         parentSegmentId: source.id || null,
         isWordSegment: true,
+        wordIndexInParent: i,
+        wordCountInParent: N,
         words: [{
-          word: w.word || '',
-          start: parseFloat(wStart.toFixed(3)),
-          end: parseFloat(Math.max(wStart + 0.12, wEnd).toFixed(3)),
-          startTime: parseFloat(wStart.toFixed(3)),
-          endTime: parseFloat(Math.max(wStart + 0.12, wEnd).toFixed(3))
+          word: token,
+          start: fStart,
+          end: fEnd,
+          startTime: fStart,
+          endTime: fEnd
         }]
       };
 
       styleKeys.forEach(key => {
         if (source[key] !== undefined) seg[key] = source[key];
       });
-      return seg;
-    }).filter(seg => seg.text.trim());
 
-    if (wordSegments.length <= 1) {
-      this.showToast('This segment is already a single word.', 'info');
-      return;
-    }
+      return seg;
+    });
 
     const updated = [
       ...sentences.slice(0, idx),
@@ -2771,7 +2798,7 @@ export class UserDashboard {
     if (this.videoElement) this.videoElement.currentTime = firstWordSegment.start + 0.01;
     this.updateCaptionOverlay(firstWordSegment);
     this.renderMiniSegmentsList();
-    this.showToast(`Broke segment into ${wordSegments.length} word segments using the original time range.`, 'success');
+    this.showToast(`Broke into ${wordSegments.length} words with shared sync (${fStart.toFixed(2)}s - ${fEnd.toFixed(2)}s)!`, 'success');
   }
 
   updateSegmentCountBadge() {
@@ -3083,28 +3110,7 @@ export class UserDashboard {
       ? (Number(sentenceOverride.start ?? sentenceOverride.startTime ?? 0) + 0.05)
       : (this.videoElement.currentTime || 0);
     const sentences = captionEngine.sentences || [];
-    let currentSentence = sentenceOverride || sentences.find((s, i) => {
-      const sStart = Number(s.start ?? s.startTime ?? 0);
-      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-      const isLast = (i === sentences.length - 1);
-      return time >= sStart && (isLast ? time <= sEnd : time < sEnd);
-    });
-
-    if (!currentSentence && sentences.length > 0) {
-      for (let i = sentences.length - 1; i >= 0; i--) {
-        const s = sentences[i];
-        const sStart = Number(s.start ?? s.startTime ?? 0);
-        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-        if (time >= sStart && time <= (sEnd + 0.35)) {
-          const nextS = sentences[i + 1];
-          const nextStart = nextS ? Number(nextS.start ?? nextS.startTime ?? Infinity) : Infinity;
-          if (time < nextStart) {
-            currentSentence = s;
-            break;
-          }
-        }
-      }
-    }
+    let currentSentence = this.findActiveSentence(sentences, time, sentenceOverride);
 
     if (currentSentence && currentSentence.behind && selfieSegmenterService.isReady()) {
       this.cutoutCanvas.style.display = 'block';
@@ -3423,13 +3429,13 @@ export class UserDashboard {
           <div class="segment-editor-timing-row">
             <div class="segment-timing-inputs">
               <span>Start</span>
-              <input type="number" step="0.1" min="0" class="segment-time-input" data-field="start" data-idx="${idx}" value="${segStart.toFixed(1)}">
+              <input type="number" step="0.05" min="0" class="segment-time-input" data-field="start" data-idx="${idx}" value="${segStart.toFixed(2)}">
               <span>s</span>
             </div>
 
             <div class="segment-timing-inputs">
               <span>End</span>
-              <input type="number" step="0.1" min="0" class="segment-time-input" data-field="end" data-idx="${idx}" value="${segEnd.toFixed(1)}">
+              <input type="number" step="0.05" min="0" class="segment-time-input" data-field="end" data-idx="${idx}" value="${segEnd.toFixed(2)}">
               <span>s</span>
             </div>
           </div>
@@ -3485,8 +3491,8 @@ export class UserDashboard {
       soundFx.playSegmentAdd();
       const last = tempSegments[tempSegments.length - 1];
       const lastEnd = last ? Number(last.end ?? last.endTime ?? 0) : 0.0;
-      const start = Number((lastEnd + 0.2).toFixed(1));
-      const end = Number((start + 2.5).toFixed(1));
+      const start = Number((lastEnd + 0.2).toFixed(2));
+      const end = Number((start + 2.5).toFixed(2));
       tempSegments.push({
         id: `s-${Date.now()}`,
         start,
@@ -3512,23 +3518,31 @@ export class UserDashboard {
       tempSegments.forEach(seg => {
         // Normalise both alias pairs before reading so whichever was last written is used
         const segStart = Number(seg.start ?? seg.startTime ?? 0);
-        const segEnd = Number(seg.end ?? seg.endTime ?? (segStart + 2.5));
+        const segEnd = Number(seg.end ?? seg.endTime ?? (segStart + 1.0));
         seg.start = segStart; seg.startTime = segStart;
         seg.end   = segEnd;   seg.endTime   = segEnd;
         const words = (seg.text || '').trim().split(/\s+/).filter(Boolean);
-        const duration = Math.max(0.5, segEnd - segStart);
+        const duration = Math.max(0.08, segEnd - segStart);
         const wordDuration = duration / Math.max(1, words.length);
 
-        seg.words = words.map((w, wIdx) => ({
-          word: w,
-          start: Number((segStart + wIdx * wordDuration).toFixed(2)),
-          end: Number((segStart + (wIdx + 1) * wordDuration).toFixed(2)),
-          startTime: Number((segStart + wIdx * wordDuration).toFixed(2)),
-          endTime: Number((segStart + (wIdx + 1) * wordDuration).toFixed(2))
-        }));
+        seg.words = words.map((w, wIdx) => {
+          const wStart = segStart + wIdx * wordDuration;
+          const wEnd = (wIdx === words.length - 1) ? segEnd : (segStart + (wIdx + 1) * wordDuration);
+          return {
+            word: w,
+            start: Number(wStart.toFixed(3)),
+            end: Number(wEnd.toFixed(3)),
+            startTime: Number(wStart.toFixed(3)),
+            endTime: Number(wEnd.toFixed(3))
+          };
+        });
       });
 
-      captionEngine.setSentences(tempSegments);
+      if (typeof captionEngine.setSegmentsDirect === 'function') {
+        captionEngine.setSegmentsDirect(tempSegments);
+      } else {
+        captionEngine.setSentences(tempSegments);
+      }
       this.renderMiniSegmentsList();
       this.updateCaptionOverlay();
       this.renderCutoutIfActiveBehind();

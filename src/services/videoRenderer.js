@@ -307,13 +307,33 @@ export class VideoRenderer {
 
     if (!sentences || sentences.length === 0) return;
 
-    // 3. Find active sentence strictly matching timeline (no backwards jumping to old segments)
-    let currentSentence = sentences.find((s, i) => {
+    // 3. Find active sentence strictly matching timeline (supports multiple word segments with same start/end)
+    let currentSentence = null;
+    const matchingSentences = [];
+    for (let i = 0; i < sentences.length; i++) {
+      const s = sentences[i];
       const sStart = Number(s.start ?? s.startTime ?? 0);
       const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
       const isLast = (i === sentences.length - 1);
-      return curTime >= sStart && (isLast ? curTime <= sEnd : curTime < sEnd);
-    });
+      if (curTime >= sStart && (isLast ? curTime <= sEnd : curTime < sEnd)) {
+        matchingSentences.push({ sentence: s, index: i, start: sStart, end: sEnd });
+      }
+    }
+
+    if (matchingSentences.length === 1) {
+      currentSentence = matchingSentences[0].sentence;
+    } else if (matchingSentences.length > 1) {
+      const first = matchingSentences[0];
+      const sameSpan = matchingSentences.filter(m => Math.abs(m.start - first.start) < 0.05 && Math.abs(m.end - first.end) < 0.05);
+      if (sameSpan.length > 1) {
+        const dur = Math.max(0.05, first.end - first.start);
+        const progress = Math.max(0, Math.min(0.999, (curTime - first.start) / dur));
+        const subIdx = Math.min(sameSpan.length - 1, Math.floor(progress * sameSpan.length));
+        currentSentence = sameSpan[subIdx].sentence;
+      } else {
+        currentSentence = matchingSentences[0].sentence;
+      }
+    }
 
     if (!currentSentence && sentences.length > 0) {
       for (let i = sentences.length - 1; i >= 0; i--) {
