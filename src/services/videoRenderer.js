@@ -742,7 +742,7 @@ export class VideoRenderer {
       try {
         const source = audioCtx.createMediaElementSource(videoElement);
         source.connect(dest);
-        source.connect(audioCtx.destination);
+        // Do not connect to audioCtx.destination to prevent speaker echo during export
       } catch (e) {
         // Already connected
       }
@@ -754,7 +754,6 @@ export class VideoRenderer {
       }
 
       const canvasStream = offscreenCanvas.captureStream(targetFps);
-      const videoTrack = canvasStream.getVideoTracks ? canvasStream.getVideoTracks()[0] : null;
 
       const combinedTracks = canvasStream.getVideoTracks ? [...canvasStream.getVideoTracks()] : [];
       if (dest.stream && dest.stream.getAudioTracks().length > 0) {
@@ -766,8 +765,8 @@ export class VideoRenderer {
       // Select highest quality supported container, preferring Safari/iPhone friendly MP4.
       const mimeType = this.getSupportedRecordingMimeType();
 
-      // Broadcast-grade 12-16 Mbps bitrate for pristine 60 FPS video
-      const videoBits = isMobile ? 8000000 : 14000000;
+      // Broadcast-grade 8 Mbps bitrate for pristine, lag-free 60 FPS video
+      const videoBits = isMobile ? 6000000 : 8000000;
       const recorderOptions = {
         videoBitsPerSecond: videoBits,
         audioBitsPerSecond: 192000
@@ -810,9 +809,6 @@ export class VideoRenderer {
       const renderCapturedFrame = (time) => {
         const safeTime = Math.max(0, Math.min(duration, Number(time) || 0));
         this.renderFrame(ctx, videoElement, safeTime, config, width, height, sentences);
-        if (videoTrack && typeof videoTrack.requestFrame === 'function') {
-          videoTrack.requestFrame();
-        }
       };
 
       // Prime captureStream with an enhanced first frame before recording starts.
@@ -823,24 +819,20 @@ export class VideoRenderer {
       // Record an immediate frame at t=0 so enhancement never begins late.
       renderCapturedFrame(0);
 
+      videoElement.playbackRate = 1.0;
       await videoElement.play();
 
       let isExportActive = true;
-      let renderInterval = null;
-      let rVfcId = null;
+      let animId = null;
 
       const finishExport = () => {
         if (!this.isRendering) return;
         this.isRendering = false;
         isExportActive = false;
         videoElement.removeEventListener('ended', finishExport);
-        if (renderInterval) {
-          clearInterval(renderInterval);
-          renderInterval = null;
-        }
-        if (rVfcId && typeof videoElement.cancelVideoFrameCallback === 'function') {
-          videoElement.cancelVideoFrameCallback(rVfcId);
-          rVfcId = null;
+        if (animId) {
+          cancelAnimationFrame(animId);
+          animId = null;
         }
         renderCapturedFrame(Math.min(duration, videoElement.currentTime || duration));
         videoElement.pause();
@@ -852,10 +844,8 @@ export class VideoRenderer {
 
       videoElement.addEventListener('ended', finishExport, { once: true });
 
-      const hasRVFC = typeof videoElement.requestVideoFrameCallback === 'function';
-
-      // Hardware-decoded video frame listener for jitter-free 60 FPS lockstep rendering
-      const onVideoFrame = () => {
+      // Smooth 60 FPS requestAnimationFrame render loop
+      const renderLoop = () => {
         if (!isExportActive || !this.isRendering) return;
 
         const curTime = videoElement.currentTime;
@@ -871,34 +861,10 @@ export class VideoRenderer {
           return;
         }
 
-        if (hasRVFC) {
-          rVfcId = videoElement.requestVideoFrameCallback(onVideoFrame);
-        }
+        animId = requestAnimationFrame(renderLoop);
       };
 
-      if (hasRVFC) {
-        rVfcId = videoElement.requestVideoFrameCallback(onVideoFrame);
-      } else {
-        // Fallback: 60 FPS timer for browsers without requestVideoFrameCallback
-        renderInterval = setInterval(() => {
-          if (!isExportActive || !this.isRendering) {
-            clearInterval(renderInterval);
-            return;
-          }
-
-          const curTime = videoElement.currentTime;
-          const baseOffset = hasBehindCaptions ? 15 : 0;
-          const scaleFactor = hasBehindCaptions ? 0.85 : 1.0;
-          const progress = Math.min(100, Math.round(baseOffset + (curTime / duration) * (100 * scaleFactor)));
-          if (onProgress) onProgress(progress);
-
-          renderCapturedFrame(curTime);
-
-          if (videoElement.ended || curTime >= duration) {
-            finishExport();
-          }
-        }, 1000 / 60);
-      }
+      animId = requestAnimationFrame(renderLoop);
 
       const rawBlob = await exportPromise;
 
@@ -930,7 +896,8 @@ export class VideoRenderer {
     video.muted = false;
     video.volume = 1.0;
     video.classList.toggle('video-enhanced', !!enhanceQuality);
-    video.style.cssText = 'position:fixed;top:0;left:0;width:320px;height:240px;opacity:0.01;pointer-events:none;z-index:999999;';
+    // Use full opacity in viewport bounds with z-index: -999 to guarantee Chromium gives full GPU priority without occlusion throttling
+    video.style.cssText = 'position:fixed;bottom:0;right:0;width:320px;height:180px;opacity:1;pointer-events:none;z-index:-999;object-fit:cover;';
     document.body.appendChild(video);
 
     const videoUrl = URL.createObjectURL(videoBlob);

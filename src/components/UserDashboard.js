@@ -662,22 +662,51 @@ export class UserDashboard {
   renderTemplatesTab(parent) {
     parent.innerHTML = '';
     const wrap = document.createElement('div');
+    wrap.className = 'dashboard-page-container';
+
+    const activeTpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
+    const activeTemplateName = activeTpl ? activeTpl.name : 'September Vibrant Pop';
+
     wrap.innerHTML = `
-      <div class="user-tab-header">
+      <header class="dashboard-top-bar">
         <div>
           <h1 class="user-tab-title">16 Professional Caption Templates</h1>
-          <p style="color: #64748b; font-size: 13.5px; margin-top: 4px;">Universal presets engineered for TikTok, Shorts, Reels &amp; Landscape videos</p>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="workspace-style-preset-box" title="Active Preset">
+            <span class="style-preset-label">Active:</span>
+            <strong>${activeTemplateName}</strong>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btn-templates-apply-shortcut" style="padding: 7px 16px; font-size: 12.5px;">
+            ✨ Apply to Video
+          </button>
+        </div>
+      </header>
+
+      <div class="dashboard-content-scroll">
+        <div style="margin-bottom: 22px;">
+          <p style="color: #64748b; font-size: 13.5px; margin: 0; line-height: 1.5;">
+            Universal presets engineered for TikTok, Shorts, Reels &amp; Landscape videos. Click any card to select as default, or customize typography, colors &amp; kinetic animations.
+          </p>
+        </div>
+
+        <div class="user-templates-grid" id="user-templates-grid">
+          <!-- Cards rendered below -->
         </div>
       </div>
 
-      <div class="user-templates-grid" id="user-templates-grid">
-        <!-- Cards rendered below -->
-      </div>
+      <footer class="dashboard-bottom-dock">
+        <span>⚡ Zen Caption AI Studio &bull; 16 Ready-Made High-Conversion Viral Styles</span>
+        <span>Auto Typography &bull; Instant 60 FPS GPU Export</span>
+      </footer>
     `;
 
     parent.appendChild(wrap);
 
-
+    wrap.querySelector('#btn-templates-apply-shortcut')?.addEventListener('click', () => {
+      this.switchTab('apply');
+    });
 
     const grid = wrap.querySelector('#user-templates-grid');
     CAPTION_TEMPLATES.forEach(tpl => {
@@ -3788,81 +3817,108 @@ export class UserDashboard {
     if (!parent) return;
     parent.innerHTML = '';
     const wrap = document.createElement('div');
+    wrap.className = 'dashboard-page-container';
     const { planName, dailyLimit, dailyUsed, monthlyLimit, monthlyUsed, isGuest } = this.quotaInfo;
 
     const dailyPct = Math.min(100, Math.round((dailyUsed / Math.max(1, dailyLimit)) * 100));
     const monthlyPct = Math.min(100, Math.round((monthlyUsed / Math.max(1, monthlyLimit)) * 100));
 
     wrap.innerHTML = `
-      <div class="user-tab-header">
+      <header class="dashboard-top-bar">
         <div>
-          <h1 class="user-tab-title">My Plan & Quota Management</h1>
-          <p style="color: #64748b; font-size: 14px;">Monitor your video generation limits and upgrade your package.</p>
+          <h1 class="user-tab-title">My Plan &amp; Quota Management</h1>
         </div>
-      </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; max-width: 900px;">
-        
-        <!-- Current Plan Overview -->
-        <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 28px; box-shadow: var(--shadow-sm);">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-            <div>
-              <span class="badge badge-cyan" style="font-size: 11px;">CURRENT SUBSCRIPTION</span>
-              <h2 style="font-size: 24px; font-weight: 900; color: #0c0c0e; margin-top: 6px;">${planName}</h2>
-            </div>
-            <div style="width: 44px; height: 44px; border-radius: 12px; background: var(--primary-coral-light); color: var(--primary-coral); display: flex; align-items: center; justify-content: center; font-size: 20px;">
-              💎
-            </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="workspace-style-preset-box" title="Active Plan">
+            <span class="style-preset-label">Plan:</span>
+            <strong>${planName}</strong>
           </div>
-
-          <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin-bottom: 24px;">
-            ${isGuest ? 'You are currently on guest access. Sign in or request a paid plan to unlock higher limits and template cloud sync.' : 'Your plan gives you enterprise high-speed Whisper AI transcription and 60 FPS GPU lossless export.'}
-          </p>
-
-          <button class="btn btn-primary" id="btn-quota-upgrade" style="width: 100%; padding: 12px; font-size: 14px;">
-            ⚡ Request Higher Limit Plan
+          <button class="btn btn-outline btn-sm" id="btn-quota-create-shortcut" style="padding: 7px 16px; font-size: 12.5px;">
+            🎬 Create Video
           </button>
         </div>
+      </header>
 
-        <!-- Quota Usage Stats -->
-        <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 28px; box-shadow: var(--shadow-sm);">
-          <h3 style="font-size: 16px; font-weight: 800; color: #0c0c0e; margin-bottom: 20px;">Usage & Quotas</h3>
-
-          <!-- Daily Limit -->
-          <div style="margin-bottom: 22px;">
-            <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; margin-bottom: 8px;">
-              <span style="color: #334155;">Daily Generations</span>
-              <span style="color: ${dailyUsed >= dailyLimit ? '#ef4444' : 'var(--primary-coral)'}; font-weight: 800;">
-                ${dailyUsed} / ${dailyLimit} used ${dailyUsed >= dailyLimit ? '(Limit Reached)' : ''}
-              </span>
-            </div>
-            <div style="height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
-              <div style="width: ${dailyPct}%; height: 100%; background: ${dailyUsed >= dailyLimit ? '#ef4444' : 'var(--primary-coral)'}; border-radius: 4px;"></div>
-            </div>
-          </div>
-
-          <!-- Monthly Limit -->
-          <div style="margin-bottom: 20px;">
-            <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; margin-bottom: 8px;">
-              <span style="color: #334155;">Monthly Generations</span>
-              <span style="color: ${monthlyUsed >= monthlyLimit ? '#ef4444' : '#6366f1'}; font-weight: 800;">
-                ${monthlyUsed} / ${monthlyLimit} used ${monthlyUsed >= monthlyLimit ? '(Limit Reached)' : ''}
-              </span>
-            </div>
-            <div style="height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
-              <div style="width: ${monthlyPct}%; height: 100%; background: ${monthlyUsed >= monthlyLimit ? '#ef4444' : '#6366f1'}; border-radius: 4px;"></div>
-            </div>
-          </div>
-
-          <div style="background: #fafbfe; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748b;">
-            💡 Quotas reset every 24 hours at 00:00 UTC.
-          </div>
+      <div class="dashboard-content-scroll">
+        <div style="margin-bottom: 22px;">
+          <p style="color: #64748b; font-size: 13.5px; margin: 0; line-height: 1.5;">
+            Monitor your video generation limits, check real-time daily &amp; monthly usage, and upgrade your package.
+          </p>
         </div>
 
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; max-width: 900px;">
+          
+          <!-- Current Plan Overview -->
+          <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 28px; box-shadow: var(--shadow-sm);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+              <div>
+                <span class="badge badge-cyan" style="font-size: 11px;">CURRENT SUBSCRIPTION</span>
+                <h2 style="font-size: 24px; font-weight: 900; color: #0c0c0e; margin-top: 6px;">${planName}</h2>
+              </div>
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: var(--primary-coral-light); color: var(--primary-coral); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                💎
+              </div>
+            </div>
+
+            <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin-bottom: 24px;">
+              ${isGuest ? 'You are currently on guest access. Sign in or request a paid plan to unlock higher limits and template cloud sync.' : 'Your plan gives you enterprise high-speed Whisper AI transcription and 60 FPS GPU lossless export.'}
+            </p>
+
+            <button class="btn btn-primary" id="btn-quota-upgrade" style="width: 100%; padding: 12px; font-size: 14px;">
+              ⚡ Request Higher Limit Plan
+            </button>
+          </div>
+
+          <!-- Quota Usage Stats -->
+          <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 28px; box-shadow: var(--shadow-sm);">
+            <h3 style="font-size: 16px; font-weight: 800; color: #0c0c0e; margin-bottom: 20px;">Usage & Quotas</h3>
+
+            <!-- Daily Limit -->
+            <div style="margin-bottom: 22px;">
+              <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; margin-bottom: 8px;">
+                <span style="color: #334155;">Daily Generations</span>
+                <span style="color: ${dailyUsed >= dailyLimit ? '#ef4444' : 'var(--primary-coral)'}; font-weight: 800;">
+                  ${dailyUsed} / ${dailyLimit} used ${dailyUsed >= dailyLimit ? '(Limit Reached)' : ''}
+                </span>
+              </div>
+              <div style="height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
+                <div style="width: ${dailyPct}%; height: 100%; background: ${dailyUsed >= dailyLimit ? '#ef4444' : 'var(--primary-coral)'}; border-radius: 4px;"></div>
+              </div>
+            </div>
+
+            <!-- Monthly Limit -->
+            <div style="margin-bottom: 20px;">
+              <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; margin-bottom: 8px;">
+                <span style="color: #334155;">Monthly Generations</span>
+                <span style="color: ${monthlyUsed >= monthlyLimit ? '#ef4444' : '#6366f1'}; font-weight: 800;">
+                  ${monthlyUsed} / ${monthlyLimit} used ${monthlyUsed >= monthlyLimit ? '(Limit Reached)' : ''}
+                </span>
+              </div>
+              <div style="height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
+                <div style="width: ${monthlyPct}%; height: 100%; background: ${monthlyUsed >= monthlyLimit ? '#ef4444' : '#6366f1'}; border-radius: 4px;"></div>
+              </div>
+            </div>
+
+            <div style="background: #fafbfe; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748b;">
+              💡 Quotas reset every 24 hours at 00:00 UTC.
+            </div>
+          </div>
+
+        </div>
       </div>
+
+      <footer class="dashboard-bottom-dock">
+        <span>⚡ Zen Caption AI Studio &bull; 100% Client-Side Privacy Guaranteed</span>
+        <span>Zero Watermarks &bull; Instant 60 FPS GPU Export</span>
+      </footer>
     `;
 
     parent.appendChild(wrap);
+
+    wrap.querySelector('#btn-quota-create-shortcut')?.addEventListener('click', () => {
+      this.switchTab('apply');
+    });
 
     wrap.querySelector('#btn-quota-upgrade')?.addEventListener('click', () => {
       this.navigate('pricing');
