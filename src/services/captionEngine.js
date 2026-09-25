@@ -135,8 +135,8 @@ export class CaptionEngine {
         };
       });
 
-    this.sentences = sentences;
-    return sentences;
+    this.sentences = this.splitLongSegments(this.consolidateTimeAndOrphanSegments(sentences), 3);
+    return this.sentences;
   }
 
   /**
@@ -307,7 +307,7 @@ export class CaptionEngine {
    * Splits long sentences so line segments stay compact.
    * Keeps short voice chunks together so timing stays aligned with speech.
    */
-  splitLongSegments(sentences, maxWords = 5) {
+  splitLongSegments(sentences, maxWords = 3) {
     const result = [];
     (sentences || []).forEach((s, sIdx) => {
       let words = s.words;
@@ -320,8 +320,8 @@ export class CaptionEngine {
 
       const totalChars = words.reduce((acc, w) => acc + (w.word ? w.word.length : 0), 0);
 
-      // Keep short phrases together so the transcriber timing is not over-fragmented.
-      if (words.length <= maxWords || totalChars <= 24) {
+      // Keep short phrases together (2 to 3 words)
+      if (words.length <= maxWords || (words.length <= 3 && totalChars <= 18)) {
         result.push({
           ...s,
           start: parseFloat(sStart.toFixed(2)),
@@ -334,9 +334,9 @@ export class CaptionEngine {
         return;
       }
 
-      // Break longer phrases into balanced 2-row segments
-      const targetChunkSize = 3;
-      const numChunks = Math.ceil(words.length / targetChunkSize);
+      // Break longer phrases into balanced 2-3 word segments
+      const targetChunkSize = 2;
+      const numChunks = Math.ceil(words.length / 3);
       const chunkSize = Math.ceil(words.length / numChunks);
 
       for (let i = 0; i < words.length; i += chunkSize) {
@@ -427,8 +427,8 @@ export class CaptionEngine {
     // Consolidate fragmented PM / AM orphan tokens and time ranges
     const consolidated = this.consolidateTimeAndOrphanSegments(normalized);
 
-    // Automatically format segments so no segment creates a 3rd row while preserving "3 to 6 PM"
-    this.sentences = this.splitLongSegments(consolidated, 5);
+    // Automatically format segments into 2-3 word items matching on-screen display
+    this.sentences = this.splitLongSegments(consolidated, 3);
     this.sentences.sort((a, b) => a.start - b.start);
   }
 

@@ -1897,7 +1897,7 @@ export class UserDashboard {
     overlay.style.top = `${topPx}px`;
     overlay.style.width = `${widthPx}px`;
     overlay.style.height = `${heightPx}px`;
-    overlay.style.overflow = 'hidden';
+    overlay.style.overflow = 'visible';
 
     if (cutoutCanvas) {
       cutoutCanvas.style.position = 'absolute';
@@ -2139,18 +2139,8 @@ export class UserDashboard {
       if (speakingWordIdx === -1) speakingWordIdx = 0;
     }
 
-    const totalChars = words.reduce((acc, w) => acc + ((w.word || '').length), 0);
     let displayWords = words;
     let chunkOffset = 0;
-    if (words.length > 4 || (words.length === 4 && totalChars > 22)) {
-      const mid = Math.ceil(words.length / 2);
-      if (speakingWordIdx < mid) {
-        displayWords = words.slice(0, mid);
-      } else {
-        displayWords = words.slice(mid);
-        chunkOffset = mid;
-      }
-    }
 
     const isPortrait = this.currentMode === 'portrait';
     const defaultBaseFontSize = isPortrait ? 25 : ((cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28);
@@ -2345,20 +2335,9 @@ export class UserDashboard {
       if (speakingWordIdx === -1) speakingWordIdx = 0;
     }
 
-    // 6. Strict 2-Row Guarantee: Never make a 3rd row, while preserving 4-word phrases like "3 to 6 PM"
-    const totalChars = words.reduce((acc, w) => acc + ((w.word || '').length), 0);
+    // 6. Direct 1:1 segment display matching sidebar transcript
     let displayWords = words;
     let chunkOffset = 0;
-    if (words.length > 4 || (words.length === 4 && totalChars > 22)) {
-      const mid = Math.ceil(words.length / 2);
-      if (speakingWordIdx < mid) {
-        displayWords = words.slice(0, mid);
-        chunkOffset = 0;
-      } else {
-        displayWords = words.slice(mid);
-        chunkOffset = mid;
-      }
-    }
 
     // 7. Base font size: segment-specific size or default (25px portrait / 28px landscape)
     const isPortrait = this.currentMode === 'portrait';

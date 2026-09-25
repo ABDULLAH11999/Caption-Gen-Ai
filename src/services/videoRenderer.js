@@ -410,20 +410,9 @@ export class VideoRenderer {
       if (speakingWordIdx === -1) speakingWordIdx = 0;
     }
 
-    // 6. Strict 2-Row Guarantee: Split sentence when > 4 words or > 22 chars (exact preview match)
-    const totalChars = words.reduce((acc, w) => acc + ((w.word || '').length), 0);
+    // 6. Direct 1:1 segment display matching sidebar transcript
     let displayWords = words;
     let chunkOffset = 0;
-    if (words.length > 4 || (words.length === 4 && totalChars > 22)) {
-      const mid = Math.ceil(words.length / 2);
-      if (speakingWordIdx < mid) {
-        displayWords = words.slice(0, mid);
-        chunkOffset = 0;
-      } else {
-        displayWords = words.slice(mid);
-        chunkOffset = mid;
-      }
-    }
 
     // 7. Typography and responsive sizing relative to video resolution
     const isPortrait = canvasHeight > canvasWidth;
@@ -512,14 +501,14 @@ export class VideoRenderer {
     const textAlign = hasCustomPos ? 'left' : (defaultPosMeta.align || 'left');
     const segmentBoxWidth = Number(currentSentence.boxWidth || currentSentence.width || 0);
     const customMaxWidth = segmentBoxWidth > 0
-      ? (canvasWidth * segmentBoxWidth) / 100
-      : (canvasWidth * (isPortrait ? 0.64 : 0.94));
+      ? (canvasWidth * segmentBoxWidth) / 100 + Math.round(baseFontSize * 0.4)
+      : (canvasWidth * 0.94);
 
     // 10. Wrap words into lines based on custom box width
     const lines = [];
     let curLine = [];
     let curLineWidth = 0;
-    const wordGap = Math.max(4, Math.round(11 * scale));
+    const wordGap = Math.max(3, Math.round(baseFontSize * 0.20));
 
     styledWords.forEach((sw) => {
       ctx.font = `${sw.fontWeight} ${sw.fontSize}px ${sw.font}`;
@@ -890,15 +879,22 @@ export class VideoRenderer {
 
       await videoElement.play();
 
+      let isExportActive = true;
       let renderInterval = null;
+      let rVfcId = null;
 
       const finishExport = () => {
         if (!this.isRendering) return;
         this.isRendering = false;
+        isExportActive = false;
         videoElement.removeEventListener('ended', finishExport);
         if (renderInterval) {
           clearInterval(renderInterval);
           renderInterval = null;
+        }
+        if (rVfcId && typeof videoElement.cancelVideoFrameCallback === 'function') {
+          videoElement.cancelVideoFrameCallback(rVfcId);
+          rVfcId = null;
         }
         renderCapturedFrame(Math.min(duration, videoElement.currentTime || duration));
         videoElement.pause();
@@ -910,9 +906,35 @@ export class VideoRenderer {
 
       videoElement.addEventListener('ended', finishExport, { once: true });
 
-      // Run render loop at 60 FPS (16.66ms intervals)
+      // Hardware-decoded video frame listener for jitter-free 60 FPS lockstep rendering
+      const onVideoFrame = () => {
+        if (!isExportActive || !this.isRendering) return;
+
+        const curTime = videoElement.currentTime;
+        const baseOffset = hasBehindCaptions ? 15 : 0;
+        const scaleFactor = hasBehindCaptions ? 0.85 : 1.0;
+        const progress = Math.min(100, Math.round(baseOffset + (curTime / duration) * (100 * scaleFactor)));
+        if (onProgress) onProgress(progress);
+
+        renderCapturedFrame(curTime);
+
+        if (videoElement.ended || curTime >= duration) {
+          finishExport();
+          return;
+        }
+
+        if (typeof videoElement.requestVideoFrameCallback === 'function') {
+          rVfcId = videoElement.requestVideoFrameCallback(onVideoFrame);
+        }
+      };
+
+      if (typeof videoElement.requestVideoFrameCallback === 'function') {
+        rVfcId = videoElement.requestVideoFrameCallback(onVideoFrame);
+      }
+
+      // 60 FPS high-precision interval loop ensuring steady stream feed
       renderInterval = setInterval(() => {
-        if (!this.isRendering) {
+        if (!isExportActive || !this.isRendering) {
           clearInterval(renderInterval);
           return;
         }
@@ -923,7 +945,6 @@ export class VideoRenderer {
         const progress = Math.min(100, Math.round(baseOffset + (curTime / duration) * (100 * scaleFactor)));
         if (onProgress) onProgress(progress);
 
-        // Render frame with 100% preview-matching caption styles
         renderCapturedFrame(curTime);
 
         if (videoElement.ended || curTime >= duration) {
@@ -953,6 +974,7 @@ export class VideoRenderer {
    */
   async burnCaptionsToVideoLossless(videoBlob, sentences, config, onProgress, enhanceQuality = false) {
     const video = document.createElement('video');
+    video.preload = 'auto';
     video.playsInline = true;
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
@@ -960,7 +982,7 @@ export class VideoRenderer {
     video.muted = false;
     video.volume = 1.0;
     video.classList.toggle('video-enhanced', !!enhanceQuality);
-    video.style.cssText = 'position:fixed;top:0;left:0;width:160px;height:90px;opacity:0.001;pointer-events:none;z-index:-99999;';
+    video.style.cssText = 'position:fixed;top:0;left:0;width:320px;height:240px;opacity:0.01;pointer-events:none;z-index:999999;';
     document.body.appendChild(video);
 
     const videoUrl = URL.createObjectURL(videoBlob);

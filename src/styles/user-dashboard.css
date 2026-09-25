@@ -891,7 +891,14 @@ body.app-shell-locked {
   filter: contrast(1.18) saturate(1.28) brightness(1.02) !important;
 }
 
-.video-container .caption-live-overlay,
+.video-container .caption-live-overlay {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  overflow: visible !important;
+  box-sizing: border-box;
+}
+
 .video-container .cutout-live-canvas {
   position: absolute;
   z-index: 2;
