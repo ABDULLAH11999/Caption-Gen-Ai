@@ -1385,8 +1385,6 @@ export class UserDashboard {
       modal.id = 'caption-script-modal';
       modal.className = 'script-selection-modal-backdrop';
 
-      const currentGeminiKey = geminiTranslationService.getApiKey() || '';
-
       modal.innerHTML = `
         <div class="script-modal-card" role="dialog" aria-modal="true" aria-labelledby="script-modal-title">
           <div class="script-modal-header">
@@ -1396,7 +1394,7 @@ export class UserDashboard {
                 AI Transcript &amp; Localization
               </div>
               <h2 id="script-modal-title" class="script-modal-title">Choose Caption Style &amp; Script</h2>
-              <p class="script-modal-sub">Select your desired language and script format. Powered by Gemini AI with word-level speech sync.</p>
+              <p class="script-modal-sub">We detected Hindi/Urdu speech. Choose your preferred caption format:</p>
             </div>
             <button type="button" class="script-modal-close" id="btn-script-modal-close" aria-label="Close modal">✕</button>
           </div>
@@ -1443,40 +1441,6 @@ export class UserDashboard {
                 <div class="script-option-preview">Preview: &ldquo;اگر آپ اس کو دیکھ سکتے ہیں تو لائیک کریں&rdquo;</div>
               </div>
             </label>
-
-            <!-- Option 4: English / Global -->
-            <label class="script-option-card" for="opt-english">
-              <input type="radio" name="caption_script" id="opt-english" value="english" class="script-option-radio" />
-              <div class="script-option-icon">🌐</div>
-              <div class="script-option-content">
-                <div class="script-option-title-row">
-                  <span class="script-option-name">English / Global</span>
-                  <span class="script-option-tag">STANDARD</span>
-                </div>
-                <div class="script-option-desc">Clean English subtitles. Translates non-English speech directly to fluent English.</div>
-                <div class="script-option-preview">Preview: &ldquo;If you can see this, please like and subscribe&rdquo;</div>
-              </div>
-            </label>
-          </div>
-
-          <!-- Gemini AI Key Configuration Bar -->
-          <div style="background: rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.08); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: #475569;">
-              <span style="display: flex; align-items: center; gap: 6px;">
-                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
-                Gemini AI Engine (Flash 1.5/2.0)
-              </span>
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none; font-size: 11px;">Get Free API Key ↗</a>
-            </div>
-            <div style="display: flex; gap: 8px;">
-              <input 
-                type="password" 
-                id="script-modal-gemini-key" 
-                placeholder="${currentGeminiKey ? 'Gemini API Key active (change if needed)' : 'Paste custom Gemini API Key (optional)'}"
-                value="${currentGeminiKey || ''}" 
-                style="flex: 1; height: 34px; padding: 0 12px; font-size: 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff;"
-              />
-            </div>
           </div>
 
           <div class="script-modal-footer">
@@ -1506,18 +1470,14 @@ export class UserDashboard {
         resolve(result);
       };
 
-      modal.querySelector('#btn-script-modal-close')?.addEventListener('click', () => cleanup(null));
-      modal.querySelector('#btn-script-modal-cancel')?.addEventListener('click', () => cleanup(null));
+      modal.querySelector('#btn-script-modal-close')?.addEventListener('click', () => cleanup({ scriptMode: 'roman', languagePreference: 'roman' }));
+      modal.querySelector('#btn-script-modal-cancel')?.addEventListener('click', () => cleanup({ scriptMode: 'roman', languagePreference: 'roman' }));
       modal.addEventListener('click', (e) => {
-        if (e.target === modal) cleanup(null);
+        if (e.target === modal) cleanup({ scriptMode: 'roman', languagePreference: 'roman' });
       });
 
       modal.querySelector('#btn-script-modal-confirm')?.addEventListener('click', () => {
         const checked = modal.querySelector('input[name="caption_script"]:checked')?.value || 'roman';
-        const keyInput = modal.querySelector('#script-modal-gemini-key')?.value?.trim();
-        if (keyInput) {
-          geminiTranslationService.setCustomApiKey(keyInput);
-        }
 
         let scriptMode = 'roman';
         let languagePreference = 'roman';
@@ -1528,15 +1488,11 @@ export class UserDashboard {
         } else if (checked === 'urdu') {
           scriptMode = 'native';
           languagePreference = 'urdu';
-        } else if (checked === 'english') {
-          scriptMode = 'english';
-          languagePreference = 'en';
         }
 
         cleanup({
           scriptMode,
-          languagePreference,
-          geminiKey: keyInput || undefined
+          languagePreference
         });
       });
     });
@@ -1554,10 +1510,6 @@ export class UserDashboard {
       return;
     }
 
-    // Prompt user for Script Mode: Roman Urdu/Hindi, Native Hindi, Native Urdu, or English
-    const selection = await this.showCaptionScriptModal(file);
-    if (!selection) return; // User dismissed or cancelled
-
     soundFx.playProcessStart();
     this.isProcessing = true;
     this.processingCancelled = false;
@@ -1568,7 +1520,12 @@ export class UserDashboard {
     try {
       if (this.processingCancelled) return;
 
-      await this.processVideoBlob(file, selection);
+      // Only prompt for script if the audio contains Urdu/Hindi words
+      await this.processVideoBlob(file, {
+        onScriptSelectionRequired: async () => {
+          return await this.showCaptionScriptModal();
+        }
+      });
     } catch (err) {
       if (!this.processingCancelled) {
         captionEngine.setSentences([]);

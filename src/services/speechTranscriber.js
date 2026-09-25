@@ -1003,18 +1003,37 @@ class SpeechTranscriberService {
             console.warn('[speechTranscriber] Low-confidence transcript kept for editing instead of blocking upload.');
           }
 
-          // Guarantee high-accuracy captions with Gemini AI and word-level sync
-          const localizedSentences = await geminiTranslationService.translateSentencesWithGemini(rawSentences, (tp) => {
-            onProgress({
-              status: 'translating',
-              message: tp.message || `Refining captions with Gemini AI (${tp.current || 1}/${tp.total || 1})...`,
-              percent: Math.min(98, 92 + Math.round(((tp.current || 1) / (tp.total || 1)) * 6))
-            });
-          }, options);
+          // Detect if audio contains Urdu or Hindi script or spoken words
+          const hasUrduOrHindi = this.isUrduOrHindiTranscript(rawSentences, detectedLanguage);
+          let translationOptions = { ...(options || {}) };
 
-          const finalSentences = localizedSentences && localizedSentences.length > 0
-            ? localizedSentences
-            : rawSentences;
+          if (hasUrduOrHindi) {
+            if (typeof options?.onScriptSelectionRequired === 'function') {
+              const userSelection = await options.onScriptSelectionRequired(rawSentences);
+              if (userSelection) {
+                translationOptions = { ...translationOptions, ...userSelection };
+              }
+            } else if (!translationOptions.scriptMode) {
+              translationOptions.scriptMode = 'roman';
+              translationOptions.languagePreference = 'roman';
+            }
+          }
+
+          // If Urdu/Hindi detected or scriptMode specified, localize with Gemini AI; otherwise keep English pristine
+          let finalSentences = rawSentences;
+          if (hasUrduOrHindi || translationOptions.scriptMode) {
+            const localizedSentences = await geminiTranslationService.translateSentencesWithGemini(rawSentences, (tp) => {
+              onProgress({
+                status: 'translating',
+                message: tp.message || `Localizing captions with Gemini AI (${tp.current || 1}/${tp.total || 1})...`,
+                percent: Math.min(98, 92 + Math.round(((tp.current || 1) / (tp.total || 1)) * 6))
+              });
+            }, translationOptions);
+
+            if (localizedSentences && localizedSentences.length > 0) {
+              finalSentences = localizedSentences;
+            }
+          }
 
           if (!finalSentences || finalSentences.length === 0) {
             throw new Error('Whisper returned text but no timestamped caption segments.');
@@ -1036,6 +1055,33 @@ class SpeechTranscriberService {
     }
 
     throw new Error('Transcript missing dependency: browser audio decoding returned no readable audio track.');
+  }
+
+  /**
+   * Detects if transcript text or speech language contains Urdu or Hindi content.
+   */
+  isUrduOrHindiTranscript(sentences, detectedLanguage) {
+    const lang = (detectedLanguage || '').toLowerCase();
+    if (lang === 'ur' || lang === 'hi' || lang.includes('urdu') || lang.includes('hindi')) {
+      return true;
+    }
+    const fullText = (sentences || []).map(s => s.text || '').join(' ');
+    if (!fullText.trim()) return false;
+
+    // 1. Nastaliq Urdu / Arabic characters:
+    if (/[\u0600-\u06FF]/.test(fullText)) return true;
+
+    // 2. Devanagari Hindi characters:
+    if (/[\u0900-\u097F]/.test(fullText)) return true;
+
+    // 3. Spoken Roman Urdu / Hindi speech words:
+    const romanUrduHindiRegex = /\b(kya|kyun|kaise|kese|kaisa|kaisi|karo|karein|kar|karna|raha|rahi|rahe|hota|hoti|hote|mera|meri|mere|aap|ap|apka|apki|apke|tum|tumhara|hum|humara|bohot|boht|shukriya|acha|accha|achi|ache|bhai|dost|zindagi|pyaar|baat|nahi|nh|haan|han|hai|hain|tha|thi|the|bhi|aur|yeh|ye|woh|wo|isko|usko|unko|is|us|in|un|tarah|dekh|dekho|dekhein|skte|sakte|sakti|sakta|suno|sunen|batayein|batao|samjho|samjhein|theek|gaya|gaye|gayi|wala|wali|wale|lekin|magar|agar|warna|phir|jab|tab|ab|sab|sub|kuch|koi|kaun|kab|kahan|yahan|wahan|idhar|udhar|hein)\b/gi;
+    const matches = fullText.match(romanUrduHindiRegex);
+    if (matches && matches.length >= 2) {
+      return true;
+    }
+
+    return false;
   }
 
   normalizeTranscriptText(text) {
