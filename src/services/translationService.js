@@ -123,6 +123,15 @@ class TranslationService {
       'لیکن': 'lekin',
       'مگر': 'magar',
       'اگر': 'agar',
+      'اسکو': 'isko',
+      'دیکھ': 'dekh',
+      'سکتے': 'skte',
+      'سکتی': 'skti',
+      'سکتا': 'skta',
+      'سکیں': 'skein',
+      'دیکھتے': 'dekhte',
+      'دیکھتی': 'dekhti',
+      'دیکھتا': 'dekhta',
       'اور': 'aur',
       'بھی': 'bhi',
       'کا': 'ka',
@@ -222,6 +231,15 @@ class TranslationService {
       'मगर': 'magar',
       'क्योंकि': 'kyunki',
       'अगर': 'agar',
+      'इसको': 'isko',
+      'देख': 'dekh',
+      'सकते': 'skte',
+      'सकती': 'skti',
+      'सकता': 'skta',
+      'सकें': 'skein',
+      'देखते': 'dekhte',
+      'देखती': 'dekhti',
+      'देखता': 'dekhta',
       'तो': 'to',
       'जाओ': 'jao',
       'आओ': 'aao',
@@ -352,8 +370,11 @@ class TranslationService {
   polishRomanUrdu(text) {
     return (text || '')
       .replace(/\bnihen\b/gi, 'nahi')
-      .replace(/\bhen\b/gi, 'hain')
+      .replace(/\bhen\b/gi, 'hein')
+      .replace(/\bhain\b/gi, 'hein')
       .replace(/\bhay\b/gi, 'hai')
+      .replace(/\bskte\b/gi, 'skte')
+      .replace(/\bsakte\b/gi, 'skte')
       .replace(/\bya\b/gi, 'yeh')
       .replace(/\bmin\b/gi, 'main')
       .replace(/\bpatchhe\b/gi, 'piche')
@@ -370,6 +391,58 @@ class TranslationService {
       .replace(/\bantazar\b/gi, 'intezar')
       .replace(/\s+/g, ' ')
       .trim();
+  }
+
+  ensureNativeHindi(text) {
+    if (!text) return '';
+    let result = text;
+    const latinToDevanagari = {
+      'agar': 'अगर', 'ap': 'आप', 'aap': 'आप', 'isko': 'इसको', 'dekh': 'देख',
+      'skte': 'सकते', 'sakte': 'सकते', 'sakti': 'सकती', 'sakta': 'सकता', 'skein': 'सकें',
+      'hein': 'हैं', 'hain': 'हैं', 'hai': 'है', 'ho': 'हो', 'hum': 'हम', 'main': 'मैं',
+      'mera': 'मेरा', 'meri': 'मेरी', 'mere': 'मेरे', 'tum': 'तुम', 'tumhara': 'तुम्हारा',
+      'kya': 'क्या', 'kyun': 'क्यों', 'kab': 'कब', 'kahan': 'कहाँ', 'kaun': 'कौन',
+      'karo': 'करो', 'karna': 'करना', 'karein': 'करें', 'kar': 'कर', 'raha': 'रहा',
+      'rahi': 'रही', 'rahe': 'रहे', 'bhai': 'भाई', 'dost': 'दोस्त', 'dosto': 'दोस्तों',
+      'acha': 'अच्छा', 'achi': 'अच्छी', 'ache': 'अच्छे', 'bohot': 'बहुत', 'bahut': 'बहुत',
+      'shukriya': 'शुक्रिया', 'dhanyawad': 'धन्यवाद', 'namaste': 'नमस्ते', 'swagat': 'स्वागत',
+      'yeh': 'यह', 'woh': 'वह', 'is': 'इस', 'iska': 'इसका', 'iski': 'इसकी', 'iske': 'इसके',
+      'se': 'से', 'ko': 'को', 'ka': 'का', 'ki': 'की', 'ke': 'के', 'ne': 'ने', 'tak': 'तक',
+      'par': 'पर', 'pe': 'पे', 'aur': 'और', 'bhi': 'भी', 'lekin': 'लेकिन', 'magar': 'मगर',
+      'video': 'वीडियो', 'channel': 'चैनल', 'like': 'लाइक', 'subscribe': 'सब्सक्राइब', 'share': 'शेयर',
+      'guys': 'गाइस', 'hello': 'हेलो', 'hi': 'हाय', 'aaj': 'आज', 'kal': 'कल'
+    };
+
+    for (const [lat, dev] of Object.entries(latinToDevanagari)) {
+      result = result.replace(new RegExp(`\\b${lat}\\b`, 'gi'), dev);
+    }
+    return result.replace(/\s+/g, ' ').trim();
+  }
+
+  ensureNativeUrdu(text) {
+    if (!text) return '';
+    let result = text;
+    const latinToUrdu = {
+      'agar': 'اگر', 'ap': 'آپ', 'aap': 'آپ', 'isko': 'اسکو', 'dekh': 'دیکھ',
+      'skte': 'سکتے', 'sakte': 'سکتے', 'sakti': 'سکتی', 'sakta': 'سکتا', 'skein': 'سکیں',
+      'hein': 'ہیں', 'hain': 'ہیں', 'hai': 'ہے', 'ho': 'ہو', 'hum': 'ہم', 'main': 'میں',
+      'mera': 'میرا', 'meri': 'میری', 'mere': 'میرے', 'tum': 'تم', 'tumhara': 'تمہارا',
+      'kya': 'کیا', 'kyun': 'کیوں', 'kab': 'کب', 'kahan': 'کہاں', 'kaun': 'کون',
+      'karo': 'کرو', 'karna': 'کرنا', 'karein': 'کریں', 'kar': 'کر', 'raha': 'رہا',
+      'rahi': 'رہی', 'rahe': 'رہے', 'bhai': 'بھائی', 'dost': 'دوست', 'dosto': 'دوستو',
+      'acha': 'اچھا', 'achi': 'اچھی', 'ache': 'اچھے', 'bohot': 'بہت', 'bahut': 'بہت',
+      'shukriya': 'شکریہ', 'salam': 'سلام', 'assalam': 'السلام',
+      'yeh': 'یہ', 'woh': 'وہ', 'is': 'اس', 'iska': 'اسکا', 'iski': 'اسکی', 'iske': 'اسکے',
+      'se': 'سے', 'ko': 'کو', 'ka': 'کا', 'ki': 'کی', 'ke': 'کے', 'ne': 'نے', 'tak': 'تک',
+      'par': 'پر', 'pe': 'پر', 'aur': 'اور', 'bhi': 'بھی', 'lekin': 'لیکن', 'magar': 'مگر',
+      'video': 'ویڈیو', 'channel': 'چینل', 'like': 'لائیک', 'subscribe': 'سبسکرائب', 'share': 'شیئر',
+      'guys': 'گائز', 'hello': 'ہیلو', 'hi': 'ہائے', 'aaj': 'آج', 'kal': 'کل'
+    };
+
+    for (const [lat, urd] of Object.entries(latinToUrdu)) {
+      result = result.replace(new RegExp(`\\b${lat}\\b`, 'gi'), urd);
+    }
+    return result.replace(/\s+/g, ' ').trim();
   }
 
   /**
@@ -444,12 +517,14 @@ class TranslationService {
 
   /**
    * Refines sentence transcript blocks:
-   * - Leaves standard English sentences 100% intact.
-   * - Transliterates Urdu / Hindi speech to Roman Urdu / Roman Hindi in English alphabets.
+   * - If scriptMode === 'native': Leaves native Hindi / Urdu in 100% pure native script (no English alphabets).
+   * - If scriptMode === 'roman': Transliterates Urdu / Hindi speech to Roman Urdu / Roman Hindi in English alphabets.
    * - Preserves speech timings and word synchronizations.
    */
-  async translateSentencesToEnglish(sentences, onProgress = () => {}) {
+  async translateSentencesToEnglish(sentences, onProgress = () => {}, options = {}) {
     if (!sentences || sentences.length === 0) return [];
+    const scriptMode = typeof options === 'string' ? options : (options?.scriptMode || 'roman');
+    const targetLang = options?.languagePreference || options?.language || 'auto';
 
     const processedSentences = [];
     const total = sentences.length;
@@ -463,9 +538,41 @@ class TranslationService {
         percent: Math.round(((i + 1) / total) * 100)
       });
 
-      const rawText = s.text || '';
-      const hasNonLatin = this.hasNonLatinScript(rawText);
+      const rawText = (s.text || '').trim();
+      const hasUrdu = /[\u0600-\u06FF]/.test(rawText);
+      const hasHindi = /[\u0900-\u097F]/.test(rawText);
+      const hasNonLatin = hasUrdu || hasHindi || this.hasNonLatinScript(rawText);
 
+      // CASE 1: USER CHOSE NATIVE SCRIPT (Pure Hindi Devanagari or Pure Urdu Nastaliq, zero English letters)
+      if (scriptMode === 'native') {
+        let nativeText = rawText;
+        if (targetLang === 'hindi' || (!hasUrdu && hasHindi)) {
+          nativeText = this.ensureNativeHindi(nativeText);
+        } else if (targetLang === 'urdu' || hasUrdu) {
+          nativeText = this.ensureNativeUrdu(nativeText);
+        }
+
+        const sStart = Number(s.start ?? s.startTime ?? 0);
+        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+        const hasExistingWords = Array.isArray(s.words) && s.words.length > 0;
+        const words = hasExistingWords ? s.words : this.realignWords(nativeText, sStart, sEnd);
+
+        processedSentences.push({
+          id: s.id,
+          startTime: sStart,
+          endTime: sEnd,
+          start: sStart,
+          end: sEnd,
+          originalText: rawText,
+          originalLanguage: targetLang === 'urdu' || hasUrdu ? 'ur' : 'hi',
+          language: targetLang === 'urdu' || hasUrdu ? 'ur' : 'hi',
+          text: nativeText,
+          words: words
+        });
+        continue;
+      }
+
+      // CASE 2: ROMAN SCRIPT (or English / Global)
       // If text is already in Latin/English alphabet (English or Roman Urdu/Hindi), keep it 100% intact
       if (!hasNonLatin) {
         processedSentences.push({
@@ -481,12 +588,16 @@ class TranslationService {
       if (!romanText || this.isRomanHallucination(romanText)) {
         continue;
       }
-      const newWords = this.realignWords(romanText, s.startTime, s.endTime);
+      const sStart = Number(s.start ?? s.startTime ?? 0);
+      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+      const newWords = this.realignWords(romanText, sStart, sEnd);
 
       processedSentences.push({
         id: s.id,
-        startTime: s.startTime,
-        endTime: s.endTime,
+        startTime: sStart,
+        endTime: sEnd,
+        start: sStart,
+        end: sEnd,
         originalText: rawText,
         originalLanguage: languageIdentifier.detectTextLanguage(rawText),
         language: 'en',

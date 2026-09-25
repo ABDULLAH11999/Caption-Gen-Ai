@@ -1168,3 +1168,118 @@ apiRouter.put('/admin/settings', requireAdmin, async (req, res) => {
   }
   res.json({ success: true, message: 'Settings saved successfully!' });
 });
+
+// ----------------------------------------------------------------------------
+// GEMINI AI TRANSCRIPT TRANSLATION & TRANSLITERATION API
+// ----------------------------------------------------------------------------
+apiRouter.post('/ai/translate-transcript', async (req, res) => {
+  try {
+    const { sentences, scriptMode = 'roman', languagePreference = 'auto', apiKey } = req.body || {};
+
+    if (!Array.isArray(sentences) || sentences.length === 0) {
+      return res.status(400).json({ error: 'Sentences array is required' });
+    }
+
+    const effectiveKey = (typeof apiKey === 'string' && apiKey.trim()) || process.env.GEMINI_API_KEY;
+    if (!effectiveKey) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY is not configured on server or in request' });
+    }
+
+    let modeInstruction = '';
+    if (scriptMode === 'roman') {
+      modeInstruction = `TARGET SCRIPT: ROMAN HINDI & ROMAN URDU (Latin English alphabets).
+Transliterate and translate speech to natural, conversational Roman Urdu / Roman Hindi using phonetic Latin English letters (e.g. "agar ap isko dekh skte hein", "kese ho aap sab", "aaj hum is bare me baat karenge").
+Keep popular tech words in clean English (e.g., "video", "subscribe", "channel", "camera", "AI", "studio", "like", "link").
+CRITICAL: Do NOT output Devanagari or Urdu Nastaliq letters. Output ONLY Latin English alphabet words.`;
+    } else if (scriptMode === 'native' && languagePreference === 'hindi') {
+      modeInstruction = `TARGET SCRIPT: PURE NATIVE HINDI (हिन्दी - Devanagari script).
+Translate and convert speech into 100% pure, natural Hindi in Devanagari script.
+CRITICAL: Absolutely ZERO English or Latin letters. Every single word must be in Devanagari (e.g. "अगर आप इसको देख सकते हैं तो लाइक करें").`;
+    } else if (scriptMode === 'native' && languagePreference === 'urdu') {
+      modeInstruction = `TARGET SCRIPT: PURE NATIVE URDU (اردو - Nastaliq script).
+Translate and convert speech into 100% pure, natural Urdu in Nastaliq script.
+CRITICAL: Absolutely ZERO English or Latin letters. Every single word must be in authentic Urdu script (e.g. "اگر آپ اس کو دیکھ سکتے ہیں تو لائیک کریں").`;
+    } else if (scriptMode === 'native') {
+      modeInstruction = `TARGET SCRIPT: PURE NATIVE SCRIPT.
+Detect if the speech is Hindi or Urdu.
+If Hindi: Output 100% pure Devanagari script (हिन्दी) with ZERO English letters.
+If Urdu: Output 100% pure Nastaliq script (اردو) with ZERO English letters.`;
+    } else {
+      modeInstruction = `TARGET SCRIPT: NATURAL SOCIAL MEDIA ENGLISH.
+Translate speech into concise, punchy, modern English captions suitable for viral video reels and shorts.`;
+    }
+
+    const segmentsInput = sentences.map((s, idx) => ({
+      id: s.id !== undefined ? s.id : idx,
+      text: s.text || ''
+    }));
+
+    const prompt = `You are an elite video transcript subtitle localization and transliteration engine.
+${modeInstruction}
+
+RULES:
+1. Return exactly one entry for each input item, maintaining the identical "id".
+2. Keep subtitles natural, punchy, and conversational for video creators.
+3. Preserve the exact meaning and speech flow.
+4. Output MUST be a valid JSON array of objects conforming to this schema:
+[
+  {"id": 0, "text": "localized text"}
+]
+
+INPUT SEGMENTS:
+${JSON.stringify(segmentsInput, null, 2)}`;
+
+    const modelsToTry = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+    let lastError = null;
+
+    for (const model of modelsToTry) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(effectiveKey)}`;
+        const geminiRes = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.15,
+              topK: 32,
+              topP: 0.95,
+              maxOutputTokens: 8192,
+              responseMimeType: 'application/json'
+            }
+          })
+        });
+
+        if (!geminiRes.ok) {
+          const errData = await geminiRes.json().catch(() => ({}));
+          const errMsg = errData.error?.message || `HTTP ${geminiRes.status}`;
+          throw new Error(`Gemini ${model} failed: ${errMsg}`);
+        }
+
+        const data = await geminiRes.json();
+        const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!candidateText) {
+          throw new Error('Empty response from Gemini');
+        }
+
+        let cleaned = candidateText.trim();
+        if (cleaned.startsWith('```')) {
+          cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+        }
+
+        const parsed = JSON.parse(cleaned);
+        if (Array.isArray(parsed)) {
+          return res.json({ success: true, translatedSentences: parsed });
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`[Server Gemini] Model ${model} error:`, err.message);
+      }
+    }
+
+    return res.status(500).json({ error: lastError?.message || 'Gemini transcript translation failed' });
+  } catch (err) {
+    console.error('[Server Gemini] Error:', err);
+    return res.status(500).json({ error: err.message || 'Internal translation server error' });
+  }
+});

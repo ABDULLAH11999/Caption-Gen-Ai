@@ -1,5 +1,6 @@
 import { pipeline, env } from '@xenova/transformers';
 import { translationService } from './translationService.js';
+import { geminiTranslationService } from './geminiTranslationService.js';
 
 // Configure transformers to use local/cached models and optimized WASM backends
 env.allowLocalModels = false;
@@ -742,14 +743,14 @@ class SpeechTranscriberService {
   /**
    * Adapter method for UserDashboard.js calling speechTranscriber.transcribeVideoBlob
    */
-  async transcribeVideoBlob(fileBlob, onProgress = () => {}) {
+  async transcribeVideoBlob(fileBlob, onProgress = () => {}, options = {}) {
     const sentences = await this.transcribeAudio(fileBlob, (info) => {
       if (typeof onProgress === 'function') {
         const msg = typeof info === 'string' ? info : (info.message || info.status || 'Processing audio...');
         const pct = typeof info === 'object' && info.percent !== undefined ? info.percent : 50;
         onProgress(msg, pct);
       }
-    });
+    }, options);
     return { sentences };
   }
 
@@ -912,7 +913,7 @@ class SpeechTranscriberService {
   /**
    * Transcribes the audio file using neural in-browser Whisper AI
    */
-  async transcribeAudio(fileBlob, onProgress = () => {}) {
+  async transcribeAudio(fileBlob, onProgress = () => {}, options = {}) {
     this._activeFileName = fileBlob?.name || '';
     onProgress({ status: 'extracting', message: 'Decoding audio tracks...', percent: 20 });
 
@@ -1002,17 +1003,17 @@ class SpeechTranscriberService {
             console.warn('[speechTranscriber] Low-confidence transcript kept for editing instead of blocking upload.');
           }
 
-          // Guarantee 100% fluent English captions with word-level sync
-          const englishSentences = await translationService.translateSentencesToEnglish(rawSentences, (tp) => {
+          // Guarantee high-accuracy captions with Gemini AI and word-level sync
+          const localizedSentences = await geminiTranslationService.translateSentencesWithGemini(rawSentences, (tp) => {
             onProgress({
               status: 'translating',
-              message: `Refining captions (${tp.current}/${tp.total})...`,
-              percent: Math.min(98, 92 + Math.round((tp.current / tp.total) * 6))
+              message: tp.message || `Refining captions with Gemini AI (${tp.current || 1}/${tp.total || 1})...`,
+              percent: Math.min(98, 92 + Math.round(((tp.current || 1) / (tp.total || 1)) * 6))
             });
-          });
+          }, options);
 
-          const finalSentences = englishSentences && englishSentences.length > 0
-            ? englishSentences
+          const finalSentences = localizedSentences && localizedSentences.length > 0
+            ? localizedSentences
             : rawSentences;
 
           if (!finalSentences || finalSentences.length === 0) {
