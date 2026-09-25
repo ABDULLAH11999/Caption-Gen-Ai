@@ -1872,7 +1872,7 @@ export class UserDashboard {
         <div class="caption-segment-anchor" data-sentence-id="${currentSentence.id || ''}" style="position: absolute; top: ${posY}; left: ${posX}; transform: ${posTransform}; width: ${customWidth}; max-width: ${customMaxWidth}; text-align: ${textAlign}; z-index: 20;">
           
           <!-- Floating Quick Action Toolbar -->
-          <div class="caption-drag-toolbar" onclick="event.stopPropagation()">
+          <div class="caption-drag-toolbar">
             <span class="caption-toolbar-pill caption-drag-handle" title="Click and drag anywhere on video to position">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="2"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/></svg>
               <span>Move</span>
