@@ -2494,12 +2494,19 @@ export class UserDashboard {
     const evenWordDuration = duration / Math.max(1, textTokens.length);
     const words = textTokens.map((token, wordIdx) => {
       const matchingWord = sourceWords.length === textTokens.length ? sourceWords[wordIdx] : null;
-      let wStart = matchingWord
-        ? Number(matchingWord.start ?? matchingWord.startTime ?? (sourceStart + wordIdx * evenWordDuration))
-        : sourceStart + wordIdx * evenWordDuration;
-      let wEnd = matchingWord
-        ? Number(matchingWord.end ?? matchingWord.endTime ?? (sourceStart + (wordIdx + 1) * evenWordDuration))
-        : sourceStart + (wordIdx + 1) * evenWordDuration;
+      const evenStart = sourceStart + wordIdx * evenWordDuration;
+      const evenEnd = sourceStart + (wordIdx + 1) * evenWordDuration;
+
+      // Only trust word-level timing when it's actually within the segment's own range.
+      // If start/end are zero, negative, or both collapse to the same value as sourceStart,
+      // the word-timing data is absent/invalid — fall back to even distribution so every
+      // word-segment gets a distinct, non-overlapping time window.
+      let rawStart = matchingWord ? Number(matchingWord.start ?? matchingWord.startTime ?? evenStart) : evenStart;
+      let rawEnd   = matchingWord ? Number(matchingWord.end   ?? matchingWord.endTime   ?? evenEnd)   : evenEnd;
+      const timingIsUsable = matchingWord && rawStart > 0 && rawEnd > rawStart && rawStart >= sourceStart && rawEnd <= sourceEnd + 0.05;
+
+      let wStart = timingIsUsable ? rawStart : evenStart;
+      let wEnd   = timingIsUsable ? rawEnd   : evenEnd;
 
       wStart = Math.max(sourceStart, Math.min(sourceEnd, wStart));
       wEnd = Math.max(wStart + 0.12, Math.min(sourceEnd, wEnd));
@@ -3226,7 +3233,11 @@ export class UserDashboard {
             const f = e.target.dataset.field;
             const i = Number(e.target.dataset.idx);
             if (f === 'start' || f === 'end') {
-              tempSegments[i][f] = parseFloat(e.target.value) || 0;
+              const v = parseFloat(e.target.value) || 0;
+              tempSegments[i][f] = v;
+              // Keep canonical alias in sync so the caption engine always sees a consistent value
+              if (f === 'start') tempSegments[i].startTime = v;
+              if (f === 'end')   tempSegments[i].endTime   = v;
             } else if (f === 'text') {
               tempSegments[i][f] = e.target.value;
             }
@@ -3285,8 +3296,11 @@ export class UserDashboard {
 
       // Re-generate word timings from text
       tempSegments.forEach(seg => {
+        // Normalise both alias pairs before reading so whichever was last written is used
         const segStart = Number(seg.start ?? seg.startTime ?? 0);
         const segEnd = Number(seg.end ?? seg.endTime ?? (segStart + 2.5));
+        seg.start = segStart; seg.startTime = segStart;
+        seg.end   = segEnd;   seg.endTime   = segEnd;
         const words = (seg.text || '').trim().split(/\s+/).filter(Boolean);
         const duration = Math.max(0.5, segEnd - segStart);
         const wordDuration = duration / Math.max(1, words.length);
