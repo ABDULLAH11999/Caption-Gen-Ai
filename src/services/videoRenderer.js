@@ -385,11 +385,11 @@ export class VideoRenderer {
     // 7. Typography and responsive sizing relative to video resolution
     const isPortrait = canvasHeight > canvasWidth;
     const previewDisplayWidth = Number(config.previewDisplayWidth || 0);
-    const fallbackRefWidth = isPortrait ? 360 : 1080;
-    const refWidth = Number.isFinite(previewDisplayWidth) && previewDisplayWidth > 120
+    const fallbackRefWidth = isPortrait ? 360 : 640;
+    const refWidth = Number.isFinite(previewDisplayWidth) && previewDisplayWidth > 80
       ? previewDisplayWidth
       : fallbackRefWidth;
-    const scale = Math.max(0.65, Math.min(3.25, canvasWidth / refWidth));
+    const scale = Math.max(0.65, Math.min(8.0, canvasWidth / refWidth));
 
     const previewFontSize = (currentSentence.fontSize !== undefined && currentSentence.fontSize !== null && currentSentence.fontSize > 0)
       ? Number(currentSentence.fontSize)

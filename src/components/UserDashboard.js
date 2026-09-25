@@ -561,9 +561,18 @@ export class UserDashboard {
   bindSidebarEvents() {
     const toggle = this.container.querySelector('#btn-user-sidebar-toggle');
     const sidebar = this.container.querySelector('#user-sidebar-nav');
-    toggle?.addEventListener('click', () => {
+    toggle?.addEventListener('click', (e) => {
+      e.stopPropagation();
       const isOpen = sidebar?.classList.toggle('open');
       toggle.classList.toggle('active', isOpen);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (sidebar?.classList.contains('open')) {
+        if (!sidebar.contains(e.target) && !toggle?.contains(e.target)) {
+          this.closeSidebarDrawer();
+        }
+      }
     });
 
     this.container.querySelectorAll('.user-menu-item[data-tab]').forEach(el => {
@@ -1464,6 +1473,10 @@ export class UserDashboard {
 
     // Apply video enhancement class immediately if enabled
     this.videoElement.classList.toggle('video-enhanced', !!this.enhanceVideoQuality);
+    this.cutoutCanvas = wrap.querySelector('#user-cutout-canvas');
+    if (this.cutoutCanvas) {
+      this.cutoutCanvas.classList.toggle('video-enhanced', !!this.enhanceVideoQuality);
+    }
 
     const scrubber = wrap.querySelector('#user-timeline-scrubber');
     const timeDisplay = wrap.querySelector('#user-time-display');
@@ -1561,6 +1574,9 @@ export class UserDashboard {
       enhanceToggle.addEventListener('change', (e) => {
         this.enhanceVideoQuality = e.target.checked;
         this.videoElement.classList.toggle('video-enhanced', this.enhanceVideoQuality);
+        if (this.cutoutCanvas) {
+          this.cutoutCanvas.classList.toggle('video-enhanced', this.enhanceVideoQuality);
+        }
         this.renderCutoutIfActiveBehind();
         soundFx.playEnhanceToggle(this.enhanceVideoQuality);
         this.showToast(this.enhanceVideoQuality ? '✨ Video Enhancement Enabled (+30% Vibrance & Contrast)' : 'Video Enhancement Disabled', 'info');
@@ -2921,6 +2937,7 @@ export class UserDashboard {
 
     if (currentSentence && currentSentence.behind && selfieSegmenterService.isReady()) {
       this.cutoutCanvas.style.display = 'block';
+      this.cutoutCanvas.classList.toggle('video-enhanced', !!this.enhanceVideoQuality);
       selfieSegmenterService.renderCutout(this.videoElement, this.cutoutCanvas, this.enhanceVideoQuality);
     } else {
       if (this.cutoutCanvas.style.display !== 'none') {
@@ -3060,11 +3077,37 @@ export class UserDashboard {
       const studioConfig = (this.activeConfig && (!this.activeConfig.templateId || this.activeConfig.templateId === tpl.id)) ? this.activeConfig : {};
       const cfg = { ...tpl.config, ...customConfig, ...studioConfig };
 
-      const previewRect = this.videoElement?.getBoundingClientRect?.();
+      let previewDisplayWidth = null;
+      let previewDisplayHeight = null;
+      if (this.videoElement) {
+        const rect = this.videoElement.getBoundingClientRect?.() || {};
+        const vw = Number(this.videoElement.videoWidth || 0);
+        const vh = Number(this.videoElement.videoHeight || 0);
+        const rw = Number(rect.width || 0);
+        const rh = Number(rect.height || 0);
+
+        if (rw > 0 && rh > 0 && vw > 0 && vh > 0) {
+          const elAspect = rw / rh;
+          const vidAspect = vw / vh;
+          if (vidAspect > elAspect) {
+            // Video fills container width, letterbox top/bottom
+            previewDisplayWidth = rw;
+            previewDisplayHeight = rw / vidAspect;
+          } else {
+            // Video fills container height, pillarbox left/right
+            previewDisplayWidth = rh * vidAspect;
+            previewDisplayHeight = rh;
+          }
+        } else if (rw > 0) {
+          previewDisplayWidth = rw;
+          previewDisplayHeight = rh;
+        }
+      }
+
       const renderCfg = {
         ...cfg,
-        previewDisplayWidth: previewRect?.width || null,
-        previewDisplayHeight: previewRect?.height || null,
+        previewDisplayWidth,
+        previewDisplayHeight,
         previewMode: this.currentMode
       };
 
