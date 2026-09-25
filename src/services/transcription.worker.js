@@ -81,6 +81,41 @@ function scoreTranscriptCandidate(result, language = null, hintType = 'auto') {
   return score;
 }
 
+function getTranscriptCoverage(result, totalDuration = 0) {
+  const chunks = Array.isArray(result?.chunks) ? result.chunks : [];
+  const ranges = chunks
+    .map(chunk => Array.isArray(chunk.timestamp) ? chunk.timestamp : null)
+    .filter(Boolean)
+    .map(([start, end]) => [Number(start), Number(end)])
+    .filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end) && end > start);
+  if (!ranges.length || !totalDuration) return 0;
+  const covered = ranges.reduce((sum, [start, end]) => sum + Math.max(0, end - start), 0);
+  return covered / Math.max(1, totalDuration);
+}
+
+function isLikelyFillerHallucination(text) {
+  const clean = (text || '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+  if (!clean) return true;
+  const words = clean.split(/\s+/).filter(Boolean);
+  const uniqueWords = new Set(words);
+  if (words.length >= 3 && uniqueWords.size <= 2) return true;
+  if (/\b(sir\s+){2,}sir\b/i.test(words.join(' '))) return true;
+  if (/\b(hay\s+sakta|sakta\s+hay)(\s+(hay|sakta)){2,}\b/i.test(words.join(' '))) return true;
+  return isRepetitiveTranscriptText(clean);
+}
+
+function isAcceptableSouthAsianTranscript(result, score, duration = 0) {
+  const text = result?.text || '';
+  const hasSouthAsianScript = /[\u0600-\u06FF\u0900-\u097F]/.test(text);
+  const hasRomanSouthAsian = /\b(kya|kyun|kaise|kese|aap|tum|hum|hai|hain|nahi|haan|acha|bhai|dost|raha|rahi|rahe|kar|karo|aur|bhi|main|mera|meri|apka|shukriya|assalam|namaste)\b/i.test(text);
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const coverage = getTranscriptCoverage(result, duration);
+  if (isLikelyFillerHallucination(text)) return false;
+  if (!hasSouthAsianScript && !hasRomanSouthAsian) return false;
+  if (duration > 10 && coverage > 0 && coverage < 0.18 && words.length < 12) return false;
+  return score >= 25;
+}
+
 function isLikelyWeakEnglishHallucination(result) {
   const text = (result?.text || '').replace(/\s+/g, ' ').trim().toLowerCase();
   if (!text) return false;
@@ -197,7 +232,7 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
           bestCandidate = { result, score };
         }
 
-        if (score >= 55 && /[\u0600-\u06FF\u0900-\u097F]/.test(result.text || '')) {
+        if (hintType === 'south_asian' && isAcceptableSouthAsianTranscript(result, score, options.duration || 0)) {
           return result;
         }
       }
@@ -207,12 +242,16 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
     }
   }
 
-  if (bestCandidate?.result) return bestCandidate.result;
+  if (bestCandidate?.result) {
+    if (hintType !== 'south_asian' || isAcceptableSouthAsianTranscript(bestCandidate.result, bestCandidate.score, options.duration || 0)) {
+      return bestCandidate.result;
+    }
+  }
   throw lastError || new Error('Whisper did not detect any transcript text in this video.');
 }
 
 self.addEventListener('message', async (e) => {
-  const { type, rawPcm, modelId, options, fileName } = e.data || {};
+  const { type, rawPcm, modelId, options, fileName, duration } = e.data || {};
 
   if (type === 'init' || type === 'transcribe') {
     const targetModel = modelId || currentModelId;
@@ -248,7 +287,7 @@ self.addEventListener('message', async (e) => {
         return;
       }
 
-      const result = await runTranscriptionAttempts(rawPcm, options, fileName);
+      const result = await runTranscriptionAttempts(rawPcm, { ...(options || {}), duration }, fileName);
       self.postMessage({ type: 'done', result });
     } catch (err) {
       self.postMessage({ type: 'error', error: err.message || String(err) });

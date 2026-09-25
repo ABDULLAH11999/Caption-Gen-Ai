@@ -1190,6 +1190,26 @@ body.app-shell-locked {
   transform: translateY(-1.5px);
 }
 
+.btn-burn-captions.is-burning {
+  --burn-progress: 0%;
+  background:
+    linear-gradient(90deg, #ff5a1f var(--burn-progress), #000000 var(--burn-progress)) !important;
+  border-color: #ff5a1f !important;
+  color: #ffffff !important;
+  transform: none !important;
+}
+
+.btn-burn-captions.is-burning .burn-btn-content {
+  position: relative;
+  z-index: 1;
+  color: #ffffff;
+}
+
+.btn-burn-captions.is-burning .burn-status-label {
+  color: #ffffff;
+  font-weight: 900;
+}
+
 /* ==========================================================================
    RIGHT STUDIO SIDEBAR (CAPTIONS & SEGMENTS LIST)
    ========================================================================== */

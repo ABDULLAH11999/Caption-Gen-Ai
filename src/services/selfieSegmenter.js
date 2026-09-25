@@ -534,7 +534,7 @@ class SelfieSegmenterService {
     const height = canvasHeight;
     const time = Number(options.time ?? video.currentTime ?? 0);
 
-    if (this.drawExportCutoutForTime(ctx, time, width, height, options.useExportCache ? 0.25 : 0.18)) {
+    if (this.drawExportCutoutForTime(ctx, time, width, height, options.useExportCache ? 0.035 : 0.18)) {
       return;
     }
 
@@ -547,7 +547,7 @@ class SelfieSegmenterService {
       this.cutoutCanvas.height = height;
     }
 
-    if (this.lastCutoutWidth && this.lastCutoutHeight) {
+    if (!options.disableStaleCutout && this.lastCutoutWidth && this.lastCutoutHeight) {
       ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
     }
     if (!this.shouldSegment(video, 8)) return;

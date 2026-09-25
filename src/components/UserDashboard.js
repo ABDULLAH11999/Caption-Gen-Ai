@@ -2740,14 +2740,9 @@ export class UserDashboard {
 
     // Helper to apply current active style, sizing, animation, and position to ALL segments
     const applyCurrentPosToAll = () => {
-      const time = this.videoElement ? this.videoElement.currentTime : 0;
       const sentences = captionEngine.sentences || [];
-      const currentSentence = sentences.find((s, i) => {
-        const sStart = Number(s.start ?? s.startTime ?? 0);
-        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-        const isLast = (i === sentences.length - 1);
-        return time >= sStart && (isLast ? time <= sEnd : time < sEnd);
-      }) || sentences[0];
+      const currentIdx = this.getCurrentEditableSegmentIndex();
+      const currentSentence = sentences[currentIdx] || sentences[0];
 
       if (!currentSentence) return;
 
@@ -2807,14 +2802,9 @@ export class UserDashboard {
       if (resetBtn) {
         e.stopPropagation();
         e.preventDefault();
-        const time = this.videoElement ? this.videoElement.currentTime : 0;
         const sentences = captionEngine.sentences || [];
-        const currentSentence = sentences.find((s, i) => {
-          const sStart = Number(s.start ?? s.startTime ?? 0);
-          const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-          const isLast = (i === sentences.length - 1);
-          return time >= sStart && (isLast ? time <= sEnd : time < sEnd);
-        }) || sentences[0];
+        const currentIdx = this.getCurrentEditableSegmentIndex();
+        const currentSentence = sentences[currentIdx] || sentences[0];
 
         if (currentSentence) {
           currentSentence.posX = 6;
@@ -3041,18 +3031,18 @@ export class UserDashboard {
 
     const defaultBtnHtml = `
       <div class="burn-btn-content">
-        <span>🎥 Burn Captions (60 FPS Export)</span>
+        <span>Burn Captions (60 FPS Export)</span>
       </div>
     `;
 
     if (burnBtn) {
       burnBtn.disabled = true;
       burnBtn.style.cursor = 'wait';
+      burnBtn.classList.add('is-burning');
+      burnBtn.style.setProperty('--burn-progress', '0%');
       burnBtn.innerHTML = `
-        <div class="burn-progress-fill" style="width: 0%;"></div>
         <div class="burn-btn-content">
-          <span style="display: inline-block; animation: spin 1s linear infinite;">⏳</span>
-          <span class="burn-status-label">Burning... <strong>0%</strong></span>
+          <span class="burn-status-label">Processing 0%</span>
         </div>
       `;
     }
@@ -3079,9 +3069,10 @@ export class UserDashboard {
         if (burnBtn) {
           const fill = burnBtn.querySelector('.burn-progress-fill');
           if (fill) fill.style.width = `${percentVal}%`;
+          burnBtn.style.setProperty('--burn-progress', `${percentVal}%`);
           const statusLabel = burnBtn.querySelector('.burn-status-label');
           if (statusLabel) {
-            statusLabel.innerHTML = `Burning... <strong>${percentVal}%</strong>`;
+            statusLabel.textContent = `Processing ${percentVal}%`;
           }
         }
       }, this.enhanceVideoQuality);
@@ -3090,10 +3081,10 @@ export class UserDashboard {
       this.showToast('Export Complete! Downloaded 60 FPS video.', 'success');
 
       if (burnBtn) {
+        burnBtn.style.setProperty('--burn-progress', '100%');
         burnBtn.innerHTML = `
-          <div class="burn-progress-fill" style="width: 100%; background: rgba(16, 185, 129, 0.45);"></div>
           <div class="burn-btn-content">
-            <span>✅ Complete! <strong>100%</strong></span>
+            <span>Processing 100%</span>
           </div>
         `;
       }
@@ -3103,6 +3094,8 @@ export class UserDashboard {
         if (burnBtn) {
           burnBtn.disabled = false;
           burnBtn.style.cursor = 'pointer';
+          burnBtn.classList.remove('is-burning');
+          burnBtn.style.removeProperty('--burn-progress');
           burnBtn.innerHTML = defaultBtnHtml;
         }
       }, 2500);
@@ -3112,7 +3105,9 @@ export class UserDashboard {
       if (burnBtn) {
         burnBtn.disabled = false;
         burnBtn.style.cursor = 'pointer';
-        burnBtn.innerHTML = defaultBtnHtml;
+          burnBtn.classList.remove('is-burning');
+          burnBtn.style.removeProperty('--burn-progress');
+          burnBtn.innerHTML = defaultBtnHtml;
       }
     }
   }

@@ -392,6 +392,30 @@ class SpeechTranscriberService {
     return score;
   }
 
+  getTranscriptCoverage(result, totalDuration = 0) {
+    const chunks = Array.isArray(result?.chunks) ? result.chunks : [];
+    const ranges = chunks
+      .map(chunk => Array.isArray(chunk.timestamp) ? chunk.timestamp : null)
+      .filter(Boolean)
+      .map(([start, end]) => [Number(start), Number(end)])
+      .filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end) && end > start);
+    if (!ranges.length || !totalDuration) return 0;
+    const covered = ranges.reduce((sum, [start, end]) => sum + Math.max(0, end - start), 0);
+    return covered / Math.max(1, totalDuration);
+  }
+
+  isAcceptableSouthAsianTranscript(result, score, duration = 0) {
+    const text = result?.text || '';
+    const hasSouthAsianScript = /[\u0600-\u06FF\u0900-\u097F]/.test(text);
+    const hasRomanSouthAsian = /\b(kya|kyun|kaise|kese|aap|tum|hum|hai|hain|nahi|haan|acha|bhai|dost|raha|rahi|rahe|kar|karo|aur|bhi|main|mera|meri|apka|shukriya|assalam|namaste)\b/i.test(text);
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    const coverage = this.getTranscriptCoverage(result, duration);
+    if (this.isLikelyFillerHallucination(text)) return false;
+    if (!hasSouthAsianScript && !hasRomanSouthAsian) return false;
+    if (duration > 10 && coverage > 0 && coverage < 0.18 && words.length < 12) return false;
+    return score >= 25;
+  }
+
   isLikelyWeakEnglishHallucination(result) {
     const text = (result?.text || '').replace(/\s+/g, ' ').trim().toLowerCase();
     if (!text) return false;
@@ -467,7 +491,7 @@ class SpeechTranscriberService {
             bestCandidate = { result, score };
           }
 
-          if (score >= 55 && /[\u0600-\u06FF\u0900-\u097F]/.test(result.text || '')) {
+          if (hintType === 'south_asian' && this.isAcceptableSouthAsianTranscript(result, score, duration)) {
             return result;
           }
         }
@@ -480,7 +504,11 @@ class SpeechTranscriberService {
       await new Promise(r => setTimeout(r, 40));
     }
 
-    if (bestCandidate?.result) return bestCandidate.result;
+    if (bestCandidate?.result) {
+      if (hintType !== 'south_asian' || this.isAcceptableSouthAsianTranscript(bestCandidate.result, bestCandidate.score, duration)) {
+        return bestCandidate.result;
+      }
+    }
     throw lastError || new Error('Whisper did not detect any transcript text in this video.');
   }
 

@@ -648,7 +648,8 @@ export class VideoRenderer {
     if (currentSentence.behind && selfieSegmenterService.isReady()) {
       selfieSegmenterService.drawCutoutToContext(video, ctx, canvasWidth, canvasHeight, isEnhanced, {
         time: curTime,
-        useExportCache: config.useExportCutoutCache === true
+        useExportCache: config.useExportCutoutCache === true,
+        disableStaleCutout: true
       });
     }
   }
