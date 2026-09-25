@@ -270,118 +270,14 @@ export class VideoRenderer {
     return state;
   }
 
-  /**
-   * Renders the current frame on a canvas with pristine quality and styled captions
-   * Matches live preview video display 100% pixel-perfect
-   */
-  renderFrame(ctx, video, curTimeOrState, config = {}, canvasWidth, canvasHeight, sentencesOverride = null) {
-    if (!video || !ctx) return;
+  renderSentence(ctx, sentence, curTime, config, canvasWidth, canvasHeight, sentences, scale) {
+    if (!sentence) return;
 
-    // 1. Draw source video frame at native pixel perfection
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-
-    const isEnhanced = config && (config.enhanceQuality || config.enhanceVideoQuality) || (video.classList && video.classList.contains('video-enhanced'));
-    if (isEnhanced) {
-      // Matches CSS: contrast(1.18) saturate(1.28) brightness(1.02)
-      ctx.filter = 'contrast(1.18) saturate(1.28) brightness(1.02)';
-    } else {
-      ctx.filter = 'none';
-    }
-
-    ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
-    ctx.filter = 'none'; // Reset filter before drawing caption layers
-
-    // 2. Resolve currentTime and sentences
-    let curTime = 0;
-    let sentences = sentencesOverride || [];
-
-    if (typeof curTimeOrState === 'number') {
-      curTime = curTimeOrState;
-    } else if (curTimeOrState && typeof curTimeOrState === 'object') {
-      curTime = curTimeOrState.currentTime !== undefined ? curTimeOrState.currentTime : (video.currentTime || 0);
-      if (curTimeOrState.sentences) sentences = curTimeOrState.sentences;
-    } else {
-      curTime = video.currentTime || 0;
-    }
-
-    if (!sentences || sentences.length === 0) return;
-
-    // 3. Find active sentence strictly matching timeline (supports multiple word segments with same start/end)
-    let currentSentence = null;
-    const matchingSentences = [];
-    for (let i = 0; i < sentences.length; i++) {
-      const s = sentences[i];
-      const sStart = Number(s.start ?? s.startTime ?? 0);
-      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-      const isLast = (i === sentences.length - 1);
-      if (curTime >= sStart && (isLast ? curTime <= sEnd : curTime < sEnd)) {
-        matchingSentences.push({ sentence: s, index: i, start: sStart, end: sEnd });
-      }
-    }
-
-    if (matchingSentences.length > 1) {
-      const base = matchingSentences[0].sentence;
-      const start = Math.min(...matchingSentences.map(m => m.start));
-      const end = Math.max(...matchingSentences.map(m => m.end));
-      const words = matchingSentences.flatMap((m) => {
-        const sentence = m.sentence;
-        if (Array.isArray(sentence.words) && sentence.words.length > 0) {
-          return sentence.words.map(w => ({
-            ...w,
-            start: Number(w.start ?? w.startTime ?? m.start),
-            end: Number(w.end ?? w.endTime ?? m.end),
-            startTime: Number(w.start ?? w.startTime ?? m.start),
-            endTime: Number(w.end ?? w.endTime ?? m.end)
-          }));
-        }
-        return [{
-          word: sentence.text || '',
-          start: m.start,
-          end: m.end,
-          startTime: m.start,
-          endTime: m.end
-        }];
-      }).filter(w => (w.word || '').trim());
-
-      currentSentence = {
-        ...base,
-        id: `combined_${matchingSentences.map(m => m.sentence.id || m.index).join('_')}`,
-        start,
-        end,
-        startTime: start,
-        endTime: end,
-        text: matchingSentences.map(m => m.sentence.text || '').filter(Boolean).join(' '),
-        words
-      };
-    } else if (matchingSentences.length === 1) {
-      currentSentence = matchingSentences[0].sentence;
-    }
-
-    if (!currentSentence && sentences.length > 0) {
-      for (let i = sentences.length - 1; i >= 0; i--) {
-        const s = sentences[i];
-        const sStart = Number(s.start ?? s.startTime ?? 0);
-        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-        if (curTime >= sStart && curTime <= (sEnd + 0.35)) {
-          const nextS = sentences[i + 1];
-          const nextStart = nextS ? Number(nextS.start ?? nextS.startTime ?? Infinity) : Infinity;
-          if (curTime < nextStart) {
-            currentSentence = s;
-            break;
-          }
-        }
-      }
-    }
-
-    if (!currentSentence) return;
-
-    // 4. Ensure words array exists with valid timings
-    let words = currentSentence.words;
+    let words = sentence.words;
     if (!words || words.length === 0) {
-      const sStart = Number(currentSentence.start ?? currentSentence.startTime ?? 0);
-      const sEnd = Number(currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5));
-      const textWords = (currentSentence.text || '').split(/\s+/).filter(Boolean);
+      const sStart = Number(sentence.start ?? sentence.startTime ?? 0);
+      const sEnd = Number(sentence.end ?? sentence.endTime ?? (sStart + 2.5));
+      const textWords = (sentence.text || '').split(/\s+/).filter(Boolean);
       const dur = (sEnd - sStart) / Math.max(1, textWords.length);
       words = textWords.map((word, idx) => ({
         word,
@@ -392,7 +288,7 @@ export class VideoRenderer {
 
     if (!words || words.length === 0) return;
 
-    // 5. Determine active speaking word index
+    // Determine active speaking word index
     let speakingWordIdx = words.findIndex(w => {
       const ws = Number(w.start ?? w.startTime ?? 0);
       const we = Number(w.end ?? w.endTime ?? (ws + 0.35));
@@ -410,50 +306,36 @@ export class VideoRenderer {
       if (speakingWordIdx === -1) speakingWordIdx = 0;
     }
 
-    // 6. Direct 1:1 segment display matching sidebar transcript
-    let displayWords = words;
-    let chunkOffset = 0;
-
-    // 7. Typography and responsive sizing relative to video resolution
     const isPortrait = canvasHeight > canvasWidth;
-    const previewDisplayWidth = Number(config.previewDisplayWidth || 0);
-    const fallbackRefWidth = isPortrait ? 360 : 640;
-    const refWidth = Number.isFinite(previewDisplayWidth) && previewDisplayWidth > 80
-      ? previewDisplayWidth
-      : fallbackRefWidth;
-    const scale = Math.max(0.65, Math.min(8.0, canvasWidth / refWidth));
-
-    const previewFontSize = (currentSentence.fontSize !== undefined && currentSentence.fontSize !== null && currentSentence.fontSize > 0)
-      ? Number(currentSentence.fontSize)
+    const previewFontSize = (sentence.fontSize !== undefined && sentence.fontSize !== null && sentence.fontSize > 0)
+      ? Number(sentence.fontSize)
       : (isPortrait ? 25 : ((config.fontSize && Number(config.fontSize) <= 30) ? Number(config.fontSize) : 28));
     const baseFontSize = Math.max(16, Math.round(previewFontSize * scale));
 
     const normalFontFamily = this.getFontFamily(config.normalFontFamily || 'Inter');
     const prominentFontFamily = this.getFontFamily(config.prominentFontFamily || 'Syne');
-    const segmentFontFamily = currentSentence.fontFamily ? this.getFontFamily(currentSentence.fontFamily) : null;
+    const segmentFontFamily = sentence.fontFamily ? this.getFontFamily(sentence.fontFamily) : null;
 
-    const defaultTextColor = currentSentence.textColor || config.textColor || '#FFFFFF';
-    const prominentColor = currentSentence.prominentColor || config.prominentColor || '#FFE600';
-    const hasLastWordColor = !currentSentence.prominentColor && (config.enableLastWordColor !== false && !!config.lastWordColor);
+    const defaultTextColor = sentence.textColor || config.textColor || '#FFFFFF';
+    const prominentColor = sentence.prominentColor || config.prominentColor || '#FFE600';
+    const hasLastWordColor = !sentence.prominentColor && (config.enableLastWordColor !== false && !!config.lastWordColor);
     const lastWordColor = hasLastWordColor ? config.lastWordColor : prominentColor;
 
-    const strokeEnabled = currentSentence.strokeEnabled !== false;
-    const customStrokeColor = currentSentence.strokeColor;
-    const hasGlow = currentSentence.glowColor && currentSentence.glowColor !== 'transparent' && currentSentence.glowColor !== '';
-    const glowColor = hasGlow ? currentSentence.glowColor : null;
+    const strokeEnabled = sentence.strokeEnabled !== false;
+    const customStrokeColor = sentence.strokeColor;
+    const hasGlow = sentence.glowColor && sentence.glowColor !== 'transparent' && sentence.glowColor !== '';
+    const glowColor = hasGlow ? sentence.glowColor : null;
 
-    // 8. Build styled words
-    const styledWords = displayWords.map((w, localIdx) => {
-      const globalIdx = chunkOffset + localIdx;
+    const styledWords = words.map((w, localIdx) => {
       const cleanWord = (w.word || '').replace(/[.,!?:;"'()]/g, '');
       const isHeroKeyword = autoTypographyEngine.brandRegex.test(cleanWord) || 
                             autoTypographyEngine.monthsDatesRegex.test(cleanWord) || 
                             autoTypographyEngine.placesRegex.test(cleanWord) || 
                             autoTypographyEngine.impactWordsRegex.test(cleanWord);
       
-      const isSpeaking = (globalIdx === speakingWordIdx);
-      const isLastWord = (globalIdx === words.length - 1);
-      const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && globalIdx === 1);
+      const isSpeaking = (localIdx === speakingWordIdx);
+      const isLastWord = (localIdx === words.length - 1);
+      const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && localIdx === 1);
 
       let font = segmentFontFamily || (isProminent ? prominentFontFamily : normalFontFamily);
       let color = isProminent ? prominentColor : defaultTextColor;
@@ -491,20 +373,19 @@ export class VideoRenderer {
       };
     });
 
-    // 9. Layout positioning (Defaults to Middle-Left: 6% X, 50% Y)
     const defaultPosMeta = CAPTION_POSITIONS.find(p => p.id === 'middle-left') || CAPTION_POSITIONS[3];
-    const hasCustomPos = currentSentence.posX !== undefined && currentSentence.posY !== undefined;
+    const hasCustomPos = sentence.posX !== undefined && sentence.posY !== undefined;
     
-    let posX = hasCustomPos ? (canvasWidth * Number(currentSentence.posX)) / 100 : (canvasWidth * 0.06);
-    let posY = hasCustomPos ? (canvasHeight * Number(currentSentence.posY)) / 100 : (canvasHeight * 0.50);
+    let posX = hasCustomPos ? (canvasWidth * Number(sentence.posX)) / 100 : (canvasWidth * 0.06);
+    let posY = hasCustomPos ? (canvasHeight * Number(sentence.posY)) / 100 : (canvasHeight * 0.50);
 
     const textAlign = hasCustomPos ? 'left' : (defaultPosMeta.align || 'left');
-    const segmentBoxWidth = Number(currentSentence.boxWidth || currentSentence.width || 0);
+    const segmentBoxWidth = Number(sentence.boxWidth || sentence.width || 0);
+    const availableWidthPct = hasCustomPos ? Math.max(10, 98 - Number(sentence.posX)) : 94;
     const customMaxWidth = segmentBoxWidth > 0
       ? (canvasWidth * segmentBoxWidth) / 100 + Math.round(baseFontSize * 0.4)
-      : (canvasWidth * 0.94);
+      : (canvasWidth * (availableWidthPct / 100));
 
-    // 10. Wrap words into lines based on custom box width
     const lines = [];
     let curLine = [];
     let curLineWidth = 0;
@@ -533,25 +414,13 @@ export class VideoRenderer {
     const totalBlockHeight = lines.length * lineHeight;
     const startBlockY = hasCustomPos ? posY : (posY - totalBlockHeight * 0.5);
 
-    // 11. Compute Dynamic Entrance Animation & Shine Glow Effects
-    let resolvedAnimId = currentSentence.animation || config.animation || 'anim-auto';
+    let resolvedAnimId = sentence.animation || config.animation || 'anim-auto';
     if (resolvedAnimId === 'anim-auto') {
-      let segCount = 0;
-      const targetIdx = sentences.findIndex(s => s === currentSentence || (s.id !== undefined && s.id === currentSentence.id));
-      for (let i = 0; i < (targetIdx >= 0 ? targetIdx : 0); i++) {
-        const sWords = sentences[i].words || [];
-        const sChars = sWords.reduce((acc, w) => acc + ((w.word || '').length), 0);
-        if (sWords.length > 4 || (sWords.length === 4 && sChars > 22)) {
-          segCount += 2;
-        } else {
-          segCount += 1;
-        }
-      }
-      if (chunkOffset > 0) segCount += 1;
-      resolvedAnimId = AUTO_ANIMATION_SEQUENCE[segCount % AUTO_ANIMATION_SEQUENCE.length];
+      const targetIdx = sentences.findIndex(s => s === sentence || (s.id !== undefined && s.id === sentence.id));
+      resolvedAnimId = AUTO_ANIMATION_SEQUENCE[Math.max(0, targetIdx) % AUTO_ANIMATION_SEQUENCE.length];
     }
 
-    const segStartTime = Number(currentSentence.start ?? currentSentence.startTime ?? 0);
+    const segStartTime = Number(sentence.start ?? sentence.startTime ?? 0);
     const animElapsed = Math.max(0, curTime - segStartTime);
     const animState = this.getAnimationFrameState(resolvedAnimId, animElapsed, scale);
 
@@ -584,7 +453,6 @@ export class VideoRenderer {
       ctx.clip();
     }
 
-    // 12. Render caption lines on Layer 2 matching preview exactly (zero blurry exposure glows)
     lines.forEach((line, lineIdx) => {
       const lineTop = startBlockY + lineIdx * lineHeight;
       const lineY = lineTop + lineHeight * 0.5;
@@ -613,7 +481,6 @@ export class VideoRenderer {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // Glow effect (Matching preview CSS drop-shadows) or crisp zero-shadow
         const animationGlow = animState.glow > 0 ? animState.glow : 0;
         if ((hasGlow && glowColor) || animationGlow > 0) {
           ctx.shadowColor = glowColor || (resolvedAnimId === 'anim-fire-flare' ? '#ff6b00' : '#00F0FF');
@@ -637,7 +504,7 @@ export class VideoRenderer {
           ctx.restore();
         }
 
-        // Crisp Outline Stroke (if enabled)
+        // Crisp Outline Stroke
         if (strokeEnabled && w.strokeWidth > 0 && w.strokeColor !== 'transparent') {
           ctx.lineWidth = w.strokeWidth;
           ctx.strokeStyle = w.strokeColor;
@@ -669,21 +536,100 @@ export class VideoRenderer {
         }
 
         ctx.restore();
-
         curX += w.width + wordGap;
       });
     });
 
     ctx.restore();
+  }
 
-    // 13. Rotoscoped Person Cutout (Layer 3 on top of Captions)
-    if (currentSentence.behind && selfieSegmenterService.isReady()) {
+  renderFrame(ctx, video, curTimeOrState, config = {}, canvasWidth, canvasHeight, sentencesOverride = null) {
+    if (!ctx || !video) return;
+
+    let sentences = sentencesOverride || [];
+    let curTime = 0;
+
+    if (typeof curTimeOrState === 'number') {
+      curTime = curTimeOrState;
+    } else if (curTimeOrState && typeof curTimeOrState === 'object') {
+      curTime = curTimeOrState.currentTime !== undefined ? curTimeOrState.currentTime : (video.currentTime || 0);
+      if (curTimeOrState.sentences) sentences = curTimeOrState.sentences;
+    } else {
+      curTime = video.currentTime || 0;
+    }
+
+    const isEnhanced = !!(config.enhanceQuality || config.enhanceVideoQuality);
+    if (isEnhanced) {
+      ctx.filter = 'contrast(1.18) saturate(1.28) brightness(1.02)';
+    } else {
+      ctx.filter = 'none';
+    }
+
+    // Layer 1: Background Video
+    ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+    ctx.filter = 'none';
+
+    if (!sentences || sentences.length === 0) return;
+
+    // Find all active segments at curTime
+    const matchingSentences = [];
+    for (let i = 0; i < sentences.length; i++) {
+      const s = sentences[i];
+      const sStart = Number(s.start ?? s.startTime ?? 0);
+      const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+      const isLast = (i === sentences.length - 1);
+      if (curTime >= sStart && (isLast ? curTime <= sEnd : curTime < sEnd)) {
+        matchingSentences.push(s);
+      }
+    }
+
+    if (matchingSentences.length === 0) {
+      for (let i = sentences.length - 1; i >= 0; i--) {
+        const s = sentences[i];
+        const sStart = Number(s.start ?? s.startTime ?? 0);
+        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+        if (curTime >= sStart && curTime <= (sEnd + 0.35)) {
+          const nextS = sentences[i + 1];
+          const nextStart = nextS ? Number(nextS.start ?? nextS.startTime ?? Infinity) : Infinity;
+          if (curTime < nextStart) {
+            matchingSentences.push(s);
+            break;
+          }
+        }
+      }
+    }
+
+    if (matchingSentences.length === 0) return;
+
+    const isPortrait = canvasHeight > canvasWidth;
+    const previewDisplayWidth = Number(config.previewDisplayWidth || 0);
+    const fallbackRefWidth = isPortrait ? 360 : 640;
+    const refWidth = Number.isFinite(previewDisplayWidth) && previewDisplayWidth > 80
+      ? previewDisplayWidth
+      : fallbackRefWidth;
+    const scale = Math.max(0.65, Math.min(8.0, canvasWidth / refWidth));
+
+    const behindSentences = matchingSentences.filter(s => s.behind);
+    const frontSentences = matchingSentences.filter(s => !s.behind);
+
+    // Layer 2: Behind Captions
+    behindSentences.forEach((s) => {
+      this.renderSentence(ctx, s, curTime, config, canvasWidth, canvasHeight, sentences, scale);
+    });
+
+    // Layer 3: Rotoscoped Person Cutout (draw over Behind Captions)
+    if (behindSentences.length > 0 && selfieSegmenterService.isReady()) {
       selfieSegmenterService.drawCutoutToContext(video, ctx, canvasWidth, canvasHeight, isEnhanced, {
         time: curTime,
         useExportCache: config.useExportCutoutCache === true,
         disableStaleCutout: true
       });
     }
+
+    // Layer 4: Front Captions (draw in front of Person Cutout)
+    frontSentences.forEach((s) => {
+      this.renderSentence(ctx, s, curTime, config, canvasWidth, canvasHeight, sentences, scale);
+    });
   }
 
   /**
@@ -906,6 +852,8 @@ export class VideoRenderer {
 
       videoElement.addEventListener('ended', finishExport, { once: true });
 
+      const hasRVFC = typeof videoElement.requestVideoFrameCallback === 'function';
+
       // Hardware-decoded video frame listener for jitter-free 60 FPS lockstep rendering
       const onVideoFrame = () => {
         if (!isExportActive || !this.isRendering) return;
@@ -923,34 +871,34 @@ export class VideoRenderer {
           return;
         }
 
-        if (typeof videoElement.requestVideoFrameCallback === 'function') {
+        if (hasRVFC) {
           rVfcId = videoElement.requestVideoFrameCallback(onVideoFrame);
         }
       };
 
-      if (typeof videoElement.requestVideoFrameCallback === 'function') {
+      if (hasRVFC) {
         rVfcId = videoElement.requestVideoFrameCallback(onVideoFrame);
+      } else {
+        // Fallback: 60 FPS timer for browsers without requestVideoFrameCallback
+        renderInterval = setInterval(() => {
+          if (!isExportActive || !this.isRendering) {
+            clearInterval(renderInterval);
+            return;
+          }
+
+          const curTime = videoElement.currentTime;
+          const baseOffset = hasBehindCaptions ? 15 : 0;
+          const scaleFactor = hasBehindCaptions ? 0.85 : 1.0;
+          const progress = Math.min(100, Math.round(baseOffset + (curTime / duration) * (100 * scaleFactor)));
+          if (onProgress) onProgress(progress);
+
+          renderCapturedFrame(curTime);
+
+          if (videoElement.ended || curTime >= duration) {
+            finishExport();
+          }
+        }, 1000 / 60);
       }
-
-      // 60 FPS high-precision interval loop ensuring steady stream feed
-      renderInterval = setInterval(() => {
-        if (!isExportActive || !this.isRendering) {
-          clearInterval(renderInterval);
-          return;
-        }
-
-        const curTime = videoElement.currentTime;
-        const baseOffset = hasBehindCaptions ? 15 : 0;
-        const scaleFactor = hasBehindCaptions ? 0.85 : 1.0;
-        const progress = Math.min(100, Math.round(baseOffset + (curTime / duration) * (100 * scaleFactor)));
-        if (onProgress) onProgress(progress);
-
-        renderCapturedFrame(curTime);
-
-        if (videoElement.ended || curTime >= duration) {
-          finishExport();
-        }
-      }, 1000 / 60);
 
       const rawBlob = await exportPromise;
 

@@ -1170,11 +1170,14 @@ export class UserDashboard {
             <div class="video-container ${this.currentMode}" id="user-video-wrapper">
               <video class="studio-video-element" id="user-main-video" playsinline style="width: 100%; height: 100%; object-fit: contain;"></video>
               
-              <!-- Real-Time Caption Overlay (Layer 2) -->
-              <div class="caption-live-overlay" id="user-caption-live-overlay"></div>
+              <!-- Real-Time Caption Overlay Layer 2 (Behind) -->
+              <div class="caption-live-overlay caption-behind-overlay" id="user-caption-behind-overlay"></div>
 
               <!-- Foreground Rotoscoped Person Cutout (Layer 3) -->
               <canvas class="cutout-live-canvas" id="user-cutout-canvas" style="display: none;"></canvas>
+
+              <!-- Real-Time Caption Overlay Layer 4 (Front) -->
+              <div class="caption-live-overlay caption-front-overlay" id="user-caption-front-overlay"></div>
             </div>
 
             <!-- Dedicated Bottom Controls Bar (Image 5) -->
@@ -1847,10 +1850,10 @@ export class UserDashboard {
   syncVideoOverlayBounds() {
     const videoWrapper = this.container?.querySelector('#user-video-wrapper');
     const video = this.videoElement || this.container?.querySelector('#user-main-video');
-    const overlay = this.container?.querySelector('#user-caption-live-overlay');
+    const overlays = this.container?.querySelectorAll('.caption-live-overlay') || [];
     const cutoutCanvas = this.cutoutCanvas || this.container?.querySelector('#user-cutout-canvas');
 
-    if (!videoWrapper || !video || !overlay) return;
+    if (!videoWrapper || !video || overlays.length === 0) return;
 
     const cw = videoWrapper.clientWidth || 0;
     const ch = videoWrapper.clientHeight || 0;
@@ -1858,10 +1861,12 @@ export class UserDashboard {
     const vh = video.videoHeight || 0;
 
     if (cw <= 0 || ch <= 0 || vw <= 0 || vh <= 0) {
-      overlay.style.left = '0px';
-      overlay.style.top = '0px';
-      overlay.style.width = '100%';
-      overlay.style.height = '100%';
+      overlays.forEach(overlay => {
+        overlay.style.left = '0px';
+        overlay.style.top = '0px';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+      });
       return;
     }
 
@@ -1892,12 +1897,14 @@ export class UserDashboard {
     const widthPx = Math.round(renderW);
     const heightPx = Math.round(renderH);
 
-    overlay.style.position = 'absolute';
-    overlay.style.left = `${leftPx}px`;
-    overlay.style.top = `${topPx}px`;
-    overlay.style.width = `${widthPx}px`;
-    overlay.style.height = `${heightPx}px`;
-    overlay.style.overflow = 'visible';
+    overlays.forEach(overlay => {
+      overlay.style.position = 'absolute';
+      overlay.style.left = `${leftPx}px`;
+      overlay.style.top = `${topPx}px`;
+      overlay.style.width = `${widthPx}px`;
+      overlay.style.height = `${heightPx}px`;
+      overlay.style.overflow = 'visible';
+    });
 
     if (cutoutCanvas) {
       cutoutCanvas.style.position = 'absolute';
@@ -2221,8 +2228,11 @@ export class UserDashboard {
     const posTransform = hasCustomPos ? 'translate(0, 0)' : (defaultPosMeta.transform || 'translate(0, -50%)');
     const textAlign = defaultPosMeta.align || 'left';
     const justifyAlign = (textAlign === 'left') ? 'flex-start' : (textAlign === 'right' ? 'flex-end' : 'center');
+    const availableWidthPct = hasCustomPos ? Math.max(10, 98 - baseX) : 94;
     const customWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : 'auto';
-    const customMaxWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : '94%';
+    const customMaxWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : `${availableWidthPct}%`;
+    const isBehind = !!currentSentence.behind;
+    const anchorZIndex = isBehind ? 5 : (20 + anchorIndex);
     const toolbarHtml = showToolbar ? `
       <div class="caption-drag-toolbar">
         <span class="caption-toolbar-pill caption-drag-handle" title="Click and drag anywhere on video to position">
@@ -2236,7 +2246,7 @@ export class UserDashboard {
     ` : '';
 
     return `
-      <div class="caption-segment-anchor" data-sentence-id="${currentSentence.id || ''}" data-segment-key="seg_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${posY};left:${posX};transform:${posTransform};width:${customWidth};max-width:${customMaxWidth};text-align:${textAlign};z-index:${20 + anchorIndex};">
+      <div class="caption-segment-anchor" data-sentence-id="${currentSentence.id || ''}" data-segment-key="seg_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${posY};left:${posX};transform:${posTransform};width:${customWidth};max-width:${customMaxWidth};text-align:${textAlign};z-index:${anchorZIndex};">
         ${toolbarHtml}
         <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${justifyAlign};align-items:baseline;gap:2px 5px;width:100%;max-width:100%;text-transform:uppercase;line-height:1.05;transform-origin:center center;will-change:transform,opacity;">
           ${wordsHtml}
@@ -2249,299 +2259,86 @@ export class UserDashboard {
 
   updateCaptionOverlay(sentenceOverride = null) {
     this.syncVideoOverlayBounds();
-    const overlay = this.container.querySelector('#user-caption-live-overlay');
-    if (!overlay || !this.videoElement) return;
+    const behindOverlay = this.container.querySelector('#user-caption-behind-overlay');
+    const frontOverlay = this.container.querySelector('#user-caption-front-overlay') || this.container.querySelector('#user-caption-live-overlay');
+    if ((!behindOverlay && !frontOverlay) || !this.videoElement) return;
 
     const time = sentenceOverride
       ? (Number(sentenceOverride.start ?? sentenceOverride.startTime ?? 0) + 0.05)
       : (this.videoElement.currentTime || 0);
     const sentences = captionEngine.sentences || [];
 
-    // 1. Find active sentence strictly matching timeline (supports multiple word segments with same start/end)
-    const activeMatches = sentenceOverride ? [] : this.findActiveSentenceMatches(sentences, time);
-    if (activeMatches.length > 1) {
-      const tpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
-      const customConfig = this.userCustomTemplates[tpl.id] || {};
-      const studioConfig = this.activeConfig || {};
-      const cfg = { ...tpl.config, ...customConfig, ...studioConfig };
-      const activeId = this.activeEditableSegmentId;
-      const html = activeMatches.map((match, index) => {
-        const isEditable = !activeId || String(match.sentence.id || '') === String(activeId);
-        return this.buildCaptionOverlayHtml(match.sentence, time, sentences, cfg, {
-          anchorIndex: index,
-          showToolbar: isEditable
-        });
-      }).join('');
-      const renderKey = activeMatches.map(m => `${m.sentence.id || m.index}:${m.sentence.posX ?? ''}:${m.sentence.posY ?? ''}:${m.sentence.boxWidth ?? ''}:${m.sentence.fontSize ?? ''}`).join('|');
-      if (this.lastRenderedSentenceKey !== renderKey || overlay.innerHTML.trim() === '') {
-        overlay.innerHTML = html;
-        overlay.querySelectorAll('.caption-anim-segment-wrapper').forEach((wrapper) => {
-          const animClass = [...wrapper.classList].find(cls => cls.startsWith('anim-'));
-          if (animClass) {
-            wrapper.classList.remove(animClass);
-            void wrapper.offsetWidth;
-            wrapper.classList.add(animClass);
-          }
-        });
-      } else {
-        activeMatches.forEach((match) => {
-          const anchor = overlay.querySelector(`.caption-segment-anchor[data-sentence-id="${CSS.escape(String(match.sentence.id || ''))}"]`);
-          if (!anchor) return;
-          anchor.querySelector('.caption-anim-segment-wrapper')?.replaceChildren(...Array.from(new DOMParser().parseFromString(this.buildCaptionOverlayHtml(match.sentence, time, sentences, cfg, { showToolbar: !activeId || String(match.sentence.id || '') === String(activeId) }), 'text/html').body.querySelector('.caption-anim-segment-wrapper')?.childNodes || []));
-        });
-      }
-      this.lastRenderedSentenceKey = renderKey;
-      return;
+    // Find active segments strictly matching timeline
+    let activeMatches = sentenceOverride ? [{ sentence: sentenceOverride, index: 0 }] : this.findActiveSentenceMatches(sentences, time);
+    if (activeMatches.length === 0) {
+      const fallback = this.findActiveSentence(sentences, time, sentenceOverride);
+      if (fallback) activeMatches = [{ sentence: fallback, index: 0 }];
     }
 
-    let currentSentence = this.findActiveSentence(sentences, time, sentenceOverride);
-
-    if (!currentSentence) {
-      overlay.innerHTML = '';
+    if (activeMatches.length === 0) {
+      if (behindOverlay) behindOverlay.innerHTML = '';
+      if (frontOverlay) frontOverlay.innerHTML = '';
       this.lastRenderedSentenceKey = null;
+      this.renderCutoutIfActiveBehind();
       return;
     }
-    this.activeEditableSegmentId = currentSentence.id || this.activeEditableSegmentId || null;
 
-    // 3. Resolve active template and user custom/studio configurations
     const tpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
     const customConfig = this.userCustomTemplates[tpl.id] || {};
     const studioConfig = this.activeConfig || {};
     const cfg = { ...tpl.config, ...customConfig, ...studioConfig };
+    const activeId = this.activeEditableSegmentId;
 
-    // 4. Ensure words array exists with valid timings
-    let words = currentSentence.words;
-    if (!words || words.length === 0) {
-      const sStart = currentSentence.start ?? currentSentence.startTime ?? 0;
-      const sEnd = currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5);
-      words = captionEngine.createWordLevelTimestamps(currentSentence.text || '', sStart, sEnd);
-    }
+    const behindMatches = activeMatches.filter(m => m.sentence && m.sentence.behind);
+    const frontMatches = activeMatches.filter(m => !m.sentence || !m.sentence.behind);
 
-    // 5. Determine the current speaking single word index
-    let speakingWordIdx = words.findIndex(w => {
-      const ws = Number(w.start ?? w.startTime ?? 0);
-      const we = Number(w.end ?? w.endTime ?? (ws + 0.35));
-      return time >= ws && time < we;
-    });
-
-    if (speakingWordIdx === -1) {
-      for (let i = words.length - 1; i >= 0; i--) {
-        const ws = Number(words[i].start ?? words[i].startTime ?? 0);
-        if (time >= ws) {
-          speakingWordIdx = i;
-          break;
-        }
-      }
-      if (speakingWordIdx === -1) speakingWordIdx = 0;
-    }
-
-    // 6. Direct 1:1 segment display matching sidebar transcript
-    let displayWords = words;
-    let chunkOffset = 0;
-
-    // 7. Base font size: segment-specific size or default (25px portrait / 28px landscape)
-    const isPortrait = this.currentMode === 'portrait';
-    const defaultBaseFontSize = isPortrait ? 25 : ((cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28);
-    const baseFontSize = (currentSentence.fontSize !== undefined && currentSentence.fontSize !== null && currentSentence.fontSize > 0)
-      ? Number(currentSentence.fontSize)
-      : defaultBaseFontSize;
-
-    // 8. Typography settings from config with segment override
-    const normalFontFamily = this.getFontFamily(cfg.normalFontFamily || 'Inter');
-    const prominentFontFamily = this.getFontFamily(cfg.prominentFontFamily || 'Syne');
-    const segmentFontFamily = currentSentence.fontFamily ? this.getFontFamily(currentSentence.fontFamily) : null;
-
-    const defaultTextColor = currentSentence.textColor || cfg.textColor || '#FFFFFF';
-    const prominentColor = currentSentence.prominentColor || cfg.prominentColor || '#FFE600';
-    const hasLastWordColor = !currentSentence.prominentColor && (cfg.enableLastWordColor !== false && !!cfg.lastWordColor);
-    const lastWordColor = hasLastWordColor ? cfg.lastWordColor : prominentColor;
-
-    // Stroke & Glow settings (Matching Image 3 radiant neon style)
-    const strokeEnabled = currentSentence.strokeEnabled !== false;
-    const customStrokeColor = currentSentence.strokeColor;
-    const hasGlow = currentSentence.glowColor && currentSentence.glowColor !== 'transparent' && currentSentence.glowColor !== '';
-    const glowColor = hasGlow ? currentSentence.glowColor : null;
-    const glowStyles = glowColor
-      ? `text-shadow: 0 0 6px ${glowColor}, 0 0 16px ${glowColor}, 0 0 28px ${glowColor} !important; filter: drop-shadow(0 0 8px ${glowColor}) !important;`
-      : 'text-shadow: none !important; filter: none !important;';
-
-    // 9. Build styled words: Keep actual color of the word (NEVER apply separate color on speaking word)
-    const wordsHtml = displayWords.map((w, localIdx) => {
-      const globalIdx = chunkOffset + localIdx;
-      const cleanWord = (w.word || '').replace(/[.,!?:;"'()]/g, '');
-      const isHeroKeyword = autoTypographyEngine.brandRegex.test(cleanWord) || 
-                            autoTypographyEngine.monthsDatesRegex.test(cleanWord) || 
-                            autoTypographyEngine.placesRegex.test(cleanWord) || 
-                            autoTypographyEngine.impactWordsRegex.test(cleanWord);
-      
-      const isSpeaking = (globalIdx === speakingWordIdx);
-      const isLastWord = (globalIdx === words.length - 1);
-      const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && globalIdx === 1);
-
-      let font = segmentFontFamily || (isProminent ? prominentFontFamily : normalFontFamily);
-      let color = isProminent ? prominentColor : defaultTextColor;
-
-      if (isLastWord && hasLastWordColor) {
-        font = segmentFontFamily || prominentFontFamily;
-        color = lastWordColor;
-      }
-
-      // Speaking word keeps its actual color; gets prominent font and smooth GPU scale bounce
-      if (isSpeaking) {
-        font = segmentFontFamily || prominentFontFamily;
-      }
-
-      const fontWeight = isSpeaking ? 900 : (isProminent ? 800 : 700);
-
-      const strokeWidth = strokeEnabled
-        ? (isProminent
-            ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.5)
-            : (cfg.normalOutlineWidth !== undefined ? cfg.normalOutlineWidth : 1.5))
-        : 0;
-      const strokeColor = strokeEnabled
-        ? (customStrokeColor || (isProminent ? (cfg.prominentOutlineColor || '#000000') : (cfg.normalOutlineColor || '#000000')))
-        : 'transparent';
-
-      const wordScale = isSpeaking ? 'scale(1.15)' : 'scale(1)';
-      const wordZIndex = isSpeaking ? 5 : 1;
-      const transitionTiming = isSpeaking
-        ? 'transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s ease'
-        : 'transform 0.18s ease-out';
-
-      return `
-        <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''}" style="
-          display: inline-block !important;
-          vertical-align: baseline !important;
-          margin: 1px 3px !important;
-          padding: 0 1px !important;
-          box-sizing: border-box !important;
-          font-family: ${font} !important;
-          color: ${color} !important;
-          font-size: ${baseFontSize}px !important;
-          font-weight: ${fontWeight};
-          opacity: 1 !important;
-          visibility: visible !important;
-          line-height: 1.05;
-          letter-spacing: 0.2px;
-          ${glowStyles}
-          -webkit-text-stroke: ${strokeWidth}px ${strokeColor};
-          paint-order: stroke fill;
-          -webkit-paint-order: stroke fill;
-          transform: ${wordScale} !important;
-          transform-origin: center bottom !important;
-          z-index: ${wordZIndex} !important;
-          white-space: nowrap !important;
-          will-change: transform;
-          transition: ${transitionTiming};
-        ">
-          ${w.word}
-        </span>
-      `;
+    const behindHtml = behindMatches.map((match, index) => {
+      const isEditable = !activeId || String(match.sentence.id || '') === String(activeId);
+      return this.buildCaptionOverlayHtml(match.sentence, time, sentences, cfg, {
+        anchorIndex: index,
+        showToolbar: isEditable
+      });
     }).join('');
 
-    // 10. Detect new line segment transition to trigger configured entrance animation
-    const sStart = Number(currentSentence.start ?? currentSentence.startTime ?? 0);
-    const sEnd = Number(currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5));
-    const subChunkKey = displayWords.map(w => w.word).join('_');
-    const animId = currentSentence.animation || cfg.animation || 'anim-auto';
+    const frontHtml = frontMatches.map((match, index) => {
+      const isEditable = !activeId || String(match.sentence.id || '') === String(activeId);
+      return this.buildCaptionOverlayHtml(match.sentence, time, sentences, cfg, {
+        anchorIndex: index,
+        showToolbar: isEditable
+      });
+    }).join('');
 
-    let resolvedAnimId = animId;
-    if (animId === 'anim-auto') {
-      // Deterministically cycle animations 1 to 6 on every segment
-      let segCount = 0;
-      const targetIdx = sentences.findIndex(s => s === currentSentence || (s.id !== undefined && s.id === currentSentence.id));
-      for (let i = 0; i < targetIdx; i++) {
-        const sWords = sentences[i].words || [];
-        const sChars = sWords.reduce((acc, w) => acc + ((w.word || '').length), 0);
-        if (sWords.length > 4 || (sWords.length === 4 && sChars > 22)) {
-          segCount += 2;
-        } else {
-          segCount += 1;
+    const renderKey = activeMatches.map(m => `${m.sentence.id || m.index}:${m.sentence.posX ?? ''}:${m.sentence.posY ?? ''}:${m.sentence.boxWidth ?? ''}:${m.sentence.fontSize ?? ''}:${m.sentence.behind ? '1' : '0'}`).join('|');
+
+    if (this.lastRenderedSentenceKey !== renderKey || (behindOverlay && behindOverlay.innerHTML.trim() === '' && behindHtml) || (frontOverlay && frontOverlay.innerHTML.trim() === '' && frontHtml)) {
+      if (behindOverlay) behindOverlay.innerHTML = behindHtml;
+      if (frontOverlay) frontOverlay.innerHTML = frontHtml;
+
+      this.container.querySelectorAll('.caption-anim-segment-wrapper').forEach((wrapper) => {
+        const animClass = [...wrapper.classList].find(cls => cls.startsWith('anim-'));
+        if (animClass) {
+          wrapper.classList.remove(animClass);
+          void wrapper.offsetWidth;
+          wrapper.classList.add(animClass);
         }
-      }
-      if (chunkOffset > 0) segCount += 1;
-      resolvedAnimId = AUTO_ANIMATION_SEQUENCE[segCount % AUTO_ANIMATION_SEQUENCE.length];
-    }
-
-    const animMeta = CAPTION_ANIMATIONS.find(a => a.id === resolvedAnimId || a.cssClass === resolvedAnimId);
-    const animClass = animMeta ? animMeta.cssClass : (resolvedAnimId.startsWith('anim-') ? resolvedAnimId : 'anim-pop');
-
-    const sKey = `seg_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}`;
-
-    const isNewSegment = this.lastRenderedSentenceKey !== sKey;
-    this.lastRenderedSentenceKey = sKey;
-
-    // 11. Segment-Specific Custom Position & Sizing (Defaults to Middle-Left: 6%, 50%)
-    const defaultPosMeta = CAPTION_POSITIONS.find(p => p.id === 'middle-left') || CAPTION_POSITIONS[3];
-    const hasCustomPos = currentSentence.posX !== undefined && currentSentence.posY !== undefined;
-    const rawX = hasCustomPos ? Number(currentSentence.posX) : Number(String(defaultPosMeta.x || '6').replace('%', ''));
-    const rawY = hasCustomPos ? Number(currentSentence.posY) : Number(String(defaultPosMeta.y || '50').replace('%', ''));
-    const posX = `${Math.max(2, Math.min(88, Number.isFinite(rawX) ? rawX : 6))}%`;
-    const posY = `${Math.max(2, Math.min(92, Number.isFinite(rawY) ? rawY : 50))}%`;
-    const posTransform = hasCustomPos ? 'translate(0, 0)' : (defaultPosMeta.transform || 'translate(0, -50%)');
-    const textAlign = defaultPosMeta.align || 'left';
-    const justifyAlign = (textAlign === 'left') ? 'flex-start' : (textAlign === 'right' ? 'flex-end' : 'center');
-
-    // Segment-Specific Custom Box Width (Defaults to auto up to 94%)
-    const customWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : 'auto';
-    const customMaxWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : '94%';
-
-    let anchor = overlay.querySelector('.caption-segment-anchor');
-    let animWrapper = overlay.querySelector('.caption-anim-segment-wrapper');
-
-    if (!anchor || !animWrapper || isNewSegment) {
-      // Re-create segment with draggable handles and tight natural word spacing
-      overlay.innerHTML = `
-        <div class="caption-segment-anchor" data-sentence-id="${currentSentence.id || ''}" style="position: absolute; top: ${posY}; left: ${posX}; transform: ${posTransform}; width: ${customWidth}; max-width: ${customMaxWidth}; text-align: ${textAlign}; z-index: 20;">
-          
-          <!-- Floating Quick Action Toolbar -->
-          <div class="caption-drag-toolbar">
-            <span class="caption-toolbar-pill caption-drag-handle" title="Click and drag anywhere on video to position">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="2"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/></svg>
-              <span>Move</span>
-            </span>
-            <button type="button" class="caption-toolbar-btn btn-follow-all" id="btn-follow-all-segments" title="Apply this style, color, size, animation, and position to ALL segments">
-              <span>Apply to All</span>
-            </button>
-            <button type="button" class="caption-toolbar-btn btn-break-words" id="btn-break-segment-words" title="Break this caption line into one segment per word">
-              <span>Break into words</span>
-            </button>
-            <button type="button" class="caption-toolbar-btn btn-reset-pos" id="btn-reset-segment-pos" title="Reset this segment to default middle-left">
-              <span>↺ Reset</span>
-            </button>
-          </div>
-
-          <!-- Animated Words Container with dynamic word wrapping -->
-          <div class="caption-anim-segment-wrapper ${animClass}" style="display: inline-flex; flex-wrap: wrap; justify-content: ${justifyAlign}; align-items: baseline; gap: 2px 5px; width: 100%; max-width: 100%; text-transform: uppercase; line-height: 1.05; transform-origin: center center; will-change: transform, opacity;">
-            ${wordsHtml}
-          </div>
-
-          <!-- Resize Handles for Width & Line Management -->
-          <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines">
-            <div class="resize-grip-line"></div>
-          </div>
-          <div class="caption-resize-handle resize-corner" title="Drag corner to adjust font size and box width">
-            <div class="resize-grip-dot"></div>
-          </div>
-        </div>
-      `;
-      const freshWrapper = overlay.querySelector('.caption-anim-segment-wrapper');
-      if (freshWrapper) {
-        freshWrapper.classList.remove(animClass);
-        void freshWrapper.offsetWidth;
-        freshWrapper.classList.add(animClass);
-      }
+      });
     } else {
-      // Continuously enforce latest position & alignment coordinates even when paused
-      anchor.style.top = posY;
-      anchor.style.left = posX;
-      anchor.style.transform = posTransform;
-      anchor.style.width = customWidth;
-      anchor.style.maxWidth = customMaxWidth;
-      anchor.style.textAlign = textAlign;
-      animWrapper.style.justifyContent = justifyAlign;
-      animWrapper.innerHTML = wordsHtml;
+      activeMatches.forEach((match) => {
+        const targetOverlay = match.sentence.behind ? behindOverlay : frontOverlay;
+        if (!targetOverlay) return;
+        const anchor = targetOverlay.querySelector(`.caption-segment-anchor[data-sentence-id="${CSS.escape(String(match.sentence.id || ''))}"]`);
+        if (!anchor) return;
+        anchor.querySelector('.caption-anim-segment-wrapper')?.replaceChildren(
+          ...Array.from(new DOMParser().parseFromString(
+            this.buildCaptionOverlayHtml(match.sentence, time, sentences, cfg, { showToolbar: !activeId || String(match.sentence.id || '') === String(activeId) }),
+            'text/html'
+          ).body.querySelector('.caption-anim-segment-wrapper')?.childNodes || [])
+        );
+      });
     }
+
+    this.lastRenderedSentenceKey = renderKey;
+    this.renderCutoutIfActiveBehind(sentenceOverride);
   }
 
   renderMiniSegmentsList() {
@@ -3523,12 +3320,25 @@ export class UserDashboard {
       ? (Number(sentenceOverride.start ?? sentenceOverride.startTime ?? 0) + 0.05)
       : (this.videoElement.currentTime || 0);
     const sentences = captionEngine.sentences || [];
+    const activeMatches = sentenceOverride ? [] : this.findActiveSentenceMatches(sentences, time);
     let currentSentence = this.findActiveSentence(sentences, time, sentenceOverride);
 
-    if (currentSentence && currentSentence.behind && selfieSegmenterService.isReady()) {
+    const hasAnyBehind = (sentenceOverride && sentenceOverride.behind) ||
+      (currentSentence && currentSentence.behind) ||
+      activeMatches.some(m => m.sentence && m.sentence.behind);
+
+    if (hasAnyBehind) {
       this.cutoutCanvas.style.display = 'block';
       this.cutoutCanvas.classList.toggle('video-enhanced', !!this.enhanceVideoQuality);
-      selfieSegmenterService.renderCutout(this.videoElement, this.cutoutCanvas, this.enhanceVideoQuality);
+      if (selfieSegmenterService.isReady()) {
+        selfieSegmenterService.renderCutout(this.videoElement, this.cutoutCanvas, this.enhanceVideoQuality);
+      } else {
+        selfieSegmenterService.init().then(() => {
+          if (this.cutoutCanvas && this.videoElement) {
+            selfieSegmenterService.renderCutout(this.videoElement, this.cutoutCanvas, this.enhanceVideoQuality);
+          }
+        }).catch(err => console.warn('SelfieSegmenter auto-init on behind:', err));
+      }
     } else {
       if (this.cutoutCanvas.style.display !== 'none') {
         this.cutoutCanvas.style.display = 'none';

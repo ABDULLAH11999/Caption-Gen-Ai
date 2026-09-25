@@ -893,18 +893,30 @@ body.app-shell-locked {
 
 .video-container .caption-live-overlay {
   position: absolute;
-  z-index: 2;
   pointer-events: none;
   overflow: visible !important;
   box-sizing: border-box;
 }
 
-.video-container .cutout-live-canvas {
+.video-container .caption-behind-overlay,
+#user-caption-behind-overlay {
+  z-index: 2 !important;
+}
+
+.video-container .cutout-live-canvas,
+#user-cutout-canvas {
   position: absolute;
-  z-index: 2;
+  z-index: 6 !important;
   pointer-events: none;
   overflow: hidden;
   box-sizing: border-box;
+  background: transparent !important;
+  object-fit: contain;
+}
+
+.video-container .caption-front-overlay,
+#user-caption-front-overlay {
+  z-index: 15 !important;
 }
 
 /* Floating Draggable Caption Segment & Action Bar */
