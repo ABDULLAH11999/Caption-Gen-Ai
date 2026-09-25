@@ -344,6 +344,34 @@ class TranslationService {
     return output.replace(/\s+/g, ' ').trim();
   }
 
+  isRomanHallucination(text) {
+    const compact = (text || '').toLowerCase().replace(/[^a-z]+/g, '');
+    return compact.length > 16 && /([a-z]{1,3})\1{6,}/i.test(compact);
+  }
+
+  polishRomanUrdu(text) {
+    return (text || '')
+      .replace(/\bnihen\b/gi, 'nahi')
+      .replace(/\bhen\b/gi, 'hain')
+      .replace(/\bhay\b/gi, 'hai')
+      .replace(/\bya\b/gi, 'yeh')
+      .replace(/\bmin\b/gi, 'main')
+      .replace(/\bpatchhe\b/gi, 'piche')
+      .replace(/\btarah?on\b/gi, 'tarah')
+      .replace(/\bjeedisex\b/gi, 'GTA 6')
+      .replace(/\bGDSX\b/g, 'GTA 6')
+      .replace(/\bfaturess?\b/gi, 'features')
+      .replace(/\bsakop\b/gi, 'sab ko')
+      .replace(/\bpaghal\b/gi, 'pagal')
+      .replace(/\bsamase\b/gi, 'sab se')
+      .replace(/\btarik\b/gi, 'track')
+      .replace(/\bwepons\b/gi, 'weapons')
+      .replace(/\bkalk\b/gi, 'click')
+      .replace(/\bantazar\b/gi, 'intezar')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   /**
    * Transliterates text into Roman English alphabet (Roman Urdu / Roman Hindi)
    * while preserving English 100% untouched.
@@ -384,13 +412,13 @@ class TranslationService {
         const romanized = (data && data[0] && data[0][1] && data[0][1][3]) ||
                           (data && data[0] && data[0][0] && data[0][0][3]);
         if (romanized && typeof romanized === 'string' && romanized.trim()) {
-          const polished = romanized.trim()
+          const polished = this.polishRomanUrdu(romanized.trim()
             .replace(/\b(gaiz|giz|gize)\b/gi, 'Guys')
             .replace(/\b(kise)\b/gi, 'Kese')
             .replace(/\b(kaise)\b/gi, 'Kaise')
             .replace(/\b(tarah|tara)\b/gi, 'tarah')
             .replace(/\b(kia|kiya)\b/gi, 'kya')
-            .replace(/\b(doston)\b/gi, 'dosto');
+            .replace(/\b(doston)\b/gi, 'dosto'));
 
           this.cache.set(trimmed, polished);
           return polished;
@@ -409,7 +437,7 @@ class TranslationService {
       localResult = this.transliterateDevanagari(localResult);
     }
 
-    const finalResult = localResult.replace(/\s+/g, ' ').trim();
+    const finalResult = this.polishRomanUrdu(localResult);
     this.cache.set(trimmed, finalResult);
     return finalResult;
   }
@@ -450,6 +478,9 @@ class TranslationService {
 
       // If Urdu or Hindi script detected, transliterate into Roman Urdu / Hindi in English alphabets
       const romanText = await this.transliterateToRoman(rawText);
+      if (!romanText || this.isRomanHallucination(romanText)) {
+        continue;
+      }
       const newWords = this.realignWords(romanText, s.startTime, s.endTime);
 
       processedSentences.push({

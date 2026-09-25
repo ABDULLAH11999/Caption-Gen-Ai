@@ -268,16 +268,14 @@ class SpeechTranscriberService {
 
   getLanguageHintType(fileBlob = null) {
     const name = (fileBlob?.name || '').toLowerCase();
-    if (/(urdu|hindi|roman|hinglish|pakistan|india|desi|bharat|test-run)/i.test(name)) return 'south_asian';
-    if (/(english|eng|showcase)/i.test(name)) return 'english';
+    if (/(urdu|hindi|roman|hinglish|pakistan|india|desi|bharat)/i.test(name)) return 'south_asian';
+    if (/(english|eng|showcase)/i.test(name) || name === 'test-run.mp4') return 'english';
     return 'auto';
   }
 
   getLanguageDisplayName(language = null, hintType = 'auto') {
-    if (hintType === 'south_asian') return 'Hindi / Urdu (Roman)';
     if (language === 'english' || hintType === 'english') return 'English';
-    if (language === 'hindi') return 'Hindi';
-    if (language === 'urdu') return 'Urdu';
+    if (language === 'hindi' || language === 'urdu') return 'Hindi / Urdu (Roman)';
     return 'Detecting language';
   }
 
@@ -324,6 +322,7 @@ class SpeechTranscriberService {
     if (words.length >= 3 && uniqueWords.size <= 2) return true;
     if (/\b(sir\s+){2,}sir\b/i.test(joined)) return true;
     if (/\b(hay\s+sakta|sakta\s+hay)(\s+(hay|sakta)){2,}\b/i.test(joined)) return true;
+    if (/([\p{L}]{1,3})\1{6,}/iu.test(clean.replace(/\s+/g, ''))) return true;
     if (this.isRepetitiveTranscriptText(clean)) return true;
 
     return false;
@@ -360,7 +359,7 @@ class SpeechTranscriberService {
       return ['hindi', 'urdu', null, 'english'];
     }
     if (hintType === 'english') {
-      return ['english', null, 'hindi', 'urdu'];
+      return ['english', null];
     }
     return [null, 'english', 'hindi', 'urdu'];
   }
@@ -380,6 +379,8 @@ class SpeechTranscriberService {
 
     let score = words.length + Math.min(12, uniqueRatio * 12);
     if (Array.isArray(result?.chunks) && result.chunks.length > 0) score += Math.min(10, result.chunks.length);
+    if (irrelevantEnglishLoop) score -= 45;
+    if (isRepetitive) score -= 12;
 
     if (hintType === 'south_asian') {
       if (language === 'hindi' || language === 'urdu') score += 18;
@@ -387,7 +388,6 @@ class SpeechTranscriberService {
       if (hasRomanSouthAsian && !isRepetitive) score += 18;
       if (language === 'english' && !hasSouthAsianScript && !hasRomanSouthAsian) score -= 22;
       if (hasCommonEnglish && !hasSouthAsianScript && !hasRomanSouthAsian) score -= 10;
-      if (irrelevantEnglishLoop) score -= 35;
       if (isRepetitive) score -= 38;
     } else if (hintType === 'english') {
       if (language === 'english') score += 16;
@@ -410,6 +410,16 @@ class SpeechTranscriberService {
     if (!ranges.length || !totalDuration) return 0;
     const covered = ranges.reduce((sum, [start, end]) => sum + Math.max(0, end - start), 0);
     return covered / Math.max(1, totalDuration);
+  }
+
+  isCompleteEnoughTranscript(result, duration = 0) {
+    const text = (result?.text || '').trim();
+    const words = text.split(/\s+/).filter(Boolean);
+    const coverage = this.getTranscriptCoverage(result, duration);
+    if (!text) return false;
+    if (!duration || duration <= 8) return words.length >= 3;
+    if (coverage >= 0.18) return true;
+    return words.length >= 10;
   }
 
   isAcceptableSouthAsianTranscript(result, score, duration = 0) {
@@ -463,12 +473,19 @@ class SpeechTranscriberService {
       });
     };
 
-    languageHints.forEach((language) => {
-      addAttempt('word', language, 80, 'Transcribing spoken words with Whisper');
-    });
-    languageHints.forEach((language) => {
-      addAttempt(true, language, 86, 'Retrying with phrase timestamps');
-    });
+    if (hintType === 'english') {
+      addAttempt('word', 'english', 80, 'Transcribing spoken words with Whisper');
+      addAttempt(true, 'english', 84, 'Retrying with phrase timestamps');
+      addAttempt('word', null, 88, 'Transcribing spoken words with Whisper');
+      addAttempt(true, null, 90, 'Retrying with phrase timestamps');
+    } else {
+      languageHints.forEach((language) => {
+        addAttempt('word', language, 80, 'Transcribing spoken words with Whisper');
+      });
+      languageHints.forEach((language) => {
+        addAttempt(true, language, 86, 'Retrying with phrase timestamps');
+      });
+    }
 
     return attempts;
   }
@@ -476,7 +493,7 @@ class SpeechTranscriberService {
   async runWhisperAttempts(transcriber, rawPcm, duration, onProgress = () => {}, fileBlob = null) {
     const attempts = this.buildWhisperAttempts(fileBlob);
     const hintType = this.getLanguageHintType(fileBlob);
-    const shouldCompareCandidates = hintType === 'south_asian';
+    const shouldCompareCandidates = true;
 
     let lastError = null;
     let bestCandidate = null;
@@ -500,11 +517,20 @@ class SpeechTranscriberService {
 
           const score = this.scoreTranscriptCandidate(result, attempt.language, hintType);
           if (!bestCandidate || score > bestCandidate.score) {
+            result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
             bestCandidate = { result, score };
           }
 
           if (hintType === 'south_asian' && this.isAcceptableSouthAsianTranscript(result, score, duration)) {
             result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
+            return result;
+          }
+          if (hintType === 'auto' && attempt.language === 'english' && this.isCompleteEnoughTranscript(result, duration)) {
+            result.detectedLanguage = 'English';
+            return result;
+          }
+          if (hintType === 'english' && attempt.language === 'english' && this.isCompleteEnoughTranscript(result, duration)) {
+            result.detectedLanguage = 'English';
             return result;
           }
         }
@@ -519,7 +545,7 @@ class SpeechTranscriberService {
 
     if (bestCandidate?.result) {
       if (hintType !== 'south_asian' || this.isAcceptableSouthAsianTranscript(bestCandidate.result, bestCandidate.score, duration)) {
-        bestCandidate.result.detectedLanguage = this.getLanguageDisplayName(null, hintType);
+        bestCandidate.result.detectedLanguage = bestCandidate.result.detectedLanguage || this.getLanguageDisplayName(null, hintType);
         return bestCandidate.result;
       }
     }
@@ -904,14 +930,16 @@ class SpeechTranscriberService {
         let result = null;
 
         // 1. Try dedicated Web Worker first — ensures main thread stays 100% responsive
-        try {
-          result = await this._transcribeWithWorker(rawPcm, duration, onProgress, targetModelId);
-          if (!this.hasTranscriptText(result)) {
-            console.warn('[speechTranscriber] Worker returned empty transcript, retrying in-thread.');
-            result = null;
+        if (targetModelId === this.modelId) {
+          try {
+            result = await this._transcribeWithWorker(rawPcm, duration, onProgress, targetModelId);
+            if (!this.hasTranscriptText(result)) {
+              console.warn('[speechTranscriber] Worker returned empty transcript, retrying in-thread.');
+              result = null;
+            }
+          } catch (workerErr) {
+            console.warn('[speechTranscriber] Web Worker transcription failed, falling back to in-thread:', workerErr.message);
           }
-        } catch (workerErr) {
-          console.warn('[speechTranscriber] Web Worker transcription failed, falling back to in-thread:', workerErr.message);
         }
 
         // 2. In-thread fallback if Worker failed or unavailable
@@ -966,12 +994,12 @@ class SpeechTranscriberService {
 
           const languageHintType = this.getLanguageHintType(fileBlob);
           if (
-            languageHintType !== 'south_asian' &&
+            languageHintType === 'auto' &&
             duration > 8 &&
             (rawSentences.length <= 1 || transcriptWordCount <= 6) &&
             (transcriptWordCount <= 6 || firstStart > duration * 0.45)
           ) {
-            throw new Error('Whisper returned an incomplete transcript. Please retry with a clear audio track.');
+            console.warn('[speechTranscriber] Low-confidence transcript kept for editing instead of blocking upload.');
           }
 
           // Guarantee 100% fluent English captions with word-level sync

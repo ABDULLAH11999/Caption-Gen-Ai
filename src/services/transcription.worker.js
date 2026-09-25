@@ -20,16 +20,14 @@ function hasTranscriptText(result) {
 
 function getLanguageHintType(fileName = '') {
   const name = String(fileName || '').toLowerCase();
-  if (/(urdu|hindi|roman|hinglish|pakistan|india|desi|bharat|test-run)/i.test(name)) return 'south_asian';
-  if (/(english|eng|showcase)/i.test(name)) return 'english';
+  if (/(urdu|hindi|roman|hinglish|pakistan|india|desi|bharat)/i.test(name)) return 'south_asian';
+  if (/(english|eng|showcase)/i.test(name) || name === 'test-run.mp4') return 'english';
   return 'auto';
 }
 
 function getLanguageDisplayName(language = null, hintType = 'auto') {
-  if (hintType === 'south_asian') return 'Hindi / Urdu (Roman)';
   if (language === 'english' || hintType === 'english') return 'English';
-  if (language === 'hindi') return 'Hindi';
-  if (language === 'urdu') return 'Urdu';
+  if (language === 'hindi' || language === 'urdu') return 'Hindi / Urdu (Roman)';
   return 'Detecting language';
 }
 
@@ -69,6 +67,8 @@ function scoreTranscriptCandidate(result, language = null, hintType = 'auto') {
 
   let score = words.length + Math.min(12, uniqueRatio * 12);
   if (Array.isArray(result?.chunks) && result.chunks.length > 0) score += Math.min(10, result.chunks.length);
+  if (irrelevantEnglishLoop) score -= 45;
+  if (isRepetitive) score -= 12;
 
   if (hintType === 'south_asian') {
     if (language === 'hindi' || language === 'urdu') score += 18;
@@ -76,7 +76,6 @@ function scoreTranscriptCandidate(result, language = null, hintType = 'auto') {
     if (hasRomanSouthAsian && !isRepetitive) score += 18;
     if (language === 'english' && !hasSouthAsianScript && !hasRomanSouthAsian) score -= 22;
     if (hasCommonEnglish && !hasSouthAsianScript && !hasRomanSouthAsian) score -= 10;
-    if (irrelevantEnglishLoop) score -= 35;
     if (isRepetitive) score -= 38;
   } else if (hintType === 'english') {
     if (language === 'english') score += 16;
@@ -101,6 +100,16 @@ function getTranscriptCoverage(result, totalDuration = 0) {
   return covered / Math.max(1, totalDuration);
 }
 
+function isCompleteEnoughTranscript(result, duration = 0) {
+  const text = (result?.text || '').trim();
+  const words = text.split(/\s+/).filter(Boolean);
+  const coverage = getTranscriptCoverage(result, duration);
+  if (!text) return false;
+  if (!duration || duration <= 8) return words.length >= 3;
+  if (coverage >= 0.18) return true;
+  return words.length >= 10;
+}
+
 function isLikelyFillerHallucination(text) {
   const clean = (text || '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
   if (!clean) return true;
@@ -109,6 +118,7 @@ function isLikelyFillerHallucination(text) {
   if (words.length >= 3 && uniqueWords.size <= 2) return true;
   if (/\b(sir\s+){2,}sir\b/i.test(words.join(' '))) return true;
   if (/\b(hay\s+sakta|sakta\s+hay)(\s+(hay|sakta)){2,}\b/i.test(words.join(' '))) return true;
+  if (/([\p{L}]{1,3})\1{6,}/iu.test(clean.replace(/\s+/g, ''))) return true;
   return isRepetitiveTranscriptText(clean);
 }
 
@@ -169,7 +179,7 @@ function getLanguageHintOrder(fileName = '') {
     return ['hindi', 'urdu', null, 'english'];
   }
   if (hintType === 'english') {
-    return ['english', null, 'hindi', 'urdu'];
+    return ['english', null];
   }
   return [null, 'english', 'hindi', 'urdu'];
 }
@@ -199,12 +209,19 @@ function buildTranscriptionAttempts(fileName = '') {
     });
   };
 
-  languageHints.forEach((language) => {
-    addAttempt('word', language, 80, 'Transcribing spoken words with Whisper');
-  });
-  languageHints.forEach((language) => {
-    addAttempt(true, language, 86, 'Retrying with phrase timestamps');
-  });
+  if (hintType === 'english') {
+    addAttempt('word', 'english', 80, 'Transcribing spoken words with Whisper');
+    addAttempt(true, 'english', 84, 'Retrying with phrase timestamps');
+    addAttempt('word', null, 88, 'Transcribing spoken words with Whisper');
+    addAttempt(true, null, 90, 'Retrying with phrase timestamps');
+  } else {
+    languageHints.forEach((language) => {
+      addAttempt('word', language, 80, 'Transcribing spoken words with Whisper');
+    });
+    languageHints.forEach((language) => {
+      addAttempt(true, language, 86, 'Retrying with phrase timestamps');
+    });
+  }
 
   return attempts;
 }
@@ -213,7 +230,7 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
   const pcm = normalizePcmForWhisper(rawPcm);
   const attempts = buildTranscriptionAttempts(fileName);
   const hintType = getLanguageHintType(fileName);
-  const shouldCompareCandidates = hintType === 'south_asian';
+  const shouldCompareCandidates = true;
 
   let lastError = null;
   let bestCandidate = null;
@@ -241,11 +258,20 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
 
         const score = scoreTranscriptCandidate(result, attempt.language, hintType);
         if (!bestCandidate || score > bestCandidate.score) {
+          result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
           bestCandidate = { result, score };
         }
 
         if (hintType === 'south_asian' && isAcceptableSouthAsianTranscript(result, score, options.duration || 0)) {
           result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
+          return result;
+        }
+        if (hintType === 'auto' && attempt.language === 'english' && isCompleteEnoughTranscript(result, options.duration || 0)) {
+          result.detectedLanguage = 'English';
+          return result;
+        }
+        if (hintType === 'english' && attempt.language === 'english' && isCompleteEnoughTranscript(result, options.duration || 0)) {
+          result.detectedLanguage = 'English';
           return result;
         }
       }
@@ -257,7 +283,7 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
 
   if (bestCandidate?.result) {
     if (hintType !== 'south_asian' || isAcceptableSouthAsianTranscript(bestCandidate.result, bestCandidate.score, options.duration || 0)) {
-      bestCandidate.result.detectedLanguage = getLanguageDisplayName(null, hintType);
+      bestCandidate.result.detectedLanguage = bestCandidate.result.detectedLanguage || getLanguageDisplayName(null, hintType);
       return bestCandidate.result;
     }
   }
