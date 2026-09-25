@@ -875,16 +875,11 @@ body.app-shell-locked {
   box-shadow: none;
 }
 
-.video-container .studio-video-element,
-.video-container .caption-live-overlay,
-.video-container .cutout-live-canvas {
+.video-container .studio-video-element {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-}
-
-.video-container .studio-video-element {
   z-index: 1;
   object-fit: contain;
 }
@@ -896,9 +891,13 @@ body.app-shell-locked {
   filter: contrast(1.18) saturate(1.28) brightness(1.02) !important;
 }
 
-.video-container .caption-live-overlay {
+.video-container .caption-live-overlay,
+.video-container .cutout-live-canvas {
+  position: absolute;
   z-index: 2;
   pointer-events: none;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* Floating Draggable Caption Segment & Action Bar */

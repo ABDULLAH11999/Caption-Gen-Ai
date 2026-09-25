@@ -1645,9 +1645,10 @@ export class UserDashboard {
       const videoWrapper = wrap.querySelector('#user-video-wrapper');
       if (videoWrapper) {
         videoWrapper.className = `video-container ${this.currentMode} is-paused`;
-        videoWrapper.style.aspectRatio = isPortrait ? '9/16' : '16/9';
+        videoWrapper.style.aspectRatio = (vw && vh) ? `${vw}/${vh}` : (isPortrait ? '9/16' : '16/9');
       }
       if (scrubber) scrubber.max = this.videoDuration;
+      this.syncVideoOverlayBounds();
       this.updateTimeDisplay();
       this.renderMiniSegmentsList();
       this.updateCaptionOverlay();
@@ -1829,6 +1830,82 @@ export class UserDashboard {
 
     // Real-Time Draggable & Resizable Caption Setup
     this.setupCaptionDragAndResize(wrap);
+
+    // Dynamic Video Aspect Ratio & Overlay Bounds Synchronizer
+    const videoWrapper = wrap.querySelector('#user-video-wrapper');
+    if (videoWrapper && typeof ResizeObserver !== 'undefined') {
+      const resizeObserver = new ResizeObserver(() => {
+        this.syncVideoOverlayBounds();
+      });
+      resizeObserver.observe(videoWrapper);
+    }
+    window.addEventListener('resize', () => {
+      this.syncVideoOverlayBounds();
+    });
+  }
+
+  syncVideoOverlayBounds() {
+    const videoWrapper = this.container?.querySelector('#user-video-wrapper');
+    const video = this.videoElement || this.container?.querySelector('#user-main-video');
+    const overlay = this.container?.querySelector('#user-caption-live-overlay');
+    const cutoutCanvas = this.cutoutCanvas || this.container?.querySelector('#user-cutout-canvas');
+
+    if (!videoWrapper || !video || !overlay) return;
+
+    const cw = videoWrapper.clientWidth || 0;
+    const ch = videoWrapper.clientHeight || 0;
+    const vw = video.videoWidth || 0;
+    const vh = video.videoHeight || 0;
+
+    if (cw <= 0 || ch <= 0 || vw <= 0 || vh <= 0) {
+      overlay.style.left = '0px';
+      overlay.style.top = '0px';
+      overlay.style.width = '100%';
+      overlay.style.height = '100%';
+      return;
+    }
+
+    const containerRatio = cw / ch;
+    const videoRatio = vw / vh;
+
+    let renderW = cw;
+    let renderH = ch;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (containerRatio > videoRatio) {
+      // Letterbox on left/right (pillarbox)
+      renderH = ch;
+      renderW = ch * videoRatio;
+      offsetX = (cw - renderW) / 2;
+      offsetY = 0;
+    } else {
+      // Letterbox on top/bottom
+      renderW = cw;
+      renderH = cw / videoRatio;
+      offsetX = 0;
+      offsetY = (ch - renderH) / 2;
+    }
+
+    const leftPx = Math.round(offsetX);
+    const topPx = Math.round(offsetY);
+    const widthPx = Math.round(renderW);
+    const heightPx = Math.round(renderH);
+
+    overlay.style.position = 'absolute';
+    overlay.style.left = `${leftPx}px`;
+    overlay.style.top = `${topPx}px`;
+    overlay.style.width = `${widthPx}px`;
+    overlay.style.height = `${heightPx}px`;
+    overlay.style.overflow = 'hidden';
+
+    if (cutoutCanvas) {
+      cutoutCanvas.style.position = 'absolute';
+      cutoutCanvas.style.left = `${leftPx}px`;
+      cutoutCanvas.style.top = `${topPx}px`;
+      cutoutCanvas.style.width = `${widthPx}px`;
+      cutoutCanvas.style.height = `${heightPx}px`;
+    }
   }
 
   getCurrentScriptMode() {
@@ -2144,10 +2221,12 @@ export class UserDashboard {
     const animClass = animMeta ? animMeta.cssClass : (resolvedAnimId.startsWith('anim-') ? resolvedAnimId : 'anim-pop');
     const defaultPosMeta = CAPTION_POSITIONS.find(p => p.id === 'middle-left') || CAPTION_POSITIONS[3];
     const hasCustomPos = currentSentence.posX !== undefined && currentSentence.posY !== undefined;
-    const baseX = hasCustomPos ? Number(currentSentence.posX) : Number(String(defaultPosMeta.x || '6').replace('%', ''));
-    const baseY = hasCustomPos ? Number(currentSentence.posY) : Number(String(defaultPosMeta.y || '50').replace('%', ''));
-    const posX = `${Number.isFinite(baseX) ? baseX : 6}%`;
-    const visualY = Number.isFinite(baseY) ? baseY + (hasCustomPos ? 0 : anchorIndex * 7) : 50;
+    const rawX = hasCustomPos ? Number(currentSentence.posX) : Number(String(defaultPosMeta.x || '6').replace('%', ''));
+    const rawY = hasCustomPos ? Number(currentSentence.posY) : Number(String(defaultPosMeta.y || '50').replace('%', ''));
+    const baseX = Math.max(2, Math.min(88, Number.isFinite(rawX) ? rawX : 6));
+    const baseY = Math.max(2, Math.min(92, Number.isFinite(rawY) ? rawY : 50));
+    const posX = `${baseX}%`;
+    const visualY = baseY + (hasCustomPos ? 0 : anchorIndex * 7);
     const posY = `${Math.min(92, Math.max(2, visualY))}%`;
     const posTransform = hasCustomPos ? 'translate(0, 0)' : (defaultPosMeta.transform || 'translate(0, -50%)');
     const textAlign = defaultPosMeta.align || 'left';
@@ -2179,6 +2258,7 @@ export class UserDashboard {
   }
 
   updateCaptionOverlay(sentenceOverride = null) {
+    this.syncVideoOverlayBounds();
     const overlay = this.container.querySelector('#user-caption-live-overlay');
     if (!overlay || !this.videoElement) return;
 
@@ -2415,8 +2495,10 @@ export class UserDashboard {
     // 11. Segment-Specific Custom Position & Sizing (Defaults to Middle-Left: 6%, 50%)
     const defaultPosMeta = CAPTION_POSITIONS.find(p => p.id === 'middle-left') || CAPTION_POSITIONS[3];
     const hasCustomPos = currentSentence.posX !== undefined && currentSentence.posY !== undefined;
-    const posX = hasCustomPos ? `${currentSentence.posX}%` : (defaultPosMeta.x || '6%');
-    const posY = hasCustomPos ? `${currentSentence.posY}%` : (defaultPosMeta.y || '50%');
+    const rawX = hasCustomPos ? Number(currentSentence.posX) : Number(String(defaultPosMeta.x || '6').replace('%', ''));
+    const rawY = hasCustomPos ? Number(currentSentence.posY) : Number(String(defaultPosMeta.y || '50').replace('%', ''));
+    const posX = `${Math.max(2, Math.min(88, Number.isFinite(rawX) ? rawX : 6))}%`;
+    const posY = `${Math.max(2, Math.min(92, Number.isFinite(rawY) ? rawY : 50))}%`;
     const posTransform = hasCustomPos ? 'translate(0, 0)' : (defaultPosMeta.transform || 'translate(0, -50%)');
     const textAlign = defaultPosMeta.align || 'left';
     const justifyAlign = (textAlign === 'left') ? 'flex-start' : (textAlign === 'right' ? 'flex-end' : 'center');
@@ -3190,7 +3272,8 @@ export class UserDashboard {
       this.activeEditableSegmentId = activeSentence.id || null;
 
       activeAnchor = anchor;
-      const videoRect = videoWrapper.getBoundingClientRect();
+      this.syncVideoOverlayBounds();
+      const overlayRect = overlay.getBoundingClientRect();
       const anchorRect = anchor.getBoundingClientRect();
 
       const isCornerResize = !!e.target.closest('.resize-corner');
@@ -3217,8 +3300,8 @@ export class UserDashboard {
         isResizing = false;
         startPointerX = e.clientX;
         startPointerY = e.clientY;
-        initialAnchorLeftPx = anchorRect.left - videoRect.left;
-        initialAnchorTopPx = anchorRect.top - videoRect.top;
+        initialAnchorLeftPx = anchorRect.left - overlayRect.left;
+        initialAnchorTopPx = anchorRect.top - overlayRect.top;
         anchor.classList.add('is-dragging');
         e.preventDefault();
         e.stopPropagation();
@@ -3234,8 +3317,8 @@ export class UserDashboard {
         moveEvent.preventDefault();
         moveEvent.stopPropagation();
 
-        const currentVideoRect = videoWrapper.getBoundingClientRect();
-        if (currentVideoRect.width <= 0 || currentVideoRect.height <= 0) return;
+        const currentOverlayRect = overlay.getBoundingClientRect();
+        if (currentOverlayRect.width <= 0 || currentOverlayRect.height <= 0) return;
 
         if (isDragging) {
           const deltaX = moveEvent.clientX - startPointerX;
@@ -3244,14 +3327,17 @@ export class UserDashboard {
           let newLeftPx = initialAnchorLeftPx + deltaX;
           let newTopPx = initialAnchorTopPx + deltaY;
 
-          // Clamping within video bounds
-          newLeftPx = Math.max(0, Math.min(currentVideoRect.width - 60, newLeftPx));
-          newTopPx = Math.max(0, Math.min(currentVideoRect.height - 40, newTopPx));
+          // Clamping strictly within visible video aspect ratio boundary
+          const maxLeft = Math.max(0, currentOverlayRect.width - anchorRect.width);
+          const maxTop = Math.max(0, currentOverlayRect.height - anchorRect.height);
 
-          const xPct = Math.round((newLeftPx / currentVideoRect.width) * 100);
-          const yPct = Math.round((newTopPx / currentVideoRect.height) * 100);
+          newLeftPx = Math.max(0, Math.min(maxLeft, newLeftPx));
+          newTopPx = Math.max(0, Math.min(maxTop, newTopPx));
 
-          activeSentence.posX = Math.max(1, Math.min(88, xPct));
+          const xPct = Math.round((newLeftPx / currentOverlayRect.width) * 100);
+          const yPct = Math.round((newTopPx / currentOverlayRect.height) * 100);
+
+          activeSentence.posX = Math.max(2, Math.min(88, xPct));
           activeSentence.posY = Math.max(2, Math.min(92, yPct));
 
           activeAnchor.style.left = `${activeSentence.posX}%`;
@@ -3261,7 +3347,7 @@ export class UserDashboard {
           const deltaX = moveEvent.clientX - startPointerX;
           const deltaY = moveEvent.clientY - startPointerY;
           const newWidthPx = Math.max(90, initialWidthPx + deltaX);
-          let widthPct = Math.round((newWidthPx / currentVideoRect.width) * 100);
+          let widthPct = Math.round((newWidthPx / currentOverlayRect.width) * 100);
           widthPct = Math.max(15, Math.min(96, widthPct));
 
           activeSentence.boxWidth = widthPct;
