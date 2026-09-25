@@ -28,6 +28,7 @@ function getLanguageHintType(fileName = '') {
 function getLanguageDisplayName(language = null, hintType = 'auto') {
   if (language === 'english' || hintType === 'english') return 'English';
   if (language === 'hindi' || language === 'urdu') return 'Hindi / Urdu (Roman)';
+  if (hintType === 'south_asian') return 'Hindi / Urdu (Roman)';
   return 'Detecting language';
 }
 
@@ -199,25 +200,22 @@ function buildTranscriptionAttempts(fileName = '') {
     });
   };
 
-  // return_timestamps: true uses Whisper's native phrase timestamp tokens
-  // which works reliably for Hindi without triggering ONNX alignment head errors.
-  // We also add `false` (no timestamps) as a fallback in case phrase timestamping
-  // fails and returns empty string.
   if (hintType === 'south_asian') {
     addAttempt(true, 'hindi', 80, 'Transcribing Hindi/Urdu speech');
-    addAttempt(false, 'hindi', 82, 'Retrying Hindi/Urdu speech (No TS)');
-    addAttempt(true, null, 85, 'Transcribing spoken words with Whisper');
+    addAttempt(true, 'urdu', 82, 'Transcribing Urdu speech');
+    addAttempt(true, null, 84, 'Auto-checking Hindi/Urdu speech');
   } else if (hintType === 'english') {
     addAttempt(true, 'english', 80, 'Transcribing spoken words with Whisper');
     addAttempt(true, null, 86, 'Transcribing spoken words with Whisper');
   } else {
     // Standard Auto-detection: Whisper automatically detects spoken language
     addAttempt(true, null, 80, 'Transcribing spoken words with Whisper');
-    addAttempt(false, null, 82, 'Transcribing spoken words with Whisper (No TS)');
-    // Targeted fallbacks if auto-detection produced no speech
-    addAttempt(true, 'hindi', 85, 'Retrying Hindi/Urdu speech');
-    addAttempt(false, 'hindi', 87, 'Retrying Hindi/Urdu speech (No TS)');
-    addAttempt(true, 'english', 89, 'Retrying English speech');
+    addAttempt(true, 'english', 82, 'Retrying English speech');
+    addAttempt(true, 'hindi', 84, 'Retrying Hindi/Urdu speech');
+    addAttempt(true, 'urdu', 85, 'Retrying Hindi/Urdu speech');
+    addAttempt(false, null, 86, 'Transcribing spoken words with Whisper (No TS)');
+    addAttempt(false, 'hindi', 88, 'Retrying Hindi/Urdu speech (No TS)');
+    addAttempt(false, 'urdu', 89, 'Retrying Hindi/Urdu speech (No TS)');
   }
 
   return attempts;
@@ -255,6 +253,12 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
           if (!bestCandidate || score > bestCandidate.score) {
             result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
             bestCandidate = { result, score };
+          }
+
+          if (hintType === 'south_asian' && words.length >= 2 && !isLikelyWeakEnglishHallucination(result)) {
+            result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
+            result.lowConfidence = !isAcceptableSouthAsianTranscript(result, score, options.duration || 0);
+            return result;
           }
 
           // If South Asian hint matches acceptable transcript, return immediately

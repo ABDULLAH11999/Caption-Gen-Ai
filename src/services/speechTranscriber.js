@@ -277,11 +277,14 @@ class SpeechTranscriberService {
   getLanguageDisplayName(language = null, hintType = 'auto') {
     if (language === 'english' || hintType === 'english') return 'English';
     if (language === 'hindi' || language === 'urdu') return 'Hindi / Urdu (Roman)';
+    if (hintType === 'south_asian') return 'Hindi / Urdu (Roman)';
     return 'Detecting language';
   }
 
   getModelIdForFile(fileBlob = null) {
-    return this.modelId; // Always Xenova/whisper-tiny (~39MB fast multilingual model)
+    return this.getLanguageHintType(fileBlob) === 'south_asian'
+      ? this.nonEnglishModelId
+      : this.modelId;
   }
 
   getDominantNgramRatio(words, size = 2) {
@@ -475,17 +478,19 @@ class SpeechTranscriberService {
 
     if (hintType === 'south_asian') {
       addAttempt(true, 'hindi', 80, 'Transcribing Hindi/Urdu speech');
-      addAttempt(false, 'hindi', 82, 'Retrying Hindi/Urdu speech (No TS)');
-      addAttempt(true, null, 85, 'Transcribing spoken words with Whisper');
+      addAttempt(true, 'urdu', 82, 'Transcribing Urdu speech');
+      addAttempt(true, null, 84, 'Auto-checking Hindi/Urdu speech');
     } else if (hintType === 'english') {
       addAttempt(true, 'english', 80, 'Transcribing spoken words with Whisper');
       addAttempt(true, null, 86, 'Transcribing spoken words with Whisper');
     } else {
       addAttempt(true, null, 80, 'Transcribing spoken words with Whisper');
-      addAttempt(false, null, 82, 'Transcribing spoken words with Whisper (No TS)');
-      addAttempt(true, 'hindi', 85, 'Retrying Hindi/Urdu speech');
-      addAttempt(false, 'hindi', 87, 'Retrying Hindi/Urdu speech (No TS)');
-      addAttempt(true, 'english', 89, 'Retrying English speech');
+      addAttempt(true, 'english', 82, 'Retrying English speech');
+      addAttempt(true, 'hindi', 84, 'Retrying Hindi/Urdu speech');
+      addAttempt(true, 'urdu', 85, 'Retrying Hindi/Urdu speech');
+      addAttempt(false, null, 86, 'Transcribing spoken words with Whisper (No TS)');
+      addAttempt(false, 'hindi', 88, 'Retrying Hindi/Urdu speech (No TS)');
+      addAttempt(false, 'urdu', 89, 'Retrying Hindi/Urdu speech (No TS)');
     }
 
     return attempts;
@@ -508,15 +513,24 @@ class SpeechTranscriberService {
         if (this.hasTranscriptText(result)) {
           const text = (result.text || '').trim();
           const words = text.split(/\s+/).filter(Boolean);
+          const isFiller = this.isLikelyFillerHallucination(text);
+          const isWeakEnglish = this.isLikelyWeakEnglishHallucination(result);
+          const isKnownEnglishLoop = /\b(come to you|switch to this|you will not have to|we all have|grand theft|caption generation studio)\b/i.test(text);
+          const score = this.scoreTranscriptCandidate(result, attempt.language, hintType);
 
-          if (!this.isLikelyFillerHallucination(text)) {
-            const score = this.scoreTranscriptCandidate(result, attempt.language, hintType);
+          if ((!isFiller || hintType === 'south_asian') && !(hintType === 'south_asian' && isWeakEnglish && isKnownEnglishLoop)) {
             if (!bestCandidate || score > bestCandidate.score) {
               result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
+              result.lowConfidence = !!isFiller;
               bestCandidate = { result, score };
             }
 
-            if (hintType === 'south_asian' && this.isAcceptableSouthAsianTranscript(result, score, duration)) {
+            if (hintType === 'south_asian' && words.length >= 2 && !isKnownEnglishLoop) {
+              result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
+              result.lowConfidence = !!isFiller || !this.isAcceptableSouthAsianTranscript(result, score, duration);
+              return result;
+            }
+            if (hintType === 'south_asian' && !isFiller && this.isAcceptableSouthAsianTranscript(result, score, duration)) {
               result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
               return result;
             }
@@ -541,6 +555,7 @@ class SpeechTranscriberService {
 
     if (bestCandidate?.result) {
       bestCandidate.result.detectedLanguage = bestCandidate.result.detectedLanguage || this.getLanguageDisplayName(null, hintType);
+      if (hintType === 'south_asian') bestCandidate.result.lowConfidence = true;
       return bestCandidate.result;
     }
     throw lastError || new Error('Whisper did not detect any transcript text in this video.');
@@ -1314,10 +1329,9 @@ class SpeechTranscriberService {
     // 3. Last-resort fallback: synthesize timing across total duration
     const fallbackTokens = rawText.split(/\s+/).filter(Boolean);
     if (fallbackTokens.length > 0) {
-      return this.sanitizeCaptionSentences(
-        this.buildVoiceAlignedSentences(fallbackTokens, totalDuration, speechSegments),
-        totalDuration
-      );
+      const fallbackSentences = this.buildVoiceAlignedSentences(fallbackTokens, totalDuration, speechSegments);
+      const sanitizedFallback = this.sanitizeCaptionSentences(fallbackSentences, totalDuration);
+      return sanitizedFallback.length > 0 ? sanitizedFallback : fallbackSentences;
     }
 
     return [];

@@ -320,19 +320,42 @@ export class VideoRenderer {
       }
     }
 
-    if (matchingSentences.length === 1) {
+    if (matchingSentences.length > 1) {
+      const base = matchingSentences[0].sentence;
+      const start = Math.min(...matchingSentences.map(m => m.start));
+      const end = Math.max(...matchingSentences.map(m => m.end));
+      const words = matchingSentences.flatMap((m) => {
+        const sentence = m.sentence;
+        if (Array.isArray(sentence.words) && sentence.words.length > 0) {
+          return sentence.words.map(w => ({
+            ...w,
+            start: Number(w.start ?? w.startTime ?? m.start),
+            end: Number(w.end ?? w.endTime ?? m.end),
+            startTime: Number(w.start ?? w.startTime ?? m.start),
+            endTime: Number(w.end ?? w.endTime ?? m.end)
+          }));
+        }
+        return [{
+          word: sentence.text || '',
+          start: m.start,
+          end: m.end,
+          startTime: m.start,
+          endTime: m.end
+        }];
+      }).filter(w => (w.word || '').trim());
+
+      currentSentence = {
+        ...base,
+        id: `combined_${matchingSentences.map(m => m.sentence.id || m.index).join('_')}`,
+        start,
+        end,
+        startTime: start,
+        endTime: end,
+        text: matchingSentences.map(m => m.sentence.text || '').filter(Boolean).join(' '),
+        words
+      };
+    } else if (matchingSentences.length === 1) {
       currentSentence = matchingSentences[0].sentence;
-    } else if (matchingSentences.length > 1) {
-      const first = matchingSentences[0];
-      const sameSpan = matchingSentences.filter(m => Math.abs(m.start - first.start) < 0.05 && Math.abs(m.end - first.end) < 0.05);
-      if (sameSpan.length > 1) {
-        const dur = Math.max(0.05, first.end - first.start);
-        const progress = Math.max(0, Math.min(0.999, (curTime - first.start) / dur));
-        const subIdx = Math.min(sameSpan.length - 1, Math.floor(progress * sameSpan.length));
-        currentSentence = sameSpan[subIdx].sentence;
-      } else {
-        currentSentence = matchingSentences[0].sentence;
-      }
     }
 
     if (!currentSentence && sentences.length > 0) {

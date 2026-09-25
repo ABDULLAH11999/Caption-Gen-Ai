@@ -252,7 +252,7 @@ export class LandingPage {
             </div>
 
             <div class="mockup-screen-area">
-              <img class="mockup-preview-image" src="/img-1.jpg" alt="Video Preview - Full Aspect Ratio" onerror="this.style.display='none'" />
+              <img class="mockup-preview-image" src="/img-1.png" alt="Video Preview - Full Aspect Ratio" onerror="this.style.display='none'" />
 
               <div class="mockup-controls-overlay">
                 <span style="font-size: 12px; color: #ffffff; font-weight: 700;">00:03 / 00:13</span>

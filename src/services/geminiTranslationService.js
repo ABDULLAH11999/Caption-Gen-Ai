@@ -313,6 +313,8 @@ ${JSON.stringify(segmentsInput, null, 2)}`;
         start: sStart,
         end: sEnd,
         originalText: s.originalText || originalRawText,
+        nativeText: scriptMode === 'native' ? translatedText : (s.nativeText || s.originalText || originalRawText),
+        romanText: scriptMode === 'roman' ? translatedText : (s.romanText || originalRawText),
         originalLanguage: s.originalLanguage || (targetLang === 'ur' || targetLang === 'hi' ? targetLang : 'auto'),
         language: targetLang,
         text: translatedText,

@@ -2972,3 +2972,30 @@ body.app-shell-locked {
   font-weight: 700 !important;
   color: #64748b !important;
 }
+
+.caption-script-switch {
+  gap: 8px;
+  padding: 8px;
+  margin: 0 0 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.caption-script-switch-btn {
+  flex: 1;
+  border: 0;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 8px 10px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+.caption-script-switch-btn:hover {
+  background: #0f172a;
+  color: #ffffff;
+}

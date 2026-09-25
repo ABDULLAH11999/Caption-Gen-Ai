@@ -1260,6 +1260,11 @@ export class UserDashboard {
             </div>
 
             <!-- ACTION BUTTONS: APPLY SIZE & POS TO ALL, PROCESS AGAIN & EDIT SEGMENTS -->
+            <div class="caption-script-switch" style="display: ${this.isCurrentVideoNonEnglish() ? 'flex' : 'none'};">
+              <button type="button" class="caption-script-switch-btn" id="btn-caption-script-roman">Roman</button>
+              <button type="button" class="caption-script-switch-btn" id="btn-caption-script-native">Native</button>
+            </div>
+
             <div class="segments-header-actions-stack">
               <button class="btn btn-seg-action btn-action-follow-pos" data-retired-id="btn-header-apply-pos-all" title="Apply active segment sizing and position to ALL segments">
                 <span>⚡ Apply Size & Pos to All</span>
@@ -1800,8 +1805,56 @@ export class UserDashboard {
       }
     });
 
+    wrap.querySelector('#btn-caption-script-roman')?.addEventListener('click', () => {
+      this.switchCaptionScript({ scriptMode: 'roman', languagePreference: 'roman' });
+    });
+
+    wrap.querySelector('#btn-caption-script-native')?.addEventListener('click', async () => {
+      const selection = await this.showCaptionScriptModal();
+      if (selection) await this.switchCaptionScript(selection);
+    });
+
     // Real-Time Draggable & Resizable Caption Setup
     this.setupCaptionDragAndResize(wrap);
+  }
+
+  async switchCaptionScript(selection) {
+    const sentences = captionEngine.sentences || [];
+    if (!sentences.length) {
+      this.showToast('No captions loaded yet to localize.', 'info');
+      return;
+    }
+
+    soundFx.playProcessStart();
+    this.showToast('Switching caption script...', 'info');
+
+    try {
+      const sourceSentences = sentences.map(s => ({
+        ...s,
+        text: s.originalText || s.nativeText || s.text
+      }));
+      const translated = await geminiTranslationService.translateSentencesWithGemini(
+        sourceSentences,
+        () => {},
+        selection
+      );
+
+      if (translated && translated.length > 0) {
+        captionEngine.setSegmentsDirect(translated);
+        this.isNonEnglishVideo = true;
+        this.renderMiniSegmentsList();
+        const firstSeg = captionEngine.sentences[0];
+        if (firstSeg) {
+          this.updateCaptionOverlay(firstSeg);
+          if (this.videoElement) this.videoElement.currentTime = firstSeg.start + 0.01;
+        }
+        soundFx.playOutputReady();
+        this.showToast('Caption script loaded.', 'success');
+      }
+    } catch (err) {
+      console.error('[Caption Script] Switch error:', err);
+      this.showToast('Script switch error: ' + (err.message || 'Failed'), 'error');
+    }
   }
 
   isCurrentVideoNonEnglish() {
@@ -1850,20 +1903,43 @@ export class UserDashboard {
       }
     }
 
-    if (matching.length === 1) {
-      return matching[0].sentence;
+    if (matching.length > 1) {
+      const base = matching[0].sentence;
+      const start = Math.min(...matching.map(m => m.start));
+      const end = Math.max(...matching.map(m => m.end));
+      const words = matching.flatMap((m) => {
+        const sentence = m.sentence;
+        if (Array.isArray(sentence.words) && sentence.words.length > 0) {
+          return sentence.words.map(w => ({
+            ...w,
+            start: Number(w.start ?? w.startTime ?? m.start),
+            end: Number(w.end ?? w.endTime ?? m.end),
+            startTime: Number(w.start ?? w.startTime ?? m.start),
+            endTime: Number(w.end ?? w.endTime ?? m.end)
+          }));
+        }
+        return [{
+          word: sentence.text || '',
+          start: m.start,
+          end: m.end,
+          startTime: m.start,
+          endTime: m.end
+        }];
+      }).filter(w => (w.word || '').trim());
+
+      return {
+        ...base,
+        id: `combined_${matching.map(m => m.sentence.id || m.index).join('_')}`,
+        start,
+        end,
+        startTime: start,
+        endTime: end,
+        text: matching.map(m => m.sentence.text || '').filter(Boolean).join(' '),
+        words
+      };
     }
 
-    if (matching.length > 1) {
-      // Multiple segments share identical [start, end] window (e.g. broken word segments)
-      const first = matching[0];
-      const sameSpan = matching.filter(m => Math.abs(m.start - first.start) < 0.05 && Math.abs(m.end - first.end) < 0.05);
-      if (sameSpan.length > 1) {
-        const dur = Math.max(0.05, first.end - first.start);
-        const progress = Math.max(0, Math.min(0.999, (time - first.start) / dur));
-        const subIdx = Math.min(sameSpan.length - 1, Math.floor(progress * sameSpan.length));
-        return sameSpan[subIdx].sentence;
-      }
+    if (matching.length === 1) {
       return matching[0].sentence;
     }
 
@@ -2164,6 +2240,10 @@ export class UserDashboard {
     const geminiBtn = this.container?.querySelector('#btn-retranslate-gemini');
     if (geminiBtn) {
       geminiBtn.style.display = this.isCurrentVideoNonEnglish() ? 'flex' : 'none';
+    }
+    const scriptSwitch = this.container?.querySelector('.caption-script-switch');
+    if (scriptSwitch) {
+      scriptSwitch.style.display = this.isCurrentVideoNonEnglish() ? 'flex' : 'none';
     }
 
     const cfg = this.activeConfig || {};

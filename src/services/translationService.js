@@ -564,6 +564,8 @@ class TranslationService {
           start: sStart,
           end: sEnd,
           originalText: rawText,
+          nativeText,
+          romanText: s.romanText || rawText,
           originalLanguage: targetLang === 'urdu' || hasUrdu ? 'ur' : 'hi',
           language: targetLang === 'urdu' || hasUrdu ? 'ur' : 'hi',
           text: nativeText,
@@ -577,6 +579,7 @@ class TranslationService {
       if (!hasNonLatin) {
         processedSentences.push({
           ...s,
+          romanText: s.romanText || rawText,
           originalLanguage: s.language || 'en',
           language: 'en'
         });
@@ -599,6 +602,8 @@ class TranslationService {
         start: sStart,
         end: sEnd,
         originalText: rawText,
+        nativeText: s.nativeText || rawText,
+        romanText,
         originalLanguage: languageIdentifier.detectTextLanguage(rawText),
         language: 'en',
         text: romanText,

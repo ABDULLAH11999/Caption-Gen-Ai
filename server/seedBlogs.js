@@ -1427,7 +1427,301 @@ Small caption changes can produce major differences in thumb-stop rate.`
   }
 ];
 
+// 10 additional peak-intent SEO articles.
+// Appended only; existing blog objects and slugs above remain unchanged.
+const PEAK_SEO_TOPICS_10 = [
+  {
+    title: 'Best Free Auto Subtitle Generator for TikTok, Reels, and YouTube Shorts',
+    slug: 'best-free-auto-subtitle-generator-tiktok-reels-youtube-shorts',
+    excerpt: 'Compare what creators actually need from a free auto subtitle generator: accurate speech-to-text, viral caption styles, no watermark exports, and mobile-ready safe zones.',
+    keywords: 'best free auto subtitle generator, tiktok subtitle generator free, reels caption generator, youtube shorts captions, no watermark subtitles',
+    meta_title: 'Best Free Auto Subtitle Generator for TikTok, Reels & Shorts',
+    meta_desc: 'Find the best free auto subtitle generator for TikTok, Instagram Reels, and YouTube Shorts. Accurate captions, viral styles, no watermark exports.',
+    featured_image: 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?auto=format&fit=crop&w=1200&q=80',
+    content: `# Best Free Auto Subtitle Generator for TikTok, Reels, and YouTube Shorts
+
+Creators need more than plain subtitles. A strong **free auto subtitle generator** should produce accurate speech-to-text, readable burned-in captions, modern social templates, and clean exports without covering the video in a watermark.
+
+## What Makes a Subtitle Generator Worth Using?
+The best tools combine four things:
+
+1. **Accurate transcription** for fast speech, creator slang, product names, and short-form hooks.
+2. **Viral caption styling** with bold fonts, outlined text, highlighted keywords, and kinetic motion.
+3. **Platform-safe placement** so captions do not collide with TikTok buttons, Reels UI, or Shorts controls.
+4. **No watermark exports** because branded watermarks can reduce trust and make UGC ads look less native.
+
+## Why Captions Improve Short-Form Performance
+Most viewers decide whether to keep watching in the first second. Captions give them instant context before they turn audio on. When your first caption line repeats the hook clearly, retention improves across silent viewing, noisy environments, and distracted mobile browsing.
+
+## Recommended Workflow
+Upload your video, generate captions, choose a high-contrast template, review the first three caption lines, then export a clean MP4. For TikTok and Reels, keep most captions near the center-left or mid-frame safe zone.
+
+Zen Caption is built for creators who want fast, readable, social-first captions without subscription friction.`
+  },
+  {
+    title: 'How to Add Captions to MP4 Videos Online Free Without Watermark',
+    slug: 'how-to-add-captions-to-mp4-videos-online-free-without-watermark',
+    excerpt: 'A step-by-step guide to adding captions to MP4 videos online for free, with accurate subtitles, custom fonts, safe-zone placement, and watermark-free exports.',
+    keywords: 'add captions to mp4 online free, caption mp4 video no watermark, free subtitle maker mp4, burn captions into video',
+    meta_title: 'Add Captions to MP4 Online Free Without Watermark',
+    meta_desc: 'Learn how to add captions to MP4 videos online free without watermark. Generate subtitles, style text, and export clean captioned videos.',
+    featured_image: 'https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=1200&q=80',
+    content: `# How to Add Captions to MP4 Videos Online Free Without Watermark
+
+MP4 is the most common format for TikTok, Instagram, YouTube, LinkedIn, and website videos. If you want your content to perform better, adding captions directly to the MP4 file is one of the highest-impact edits you can make.
+
+## Simple MP4 Caption Workflow
+1. Upload your MP4 video.
+2. Auto-transcribe the audio.
+3. Review the transcript for names, dates, and brand words.
+4. Choose a subtitle style with strong contrast.
+5. Export a clean captioned MP4 with no watermark.
+
+## Burned-In Captions vs SRT Files
+SRT files are useful for YouTube and accessibility, but burned-in captions are visible everywhere: TikTok, Reels, Shorts, messaging apps, landing pages, and ad platforms. For short-form content, burned-in captions usually deliver more consistent visual performance.
+
+## Styling Tips
+Use short chunks, avoid thin fonts, and add a black stroke for readability. If the background is busy, place captions away from faces, product labels, and platform UI.
+
+With Zen Caption, you can caption MP4 videos directly in the browser and export social-ready content without adding a watermark.`
+  },
+  {
+    title: 'TikTok Caption Generator Free: Create Viral Subtitles That Hold Attention',
+    slug: 'tiktok-caption-generator-free-create-viral-subtitles-hold-attention',
+    excerpt: 'Learn how to create TikTok captions that improve retention with bold hooks, keyword highlights, safe-zone placement, and fast no-watermark exports.',
+    keywords: 'tiktok caption generator free, tiktok subtitles free, viral tiktok captions, tiktok text captions, auto captions tiktok',
+    meta_title: 'TikTok Caption Generator Free: Viral Subtitles Guide',
+    meta_desc: 'Use a free TikTok caption generator to create viral subtitles with bold hooks, highlighted keywords, and clean no-watermark exports.',
+    featured_image: 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&w=1200&q=80',
+    content: `# TikTok Caption Generator Free: Create Viral Subtitles That Hold Attention
+
+TikTok viewers scroll quickly. Captions help your video communicate before the viewer commits to watching. A strong **TikTok caption generator free** workflow turns speech into bold, timed subtitles that make the hook clear instantly.
+
+## TikTok Caption Rules That Work
+- Keep the first line short and specific.
+- Highlight the strongest word in each phrase.
+- Avoid bottom placement where usernames and buttons overlap.
+- Use high-contrast colors like white, yellow, cyan, or pink with a dark outline.
+- Match text timing tightly to speech.
+
+## Caption Hook Examples
+"I tested this for 7 days."  
+"Nobody talks about this."  
+"This changed my workflow."  
+"Do this before posting."
+
+## Why Word Highlighting Matters
+When one word changes color or scale, the viewer's eye resets attention. This creates micro-moments of novelty that can improve average watch time.
+
+Zen Caption helps TikTok creators generate readable, stylized subtitles and export videos without forced branding.`
+  },
+  {
+    title: 'Instagram Reel Captions Generator: Make Reels Watchable With Sound Off',
+    slug: 'instagram-reel-captions-generator-watchable-with-sound-off',
+    excerpt: 'A practical guide to generating Instagram Reel captions that work for silent viewers, boost clarity, and keep text inside Reels safe zones.',
+    keywords: 'instagram reel captions generator, reels subtitles generator, add captions to reels, instagram captions video tool',
+    meta_title: 'Instagram Reel Captions Generator for Silent Viewers',
+    meta_desc: 'Generate Instagram Reel captions that stay readable with sound off. Learn safe zones, subtitle styling, and no-watermark export tips.',
+    featured_image: 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?auto=format&fit=crop&w=1200&q=80',
+    content: `# Instagram Reel Captions Generator: Make Reels Watchable With Sound Off
+
+Instagram users often watch Reels in public places, at work, in bed, or while multitasking. If your video relies only on audio, many viewers will miss the point. Captions solve that problem immediately.
+
+## How to Caption Reels for Better Retention
+Use captions to make the main idea visible in the first second. Avoid long sentences, keep text away from the bottom UI, and use a bold outline so the words stay readable over changing backgrounds.
+
+## Best Caption Placement for Reels
+The safest zone is usually mid-frame or slightly above center. Bottom captions can be hidden by usernames, audio labels, and buttons. Center-left placement often works well for talking-head videos.
+
+## Style Recommendations
+For educational Reels, use clean fonts and yellow highlights. For entertainment content, try pop animation or comic styling. For luxury brands, use serif fonts with subtle shadows.
+
+Zen Caption gives creators a fast workflow for generating Reel subtitles, customizing styles, and exporting polished videos without a watermark.`
+  },
+  {
+    title: 'YouTube Shorts Caption Generator: Turn Spoken Hooks Into Searchable Text',
+    slug: 'youtube-shorts-caption-generator-spoken-hooks-searchable-text',
+    excerpt: 'Use a YouTube Shorts caption generator to turn spoken hooks into searchable on-screen text, improve retention, and create reusable SRT files.',
+    keywords: 'youtube shorts caption generator, shorts subtitles, youtube shorts captions free, searchable captions youtube shorts',
+    meta_title: 'YouTube Shorts Caption Generator: Searchable Text Strategy',
+    meta_desc: 'Create YouTube Shorts captions that improve silent viewing and search clarity. Generate burned-in subtitles and SRT files with Zen Caption.',
+    featured_image: 'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?auto=format&fit=crop&w=1200&q=80',
+    content: `# YouTube Shorts Caption Generator: Turn Spoken Hooks Into Searchable Text
+
+YouTube Shorts can appear in search, suggested feeds, and Google surfaces. Captions help viewers understand your hook and give the platform clearer context about the topic.
+
+## The Shorts Caption SEO Loop
+Say the target topic out loud, show it in captions, include it in the title, and support it in the description. This creates consistency between audio, visible text, and metadata.
+
+## Best Caption Format for Shorts
+Shorts usually perform best with 2 to 5 words per caption block. Use bold text, strong contrast, and moderate animation. Overly complex effects can distract from the message.
+
+## Export Both MP4 and SRT
+Burned-in captions help mobile viewers. SRT files help accessibility and YouTube caption indexing. A good workflow gives you both.
+
+Zen Caption lets Shorts creators generate subtitles, style the text, download SRT/VTT files, and export captioned MP4 videos.`
+  },
+  {
+    title: 'No Watermark Video Caption Tool: Clean Exports for Creators and Agencies',
+    slug: 'no-watermark-video-caption-tool-clean-exports-creators-agencies',
+    excerpt: 'Why creators, agencies, coaches, and UGC editors should use no-watermark caption exports for professional-looking short-form videos.',
+    keywords: 'no watermark video caption tool, caption generator without watermark, clean subtitle export, agency caption workflow',
+    meta_title: 'No Watermark Video Caption Tool for Clean Exports',
+    meta_desc: 'Use a no-watermark video caption tool to create clean, professional short-form videos for clients, UGC ads, Reels, TikToks, and Shorts.',
+    featured_image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1200&q=80',
+    content: `# No Watermark Video Caption Tool: Clean Exports for Creators and Agencies
+
+Watermarks can make otherwise strong videos look unfinished. For client work, ads, coaching content, and brand pages, clean caption exports matter.
+
+## Why Watermark-Free Captions Matter
+Watermarks distract from the speaker, reduce brand trust, and can make paid ads feel less native. When captions are part of the creative, they should support the message—not advertise the editing tool.
+
+## Who Needs Clean Caption Exports?
+- Social media agencies delivering client videos.
+- UGC creators submitting ad variations.
+- Coaches publishing educational clips.
+- Real estate agents sharing listing tours.
+- Podcasters repurposing long interviews into Shorts.
+
+## Professional Caption Checklist
+Use a consistent font system, keep captions inside safe zones, highlight key words sparingly, and export at the same frame rate as the source where possible.
+
+Zen Caption is built for clean, no-watermark caption exports with social-first typography.`
+  },
+  {
+    title: 'AI Subtitle Generator for Hindi and Urdu Videos: Roman and Native Captions',
+    slug: 'ai-subtitle-generator-hindi-urdu-videos-roman-native-captions',
+    excerpt: 'Create Hindi and Urdu video captions in Roman Urdu/Hindi or native Devanagari/Nastaliq scripts with accurate timing and creator-friendly styling.',
+    keywords: 'hindi subtitle generator, urdu subtitle generator, roman urdu captions, roman hindi subtitles, hindi urdu video captions',
+    meta_title: 'AI Subtitle Generator for Hindi & Urdu Videos',
+    meta_desc: 'Generate Hindi and Urdu video captions in Roman or native scripts. Create timed subtitles for Reels, TikToks, Shorts, and multilingual audiences.',
+    featured_image: 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=1200&q=80',
+    content: `# AI Subtitle Generator for Hindi and Urdu Videos: Roman and Native Captions
+
+Hindi and Urdu creators often need two caption formats: native script for language purity and Roman captions for fast social media reading. The best workflow supports both.
+
+## Roman vs Native Captions
+**Roman Hindi/Urdu** works well for TikTok, Reels, and Shorts because many viewers read conversational Latin spellings quickly.  
+**Native Hindi or Urdu** works well for education, cultural content, formal pages, and audiences who prefer Devanagari or Nastaliq.
+
+## Timing Still Matters
+Whether captions are Roman or native, timestamps must match speech. Poor timing makes even accurate subtitles feel wrong.
+
+## Design Tips
+Use larger font sizes for native scripts, avoid overly condensed fonts, and add a clean dark outline for readability.
+
+Zen Caption supports multilingual caption workflows so Hindi and Urdu creators can prepare social-ready subtitles for different audiences.`
+  },
+  {
+    title: 'Best Caption Fonts for TikTok and Reels: Bold, Readable, and Viral',
+    slug: 'best-caption-fonts-tiktok-reels-bold-readable-viral',
+    excerpt: 'A practical font guide for TikTok and Reels captions: bold sans-serifs, display fonts, serif luxury styles, and when to use each.',
+    keywords: 'best caption fonts tiktok, reels subtitle fonts, viral caption fonts, bold subtitle font, social media typography',
+    meta_title: 'Best Caption Fonts for TikTok and Reels',
+    meta_desc: 'Choose the best fonts for TikTok and Reels captions. Learn when to use bold sans-serif, display, serif, and retro subtitle styles.',
+    featured_image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',
+    content: `# Best Caption Fonts for TikTok and Reels: Bold, Readable, and Viral
+
+Caption font choice directly affects readability. A beautiful font that cannot be read in one second will hurt retention.
+
+## Best Font Categories
+**Bold sans-serif fonts** are best for educational content and talking-head clips.  
+**Display fonts** work well for hero words, hooks, and comedic emphasis.  
+**Serif fonts** fit luxury, fashion, perfume, real estate, and editorial clips.  
+**Retro rounded fonts** can make gaming and entertainment videos feel more playful.
+
+## Pairing Fonts
+Use one clean body font and one bold highlight font. This creates visual hierarchy without cluttering the screen.
+
+## Font Mistakes to Avoid
+Avoid thin fonts, narrow fonts, low contrast colors, and long all-caps sentences. Always test captions over bright and dark footage.
+
+Zen Caption includes social-friendly caption styles that make font pairing simple for creators.`
+  },
+  {
+    title: 'Video Caption Safe Zones for TikTok, Reels, and Shorts',
+    slug: 'video-caption-safe-zones-tiktok-reels-shorts',
+    excerpt: 'Avoid blocked captions by placing subtitles away from platform buttons, usernames, progress bars, captions, and mobile UI overlays.',
+    keywords: 'video caption safe zones, tiktok caption safe zone, reels subtitle placement, shorts captions placement, vertical video subtitles',
+    meta_title: 'Video Caption Safe Zones for TikTok, Reels & Shorts',
+    meta_desc: 'Learn where to place captions in vertical videos so TikTok, Reels, and Shorts UI elements do not block important subtitle text.',
+    featured_image: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=1200&q=80',
+    content: `# Video Caption Safe Zones for TikTok, Reels, and Shorts
+
+Captions can be accurate and beautiful but still fail if platform UI covers them. Safe-zone placement prevents subtitles from being hidden by buttons, usernames, progress bars, and audio labels.
+
+## Recommended Vertical Video Placement
+For 9:16 videos, keep important caption text away from the bottom 20% and right-side button column. Mid-frame placement often gives the best balance between readability and subject visibility.
+
+## Common Placement Mistakes
+- Captions too low on the frame.
+- Captions covering the speaker's mouth.
+- Text overlapping product labels.
+- Huge captions that touch the frame edges.
+- Captions placed behind platform controls.
+
+## Best Practice
+Use a draggable caption position, preview on mobile size, and export only after checking the first and last caption lines.
+
+Zen Caption provides editable caption positioning so creators can keep text visible across platforms.`
+  },
+  {
+    title: 'Convert Podcast Clips Into Captioned Shorts: A Creator Workflow',
+    slug: 'convert-podcast-clips-into-captioned-shorts-creator-workflow',
+    excerpt: 'Turn podcast highlights into TikToks, Reels, and YouTube Shorts with searchable hooks, accurate captions, bold typography, and clean exports.',
+    keywords: 'podcast clips captions, convert podcast to shorts, podcast subtitle generator, captioned podcast reels, shorts from podcast',
+    meta_title: 'Convert Podcast Clips Into Captioned Shorts',
+    meta_desc: 'Repurpose podcast highlights into captioned Shorts, Reels, and TikToks. Learn hook selection, subtitle styling, and export workflow.',
+    featured_image: 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?auto=format&fit=crop&w=1200&q=80',
+    content: `# Convert Podcast Clips Into Captioned Shorts: A Creator Workflow
+
+Podcasts contain dozens of short-form clips hidden inside long conversations. Captions make those clips understandable, searchable, and scroll-stopping.
+
+## Podcast Clip Workflow
+1. Pick a 20 to 45 second moment with a clear takeaway.
+2. Start the clip at the strongest sentence, not the beginning of the answer.
+3. Generate captions and fix names or technical terms.
+4. Use bold text for the main idea and highlight the emotional word.
+5. Export for Shorts, Reels, and TikTok.
+
+## Caption Style for Podcasts
+Podcast clips usually perform best with clean typography, moderate animation, and readable safe-zone placement. The speaker's face should remain visible while captions carry the message.
+
+## SEO Tip
+Use the same phrase in the clip title, caption text, description, and hashtags. This helps viewers and platforms understand the topic.
+
+Zen Caption helps podcasters transform long-form conversations into captioned short-form assets quickly.`
+  },
+  {
+    title: 'Burn Captions Into Video Online: MP4 Subtitles That Work Everywhere',
+    slug: 'burn-captions-into-video-online-mp4-subtitles-work-everywhere',
+    excerpt: 'Learn when to burn captions into video instead of using separate subtitle files, and how to export readable MP4 subtitles for every platform.',
+    keywords: 'burn captions into video online, hardcode subtitles mp4, burned in captions, add subtitles permanently to video, mp4 caption burner',
+    meta_title: 'Burn Captions Into Video Online: MP4 Subtitle Guide',
+    meta_desc: 'Burn captions into video online so subtitles work everywhere. Learn hardcoded MP4 caption benefits, styling tips, and export workflow.',
+    featured_image: 'https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&w=1200&q=80',
+    content: `# Burn Captions Into Video Online: MP4 Subtitles That Work Everywhere
+
+Separate subtitle files are useful, but they do not always display on social platforms. Burned-in captions are permanently visible because the text becomes part of the video itself.
+
+## When to Burn Captions
+Burn captions when posting to TikTok, Instagram Reels, YouTube Shorts, LinkedIn, ad platforms, landing pages, or messaging apps. This ensures the viewer sees the subtitles even if the platform does not load an SRT file.
+
+## When to Use SRT Too
+Download SRT files for YouTube accessibility, website video players, and archive workflows. The best setup is to have both burned-in captions and subtitle files.
+
+## Burned-In Caption Checklist
+Use strong contrast, keep text inside safe zones, avoid long lines, and preview the video before exporting.
+
+Zen Caption makes it simple to generate subtitles, style them, export SRT/VTT files, and burn captions into a clean MP4.`
+  }
+];
+
 MORE_SEO_TOPICS_20.forEach((blog) => {
+  SEEDED_BLOGS.push(blog);
+});
+
+PEAK_SEO_TOPICS_10.forEach((blog) => {
   SEEDED_BLOGS.push(blog);
 });
 
@@ -1440,16 +1734,17 @@ export async function seedBlogs() {
   let blogsToSeed = SEEDED_BLOGS;
 
   if (count >= 50) {
-    const newSlugs = MORE_SEO_TOPICS_20.map(blog => blog.slug);
+    const appendOnlyBlogs = [...MORE_SEO_TOPICS_20, ...PEAK_SEO_TOPICS_10];
+    const newSlugs = appendOnlyBlogs.map(blog => blog.slug);
     const newCheck = await query('SELECT count(*) FROM blogs WHERE slug = ANY($1)', [newSlugs]);
     const newCount = parseInt(newCheck.rows[0]?.count || '0');
 
-    if (newCount >= MORE_SEO_TOPICS_20.length) {
-      console.log(`[DB] Existing blogs unchanged; ${MORE_SEO_TOPICS_20.length} additional SEO blogs already present.`);
+    if (newCount >= appendOnlyBlogs.length) {
+      console.log(`[DB] Existing blogs unchanged; ${appendOnlyBlogs.length} additional SEO blogs already present.`);
       return;
     }
 
-    blogsToSeed = MORE_SEO_TOPICS_20;
+    blogsToSeed = appendOnlyBlogs;
   }
 
   console.log(`[DB] Seeding missing SEO-optimized blog articles (candidates: ${blogsToSeed.length}, current total: ${count})...`);
