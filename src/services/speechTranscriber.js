@@ -282,9 +282,7 @@ class SpeechTranscriberService {
   }
 
   getModelIdForFile(fileBlob = null) {
-    return this.getLanguageHintType(fileBlob) === 'south_asian'
-      ? this.nonEnglishModelId
-      : this.modelId;
+    return this.modelId;
   }
 
   getDominantNgramRatio(words, size = 2) {
@@ -936,6 +934,33 @@ class SpeechTranscriberService {
       const speechSegments = this.detectSpeechSegments(rawPcm, 16000);
       rawPcm = this.normalizePcmForWhisper(rawPcm);
       const targetModelId = this.getModelIdForFile(fileBlob);
+      const languageHintType = this.getLanguageHintType(fileBlob);
+
+      if (languageHintType === 'south_asian') {
+        try {
+          const geminiSentences = await geminiTranslationService.transcribeAudioWithGemini(
+            rawPcm,
+            duration,
+            speechSegments,
+            (gp) => onProgress(gp),
+            {
+              ...options,
+              scriptMode: options?.scriptMode || 'roman',
+              languagePreference: options?.languagePreference || 'roman'
+            }
+          );
+
+          if (Array.isArray(geminiSentences) && geminiSentences.length > 0) {
+            onProgress({ status: 'complete', message: 'Hindi/Urdu captions generated with Gemini!', percent: 100 });
+            this.lastHasUrduOrHindi = true;
+            this.lastDetectedLanguage = 'Hindi / Urdu (Roman)';
+            return geminiSentences;
+          }
+        } catch (geminiAudioErr) {
+          console.warn('[speechTranscriber] Gemini audio transcription failed:', geminiAudioErr.message);
+          throw new Error(`Hindi/Urdu Gemini transcription unavailable: ${geminiAudioErr.message || 'Please configure a valid Gemini API key.'}`);
+        }
+      }
 
       onProgress({ status: 'loading_model', message: 'Loading Whisper speech recognition model...', percent: 45 });
 
@@ -998,7 +1023,6 @@ class SpeechTranscriberService {
             ? Math.min(...rawSentences.map(s => Number(s.start ?? s.startTime ?? 0)).filter(Number.isFinite))
             : Infinity;
 
-          const languageHintType = this.getLanguageHintType(fileBlob);
           if (
             languageHintType === 'auto' &&
             duration > 8 &&

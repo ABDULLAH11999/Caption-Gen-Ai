@@ -11,7 +11,7 @@ import { apiClient } from './apiClient.js';
 
 class GeminiTranslationService {
   constructor() {
-    this.models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+    this.models = ['gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
     this.cache = new Map();
   }
 
@@ -106,6 +106,216 @@ class GeminiTranslationService {
     // STEP 3: Resilient Fallback to translationService if Gemini is unavailable
     console.warn('[Gemini AI] Using resilient translation engine fallback.');
     return translationService.translateSentencesToEnglish(sentences, onProgress, options);
+  }
+
+  hasGeminiConfig(options = {}) {
+    return !!this.getApiKey(options);
+  }
+
+  pcmToWavBase64(rawPcm, sampleRate = 16000) {
+    if (!rawPcm || rawPcm.length === 0) return '';
+    const pcm = rawPcm instanceof Float32Array ? rawPcm : new Float32Array(rawPcm);
+    const dataLength = pcm.length * 2;
+    const buffer = new ArrayBuffer(44 + dataLength);
+    const view = new DataView(buffer);
+    const writeString = (offset, value) => {
+      for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i));
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + dataLength, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataLength, true);
+
+    let offset = 44;
+    for (let i = 0; i < pcm.length; i++, offset += 2) {
+      const sample = Math.max(-1, Math.min(1, pcm[i]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+    }
+
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  }
+
+  buildGeminiAudioPrompt(duration, speechSegments = [], scriptMode = 'roman', languagePreference = 'roman') {
+    const segmentHints = (speechSegments || []).slice(0, 80).map((seg, idx) => ({
+      id: idx,
+      startTime: Number(seg.start ?? 0),
+      endTime: Number(seg.end ?? 0)
+    }));
+
+    const scriptInstruction = scriptMode === 'native'
+      ? `Return both fields:
+- "romanText": natural Roman Hindi/Urdu in Latin letters.
+- "nativeText": native Hindi Devanagari or Urdu Nastaliq based on the audio language.`
+      : `Return both fields:
+- "romanText": natural Roman Hindi/Urdu in Latin letters.
+- "nativeText": native Hindi/Urdu if clearly known, otherwise an empty string.
+Use "text" equal to "romanText".`;
+
+    return `You are a precise Hindi/Urdu video subtitle transcription engine.
+Listen to the attached audio and transcribe the actual spoken words. Do not invent generic lines. Do not output repeated filler like "sir sir sir" unless it is truly spoken.
+
+TARGET:
+${scriptInstruction}
+
+TIMING:
+- Video duration is ${Number(duration || 0).toFixed(2)} seconds.
+- Use these voice activity hints for timestamps, adjusting them if needed:
+${JSON.stringify(segmentHints)}
+- Return short caption segments of 2 to 6 words each.
+- Preserve chronological order.
+
+OUTPUT:
+Return ONLY valid JSON array:
+[
+  {"id":"sentence_1","startTime":0.0,"endTime":1.6,"text":"roman caption","romanText":"roman caption","nativeText":"native caption"}
+]`;
+  }
+
+  normalizeGeminiAudioSegments(items, duration = 0, speechSegments = [], scriptMode = 'roman') {
+    const parsedItems = Array.isArray(items) ? items : [];
+    const safeDuration = Math.max(0.5, Number(duration || 0));
+    const fallbackSegments = (speechSegments && speechSegments.length > 0)
+      ? speechSegments
+      : [{ start: 0, end: safeDuration }];
+
+    return parsedItems
+      .map((item, index) => {
+        const fallback = fallbackSegments[Math.min(index, fallbackSegments.length - 1)] || fallbackSegments[0];
+        const start = Number.isFinite(Number(item?.startTime ?? item?.start))
+          ? Number(item.startTime ?? item.start)
+          : Number(fallback.start ?? 0);
+        let end = Number.isFinite(Number(item?.endTime ?? item?.end))
+          ? Number(item.endTime ?? item.end)
+          : Number(fallback.end ?? Math.min(safeDuration, start + 2.5));
+        if (end <= start) end = Math.min(safeDuration, start + 1.2);
+
+        const romanText = String(item?.romanText || item?.text || '').replace(/\s+/g, ' ').trim();
+        const nativeText = String(item?.nativeText || '').replace(/\s+/g, ' ').trim();
+        const text = scriptMode === 'native' && nativeText ? nativeText : romanText;
+        if (!text) return null;
+
+        const words = this.realignWords(text, start, end);
+        return {
+          id: item?.id || `sentence_${index + 1}`,
+          start,
+          end,
+          startTime: start,
+          endTime: end,
+          text,
+          romanText: romanText || text,
+          nativeText: nativeText || '',
+          originalLanguage: 'hi-ur',
+          language: scriptMode === 'native' ? 'hi-ur' : 'roman-hi-ur',
+          words
+        };
+      })
+      .filter(Boolean);
+  }
+
+  async transcribeAudioWithGemini(rawPcm, duration, speechSegments = [], onProgress = () => {}, options = {}) {
+    if (!rawPcm || rawPcm.length === 0) return [];
+    const scriptMode = options?.scriptMode || 'roman';
+    const languagePreference = options?.languagePreference || options?.language || 'roman';
+
+    onProgress({
+      status: 'transcribing',
+      message: 'Transcribing Hindi/Urdu audio with Gemini...',
+      percent: 82
+    });
+
+    const audioBase64 = this.pcmToWavBase64(rawPcm, 16000);
+    const prompt = this.buildGeminiAudioPrompt(duration, speechSegments, scriptMode, languagePreference);
+
+    try {
+      const res = await apiClient.request('/ai/transcribe-audio', {
+        method: 'POST',
+        body: JSON.stringify({
+          audioBase64,
+          mimeType: 'audio/wav',
+          duration,
+          speechSegments,
+          scriptMode,
+          languagePreference,
+          apiKey: this.getApiKey(options) || undefined
+        })
+      });
+      if (res?.success && Array.isArray(res.sentences)) {
+        return this.normalizeGeminiAudioSegments(res.sentences, duration, speechSegments, scriptMode);
+      }
+    } catch (backendErr) {
+      console.warn('[Gemini AI] Backend audio transcription unavailable, trying direct client API:', backendErr.message);
+    }
+
+    const apiKey = this.getApiKey(options);
+    if (!apiKey) {
+      throw new Error('Gemini API key is required for Hindi/Urdu audio transcription.');
+    }
+
+    const translatedSegments = await this.callGeminiAudioDirectRest(audioBase64, prompt, apiKey);
+    return this.normalizeGeminiAudioSegments(translatedSegments, duration, speechSegments, scriptMode);
+  }
+
+  async callGeminiAudioDirectRest(audioBase64, prompt, apiKey) {
+    let lastError = null;
+    for (const model of this.models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              role: 'user',
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: 'audio/wav', data: audioBase64 } }
+              ]
+            }],
+            generationConfig: {
+              temperature: 0.05,
+              topK: 16,
+              topP: 0.8,
+              maxOutputTokens: 8192,
+              responseMimeType: 'application/json'
+            }
+          })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error?.message || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!candidateText) throw new Error('Empty response from Gemini audio transcription.');
+        const parsed = JSON.parse(this.cleanJsonText(candidateText));
+        if (Array.isArray(parsed)) return parsed;
+      } catch (err) {
+        lastError = err;
+        console.warn(`[Gemini AI] Audio transcription with ${model} failed:`, err.message);
+        if (/api key|leaked|permission|forbidden|403/i.test(err.message || '')) {
+          throw err;
+        }
+      }
+    }
+    throw lastError || new Error('All Gemini audio transcription models failed.');
   }
 
   /**

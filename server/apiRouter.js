@@ -1229,7 +1229,7 @@ RULES:
 INPUT SEGMENTS:
 ${JSON.stringify(segmentsInput, null, 2)}`;
 
-    const modelsToTry = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
+    const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
     let lastError = null;
 
     for (const model of modelsToTry) {
@@ -1281,5 +1281,121 @@ ${JSON.stringify(segmentsInput, null, 2)}`;
   } catch (err) {
     console.error('[Server Gemini] Error:', err);
     return res.status(500).json({ error: err.message || 'Internal translation server error' });
+  }
+});
+
+// ----------------------------------------------------------------------------
+// GEMINI AI HINDI/URDU AUDIO TRANSCRIPTION API
+// ----------------------------------------------------------------------------
+apiRouter.post('/ai/transcribe-audio', async (req, res) => {
+  try {
+    const {
+      audioBase64,
+      mimeType = 'audio/wav',
+      duration = 0,
+      speechSegments = [],
+      scriptMode = 'roman',
+      languagePreference = 'roman',
+      apiKey
+    } = req.body || {};
+
+    if (!audioBase64 || typeof audioBase64 !== 'string') {
+      return res.status(400).json({ error: 'audioBase64 is required' });
+    }
+
+    const effectiveKey = (typeof apiKey === 'string' && apiKey.trim()) || process.env.GEMINI_API_KEY;
+    if (!effectiveKey) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY is not configured on server or in request' });
+    }
+
+    const segmentHints = Array.isArray(speechSegments)
+      ? speechSegments.slice(0, 80).map((seg, idx) => ({
+          id: idx,
+          startTime: Number(seg.start ?? 0),
+          endTime: Number(seg.end ?? 0)
+        }))
+      : [];
+
+    const scriptInstruction = scriptMode === 'native'
+      ? `Return "romanText" as Roman Hindi/Urdu and "nativeText" as native Hindi Devanagari or Urdu Nastaliq. Use "text" equal to "nativeText" when available.`
+      : `Return "romanText" as natural Roman Hindi/Urdu in Latin letters. Return "nativeText" if clearly known, otherwise empty. Use "text" equal to "romanText".`;
+
+    const prompt = `You are a precise Hindi/Urdu video subtitle transcription engine.
+Listen to the attached audio and transcribe the actual spoken words. Do not invent generic lines. Do not output repeated filler like "sir sir sir" unless truly spoken.
+
+TARGET:
+${scriptInstruction}
+Language preference: ${languagePreference}
+
+TIMING:
+- Video duration is ${Number(duration || 0).toFixed(2)} seconds.
+- Use these voice activity hints for timestamps, adjusting them if needed:
+${JSON.stringify(segmentHints)}
+- Return short caption segments of 2 to 6 words each.
+- Preserve chronological order.
+
+OUTPUT:
+Return ONLY valid JSON array:
+[
+  {"id":"sentence_1","startTime":0.0,"endTime":1.6,"text":"roman caption","romanText":"roman caption","nativeText":"native caption"}
+]`;
+
+    const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    let lastError = null;
+
+    for (const model of modelsToTry) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(effectiveKey)}`;
+        const geminiRes = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              role: 'user',
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: mimeType, data: audioBase64 } }
+              ]
+            }],
+            generationConfig: {
+              temperature: 0.05,
+              topK: 16,
+              topP: 0.8,
+              maxOutputTokens: 8192,
+              responseMimeType: 'application/json'
+            }
+          })
+        });
+
+        if (!geminiRes.ok) {
+          const errData = await geminiRes.json().catch(() => ({}));
+          throw new Error(errData.error?.message || `HTTP ${geminiRes.status}`);
+        }
+
+        const data = await geminiRes.json();
+        const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!candidateText) throw new Error('Empty response from Gemini audio transcription');
+
+        let cleaned = candidateText.trim();
+        if (cleaned.startsWith('```')) {
+          cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+        }
+        const parsed = JSON.parse(cleaned);
+        if (Array.isArray(parsed)) {
+          return res.json({ success: true, sentences: parsed });
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`[Server Gemini Audio] Model ${model} error:`, err.message);
+        if (/api key|leaked|permission|forbidden|403/i.test(err.message || '')) {
+          return res.status(403).json({ error: err.message });
+        }
+      }
+    }
+
+    return res.status(500).json({ error: lastError?.message || 'Gemini audio transcription failed' });
+  } catch (err) {
+    console.error('[Server Gemini Audio] Error:', err);
+    return res.status(500).json({ error: err.message || 'Internal Gemini audio transcription error' });
   }
 });

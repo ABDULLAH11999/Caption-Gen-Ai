@@ -1362,11 +1362,13 @@ export class UserDashboard {
     const modal = document.createElement('div');
     modal.id = 'transcript-error-popup';
     modal.className = 'transcript-error-backdrop';
+    const isHindiUrduGeminiError = /Hindi\/Urdu|Gemini/i.test(message || '');
+    const title = isHindiUrduGeminiError ? 'Hindi/Urdu Transcription Setup Needed' : 'Transcript Missing Dependency';
     modal.innerHTML = `
       <div class="transcript-error-card" role="alertdialog" aria-modal="true" aria-labelledby="transcript-error-title">
         <button type="button" class="transcript-error-close" id="btn-transcript-error-close" aria-label="Close">×</button>
         <div class="transcript-error-icon">!</div>
-        <h2 id="transcript-error-title">Transcript Missing Dependency</h2>
+        <h2 id="transcript-error-title">${title}</h2>
         <p>${this.escapeHtml(message || 'Whisper could not extract a real transcript from this video. No fallback captions were loaded.')}</p>
         <button type="button" class="btn btn-black transcript-error-action" id="btn-transcript-error-ok">OK</button>
       </div>
