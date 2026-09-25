@@ -2869,7 +2869,7 @@ export class UserDashboard {
       if (byActiveId >= 0) return byActiveId;
     }
 
-    const activeAnchor = this.container.querySelector('#user-caption-live-overlay .caption-segment-anchor[data-sentence-id]');
+    const activeAnchor = this.container.querySelector('.caption-live-overlay .caption-segment-anchor[data-sentence-id]');
     const activeId = activeAnchor?.getAttribute('data-sentence-id');
     if (activeId) {
       const byId = sentences.findIndex(s => String(s.id || '') === activeId);
@@ -2918,7 +2918,7 @@ export class UserDashboard {
     const sentences = captionEngine.sentences || [];
     const idx = this.getCurrentEditableSegmentIndex();
 
-    if (idx < 0) {
+    if (idx < 0 || !sentences[idx]) {
       this.showToast('No active caption segment to break.', 'info');
       return;
     }
@@ -3004,8 +3004,7 @@ export class UserDashboard {
 
   setupCaptionDragAndResize(wrap) {
     const videoWrapper = wrap.querySelector('#user-video-wrapper');
-    const overlay = wrap.querySelector('#user-caption-live-overlay');
-    if (!videoWrapper || !overlay) return;
+    if (!videoWrapper) return;
 
     let isDragging = false;
     let isResizing = false;
@@ -3018,14 +3017,58 @@ export class UserDashboard {
     let resizeMode = null;
     let activeSentence = null;
     let activeAnchor = null;
+    let currentOverlay = null;
 
-    // Pointer down for Dragging and Resizing
-    overlay.addEventListener('pointerdown', (e) => {
+    // Helper to apply current active style, sizing, animation, and position to ALL segments
+    const applyCurrentPosToAll = () => {
+      const sentences = captionEngine.sentences || [];
+      const currentIdx = this.getCurrentEditableSegmentIndex();
+      const currentSentence = sentences[currentIdx] || sentences[0];
+
+      if (!currentSentence) return;
+
+      const targetPosX = currentSentence.posX !== undefined ? currentSentence.posX : 6;
+      const targetPosY = currentSentence.posY !== undefined ? currentSentence.posY : 50;
+      const targetBoxWidth = currentSentence.boxWidth || null;
+      const targetFontSize = currentSentence.fontSize !== undefined ? currentSentence.fontSize : (this.currentMode === 'portrait' ? 25 : 28);
+      const targetFontFamily = currentSentence.fontFamily;
+      const targetTextColor = currentSentence.textColor;
+      const targetProminentColor = currentSentence.prominentColor;
+      const targetStrokeEnabled = currentSentence.strokeEnabled;
+      const targetStrokeColor = currentSentence.strokeColor;
+      const targetGlowColor = currentSentence.glowColor;
+      const targetAnimation = currentSentence.animation;
+
+      sentences.forEach(s => {
+        s.posX = targetPosX;
+        s.posY = targetPosY;
+        s.boxWidth = targetBoxWidth;
+        s.fontSize = targetFontSize;
+        if (targetFontFamily !== undefined) s.fontFamily = targetFontFamily;
+        if (targetTextColor !== undefined) s.textColor = targetTextColor;
+        if (targetProminentColor !== undefined) s.prominentColor = targetProminentColor;
+        if (targetStrokeEnabled !== undefined) s.strokeEnabled = targetStrokeEnabled;
+        if (targetStrokeColor !== undefined) s.strokeColor = targetStrokeColor;
+        if (targetGlowColor !== undefined) s.glowColor = targetGlowColor;
+        if (targetAnimation !== undefined) s.animation = targetAnimation;
+      });
+
+      soundFx.playSaveSuccess();
+      this.showToast('Style, color, size, animation, and position applied to all segments.', 'success');
+      this.lastRenderedSentenceKey = null;
+      this.updateCaptionOverlay(currentSentence);
+      this.renderMiniSegmentsList();
+    };
+
+    // Pointer down for Dragging and Resizing (Delegated from videoWrapper)
+    videoWrapper.addEventListener('pointerdown', (e) => {
       // Don't intercept button clicks inside toolbar
-      if (e.target.closest('button')) return;
+      if (e.target.closest('button') || e.target.closest('.caption-toolbar-btn')) return;
 
       const anchor = e.target.closest('.caption-segment-anchor');
       if (!anchor) return;
+
+      currentOverlay = anchor.closest('.caption-live-overlay') || videoWrapper.querySelector('.caption-front-overlay') || videoWrapper.querySelector('.caption-behind-overlay') || videoWrapper;
 
       const time = this.videoElement ? this.videoElement.currentTime : 0;
       const sentences = captionEngine.sentences || [];
@@ -3035,9 +3078,9 @@ export class UserDashboard {
         : null;
       if (!activeSentence) {
         activeSentence = sentences.find(s => {
-        const sStart = Number(s.start ?? s.startTime ?? 0);
-        const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
-        return time >= sStart && time <= sEnd;
+          const sStart = Number(s.start ?? s.startTime ?? 0);
+          const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
+          return time >= sStart && time <= sEnd;
         });
       }
 
@@ -3049,7 +3092,7 @@ export class UserDashboard {
 
       activeAnchor = anchor;
       this.syncVideoOverlayBounds();
-      const overlayRect = overlay.getBoundingClientRect();
+      const overlayRect = currentOverlay.getBoundingClientRect();
       const anchorRect = anchor.getBoundingClientRect();
 
       const isCornerResize = !!e.target.closest('.resize-corner');
@@ -3093,7 +3136,7 @@ export class UserDashboard {
         moveEvent.preventDefault();
         moveEvent.stopPropagation();
 
-        const currentOverlayRect = overlay.getBoundingClientRect();
+        const currentOverlayRect = currentOverlay.getBoundingClientRect();
         if (currentOverlayRect.width <= 0 || currentOverlayRect.height <= 0) return;
 
         if (isDragging) {
@@ -3166,52 +3209,11 @@ export class UserDashboard {
       window.addEventListener('pointercancel', onPointerUp);
     });
 
-    // Helper to apply current active style, sizing, animation, and position to ALL segments
-    const applyCurrentPosToAll = () => {
-      const sentences = captionEngine.sentences || [];
-      const currentIdx = this.getCurrentEditableSegmentIndex();
-      const currentSentence = sentences[currentIdx] || sentences[0];
-
-      if (!currentSentence) return;
-
-      const targetPosX = currentSentence.posX !== undefined ? currentSentence.posX : 6;
-      const targetPosY = currentSentence.posY !== undefined ? currentSentence.posY : 50;
-      const targetBoxWidth = currentSentence.boxWidth || null;
-      const targetFontSize = currentSentence.fontSize !== undefined ? currentSentence.fontSize : (this.currentMode === 'portrait' ? 25 : 28);
-      const targetFontFamily = currentSentence.fontFamily;
-      const targetTextColor = currentSentence.textColor;
-      const targetProminentColor = currentSentence.prominentColor;
-      const targetStrokeEnabled = currentSentence.strokeEnabled;
-      const targetStrokeColor = currentSentence.strokeColor;
-      const targetGlowColor = currentSentence.glowColor;
-      const targetAnimation = currentSentence.animation;
-
-      sentences.forEach(s => {
-        s.posX = targetPosX;
-        s.posY = targetPosY;
-        s.boxWidth = targetBoxWidth;
-        s.fontSize = targetFontSize;
-        if (targetFontFamily !== undefined) s.fontFamily = targetFontFamily;
-        if (targetTextColor !== undefined) s.textColor = targetTextColor;
-        if (targetProminentColor !== undefined) s.prominentColor = targetProminentColor;
-        if (targetStrokeEnabled !== undefined) s.strokeEnabled = targetStrokeEnabled;
-        if (targetStrokeColor !== undefined) s.strokeColor = targetStrokeColor;
-        if (targetGlowColor !== undefined) s.glowColor = targetGlowColor;
-        if (targetAnimation !== undefined) s.animation = targetAnimation;
-      });
-
-      soundFx.playSaveSuccess();
-      this.showToast('Style, color, size, animation, and position applied to all segments.', 'success');
-      this.lastRenderedSentenceKey = null;
-      this.updateCaptionOverlay(currentSentence);
-      this.renderMiniSegmentsList();
-    };
-
-    // Overlay toolbar click actions
-    overlay.addEventListener('click', (e) => {
-      const followAllBtn = e.target.closest('#btn-follow-all-segments');
-      const breakWordsBtn = e.target.closest('#btn-break-segment-words');
-      const resetBtn = e.target.closest('#btn-reset-segment-pos');
+    // Overlay toolbar click actions (Delegated from videoWrapper)
+    videoWrapper.addEventListener('click', (e) => {
+      const followAllBtn = e.target.closest('#btn-follow-all-segments, .btn-follow-all');
+      const breakWordsBtn = e.target.closest('#btn-break-segment-words, .btn-break-words');
+      const resetBtn = e.target.closest('#btn-reset-segment-pos, .btn-reset-pos');
       const actionAnchor = e.target.closest('.caption-segment-anchor');
       const actionId = actionAnchor?.getAttribute('data-sentence-id');
       if (actionId) this.activeEditableSegmentId = actionId;
@@ -3252,7 +3254,7 @@ export class UserDashboard {
 
     // Sidebar header apply size & pos to all button
     wrap.querySelector('#btn-header-apply-pos-all')?.addEventListener('click', () => {
-      applyCurrentPosToAll(true);
+      applyCurrentPosToAll();
     });
   }
 
