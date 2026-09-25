@@ -1960,6 +1960,161 @@ export class UserDashboard {
     return null;
   }
 
+  findActiveSentenceMatches(sentences, time) {
+    if (!sentences || sentences.length === 0) return [];
+    return sentences
+      .map((sentence, index) => {
+        const start = Number(sentence.start ?? sentence.startTime ?? 0);
+        const end = Number(sentence.end ?? sentence.endTime ?? (start + 2.5));
+        const isLast = index === sentences.length - 1;
+        return { sentence, index, start, end, active: time >= start && (isLast ? time <= end : time < end) };
+      })
+      .filter(item => item.active);
+  }
+
+  buildCaptionOverlayHtml(currentSentence, time, sentences, cfg, options = {}) {
+    const showToolbar = options.showToolbar !== false;
+    const anchorIndex = Number(options.anchorIndex || 0);
+    let words = currentSentence.words;
+    if (!words || words.length === 0) {
+      const sStart = currentSentence.start ?? currentSentence.startTime ?? 0;
+      const sEnd = currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5);
+      words = captionEngine.createWordLevelTimestamps(currentSentence.text || '', sStart, sEnd);
+    }
+
+    let speakingWordIdx = words.findIndex(w => {
+      const ws = Number(w.start ?? w.startTime ?? 0);
+      const we = Number(w.end ?? w.endTime ?? (ws + 0.35));
+      return time >= ws && time < we;
+    });
+
+    if (speakingWordIdx === -1) {
+      for (let i = words.length - 1; i >= 0; i--) {
+        const ws = Number(words[i].start ?? words[i].startTime ?? 0);
+        if (time >= ws) {
+          speakingWordIdx = i;
+          break;
+        }
+      }
+      if (speakingWordIdx === -1) speakingWordIdx = 0;
+    }
+
+    const totalChars = words.reduce((acc, w) => acc + ((w.word || '').length), 0);
+    let displayWords = words;
+    let chunkOffset = 0;
+    if (words.length > 4 || (words.length === 4 && totalChars > 22)) {
+      const mid = Math.ceil(words.length / 2);
+      if (speakingWordIdx < mid) {
+        displayWords = words.slice(0, mid);
+      } else {
+        displayWords = words.slice(mid);
+        chunkOffset = mid;
+      }
+    }
+
+    const isPortrait = this.currentMode === 'portrait';
+    const defaultBaseFontSize = isPortrait ? 25 : ((cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28);
+    const baseFontSize = (currentSentence.fontSize !== undefined && currentSentence.fontSize !== null && currentSentence.fontSize > 0)
+      ? Number(currentSentence.fontSize)
+      : defaultBaseFontSize;
+
+    const normalFontFamily = this.getFontFamily(cfg.normalFontFamily || 'Inter');
+    const prominentFontFamily = this.getFontFamily(cfg.prominentFontFamily || 'Syne');
+    const segmentFontFamily = currentSentence.fontFamily ? this.getFontFamily(currentSentence.fontFamily) : null;
+    const defaultTextColor = currentSentence.textColor || cfg.textColor || '#FFFFFF';
+    const prominentColor = currentSentence.prominentColor || cfg.prominentColor || '#FFE600';
+    const hasLastWordColor = !currentSentence.prominentColor && (cfg.enableLastWordColor !== false && !!cfg.lastWordColor);
+    const lastWordColor = hasLastWordColor ? cfg.lastWordColor : prominentColor;
+    const strokeEnabled = currentSentence.strokeEnabled !== false;
+    const customStrokeColor = currentSentence.strokeColor;
+    const hasGlow = currentSentence.glowColor && currentSentence.glowColor !== 'transparent' && currentSentence.glowColor !== '';
+    const glowColor = hasGlow ? currentSentence.glowColor : null;
+    const glowStyles = glowColor
+      ? `text-shadow: 0 0 6px ${glowColor}, 0 0 16px ${glowColor}, 0 0 28px ${glowColor} !important; filter: drop-shadow(0 0 8px ${glowColor}) !important;`
+      : 'text-shadow: none !important; filter: none !important;';
+
+    const wordsHtml = displayWords.map((w, localIdx) => {
+      const globalIdx = chunkOffset + localIdx;
+      const cleanWord = (w.word || '').replace(/[.,!?:;"'()]/g, '');
+      const isHeroKeyword = autoTypographyEngine.brandRegex.test(cleanWord) ||
+                            autoTypographyEngine.monthsDatesRegex.test(cleanWord) ||
+                            autoTypographyEngine.placesRegex.test(cleanWord) ||
+                            autoTypographyEngine.impactWordsRegex.test(cleanWord);
+      const isSpeaking = globalIdx === speakingWordIdx;
+      const isLastWord = globalIdx === words.length - 1;
+      const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && globalIdx === 1);
+      let font = segmentFontFamily || (isProminent ? prominentFontFamily : normalFontFamily);
+      let color = isProminent ? prominentColor : defaultTextColor;
+      if (isLastWord && hasLastWordColor) {
+        font = segmentFontFamily || prominentFontFamily;
+        color = lastWordColor;
+      }
+      if (isSpeaking) font = segmentFontFamily || prominentFontFamily;
+      const strokeWidth = strokeEnabled
+        ? (isProminent ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.5) : (cfg.normalOutlineWidth !== undefined ? cfg.normalOutlineWidth : 1.5))
+        : 0;
+      const strokeColor = strokeEnabled
+        ? (customStrokeColor || (isProminent ? (cfg.prominentOutlineColor || '#000000') : (cfg.normalOutlineColor || '#000000')))
+        : 'transparent';
+
+      return `
+        <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''}" style="
+          display:inline-block!important;vertical-align:baseline!important;margin:1px 3px!important;padding:0 1px!important;box-sizing:border-box!important;
+          font-family:${font}!important;color:${color}!important;font-size:${baseFontSize}px!important;font-weight:${isSpeaking ? 900 : (isProminent ? 800 : 700)};
+          opacity:1!important;visibility:visible!important;line-height:1.05;letter-spacing:.2px;${glowStyles}
+          -webkit-text-stroke:${strokeWidth}px ${strokeColor};paint-order:stroke fill;-webkit-paint-order:stroke fill;
+          transform:${isSpeaking ? 'scale(1.15)' : 'scale(1)'}!important;transform-origin:center bottom!important;z-index:${isSpeaking ? 5 : 1}!important;
+          white-space:nowrap!important;will-change:transform;transition:${isSpeaking ? 'transform .22s cubic-bezier(.34,1.56,.64,1), filter .2s ease' : 'transform .18s ease-out'};
+        ">${this.escapeHtml(w.word || '')}</span>
+      `;
+    }).join('');
+
+    const sStart = Number(currentSentence.start ?? currentSentence.startTime ?? 0);
+    const sEnd = Number(currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5));
+    const subChunkKey = displayWords.map(w => w.word).join('_');
+    let resolvedAnimId = currentSentence.animation || cfg.animation || 'anim-auto';
+    if (resolvedAnimId === 'anim-auto') {
+      const targetIdx = sentences.findIndex(s => s === currentSentence || (s.id !== undefined && s.id === currentSentence.id));
+      resolvedAnimId = AUTO_ANIMATION_SEQUENCE[Math.max(0, targetIdx) % AUTO_ANIMATION_SEQUENCE.length];
+    }
+    const animMeta = CAPTION_ANIMATIONS.find(a => a.id === resolvedAnimId || a.cssClass === resolvedAnimId);
+    const animClass = animMeta ? animMeta.cssClass : (resolvedAnimId.startsWith('anim-') ? resolvedAnimId : 'anim-pop');
+    const defaultPosMeta = CAPTION_POSITIONS.find(p => p.id === 'middle-left') || CAPTION_POSITIONS[3];
+    const hasCustomPos = currentSentence.posX !== undefined && currentSentence.posY !== undefined;
+    const baseX = hasCustomPos ? Number(currentSentence.posX) : Number(String(defaultPosMeta.x || '6').replace('%', ''));
+    const baseY = hasCustomPos ? Number(currentSentence.posY) : Number(String(defaultPosMeta.y || '50').replace('%', ''));
+    const posX = `${Number.isFinite(baseX) ? baseX : 6}%`;
+    const visualY = Number.isFinite(baseY) ? baseY + (hasCustomPos ? 0 : anchorIndex * 7) : 50;
+    const posY = `${Math.min(92, Math.max(2, visualY))}%`;
+    const posTransform = hasCustomPos ? 'translate(0, 0)' : (defaultPosMeta.transform || 'translate(0, -50%)');
+    const textAlign = defaultPosMeta.align || 'left';
+    const justifyAlign = (textAlign === 'left') ? 'flex-start' : (textAlign === 'right' ? 'flex-end' : 'center');
+    const customWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : 'auto';
+    const customMaxWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : '94%';
+    const toolbarHtml = showToolbar ? `
+      <div class="caption-drag-toolbar">
+        <span class="caption-toolbar-pill caption-drag-handle" title="Click and drag anywhere on video to position">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="2"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/></svg>
+          <span>Move</span>
+        </span>
+        <button type="button" class="caption-toolbar-btn btn-follow-all" id="btn-follow-all-segments" title="Apply this style, color, size, animation, and position to ALL segments"><span>Apply to All</span></button>
+        <button type="button" class="caption-toolbar-btn btn-break-words" id="btn-break-segment-words" title="Break this caption line into one segment per word"><span>Break into words</span></button>
+        <button type="button" class="caption-toolbar-btn btn-reset-pos" id="btn-reset-segment-pos" title="Reset this segment to default middle-left"><span>↺ Reset</span></button>
+      </div>
+    ` : '';
+
+    return `
+      <div class="caption-segment-anchor" data-sentence-id="${currentSentence.id || ''}" data-segment-key="seg_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${posY};left:${posX};transform:${posTransform};width:${customWidth};max-width:${customMaxWidth};text-align:${textAlign};z-index:${20 + anchorIndex};">
+        ${toolbarHtml}
+        <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${justifyAlign};align-items:baseline;gap:2px 5px;width:100%;max-width:100%;text-transform:uppercase;line-height:1.05;transform-origin:center center;will-change:transform,opacity;">
+          ${wordsHtml}
+        </div>
+        <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines"><div class="resize-grip-line"></div></div>
+        <div class="caption-resize-handle resize-corner" title="Drag corner to adjust font size and box width"><div class="resize-grip-dot"></div></div>
+      </div>
+    `;
+  }
+
   updateCaptionOverlay(sentenceOverride = null) {
     const overlay = this.container.querySelector('#user-caption-live-overlay');
     if (!overlay || !this.videoElement) return;
@@ -1970,6 +2125,42 @@ export class UserDashboard {
     const sentences = captionEngine.sentences || [];
 
     // 1. Find active sentence strictly matching timeline (supports multiple word segments with same start/end)
+    const activeMatches = sentenceOverride ? [] : this.findActiveSentenceMatches(sentences, time);
+    if (activeMatches.length > 1) {
+      const tpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
+      const customConfig = this.userCustomTemplates[tpl.id] || {};
+      const studioConfig = this.activeConfig || {};
+      const cfg = { ...tpl.config, ...customConfig, ...studioConfig };
+      const activeId = this.activeEditableSegmentId;
+      const html = activeMatches.map((match, index) => {
+        const isEditable = !activeId || String(match.sentence.id || '') === String(activeId);
+        return this.buildCaptionOverlayHtml(match.sentence, time, sentences, cfg, {
+          anchorIndex: index,
+          showToolbar: isEditable
+        });
+      }).join('');
+      const renderKey = activeMatches.map(m => `${m.sentence.id || m.index}:${m.sentence.posX ?? ''}:${m.sentence.posY ?? ''}:${m.sentence.boxWidth ?? ''}:${m.sentence.fontSize ?? ''}`).join('|');
+      if (this.lastRenderedSentenceKey !== renderKey || overlay.innerHTML.trim() === '') {
+        overlay.innerHTML = html;
+        overlay.querySelectorAll('.caption-anim-segment-wrapper').forEach((wrapper) => {
+          const animClass = [...wrapper.classList].find(cls => cls.startsWith('anim-'));
+          if (animClass) {
+            wrapper.classList.remove(animClass);
+            void wrapper.offsetWidth;
+            wrapper.classList.add(animClass);
+          }
+        });
+      } else {
+        activeMatches.forEach((match) => {
+          const anchor = overlay.querySelector(`.caption-segment-anchor[data-sentence-id="${CSS.escape(String(match.sentence.id || ''))}"]`);
+          if (!anchor) return;
+          anchor.querySelector('.caption-anim-segment-wrapper')?.replaceChildren(...Array.from(new DOMParser().parseFromString(this.buildCaptionOverlayHtml(match.sentence, time, sentences, cfg, { showToolbar: !activeId || String(match.sentence.id || '') === String(activeId) }), 'text/html').body.querySelector('.caption-anim-segment-wrapper')?.childNodes || []));
+        });
+      }
+      this.lastRenderedSentenceKey = renderKey;
+      return;
+    }
+
     let currentSentence = this.findActiveSentence(sentences, time, sentenceOverride);
 
     if (!currentSentence) {
@@ -2832,6 +3023,7 @@ export class UserDashboard {
       'glowColor', 'animation', 'behind'
     ];
 
+    const sourcePosY = source.posY !== undefined ? Number(source.posY) : 50;
     const wordSegments = textTokens.map((token, i) => {
       const seg = {
         id: `${source.id || 'sentence'}_word_${i + 1}_${Date.now()}_${i}`,
@@ -2856,6 +3048,9 @@ export class UserDashboard {
       styleKeys.forEach(key => {
         if (source[key] !== undefined) seg[key] = source[key];
       });
+
+      seg.posX = source.posX !== undefined ? source.posX : 6;
+      seg.posY = Math.max(2, Math.min(92, (Number.isFinite(sourcePosY) ? sourcePosY : 50) + i * 7));
 
       return seg;
     });
@@ -2913,16 +3108,23 @@ export class UserDashboard {
 
       const time = this.videoElement ? this.videoElement.currentTime : 0;
       const sentences = captionEngine.sentences || [];
-      activeSentence = sentences.find(s => {
+      const anchorId = anchor.getAttribute('data-sentence-id');
+      activeSentence = anchorId
+        ? sentences.find(s => String(s.id || '') === anchorId)
+        : null;
+      if (!activeSentence) {
+        activeSentence = sentences.find(s => {
         const sStart = Number(s.start ?? s.startTime ?? 0);
         const sEnd = Number(s.end ?? s.endTime ?? (sStart + 2.5));
         return time >= sStart && time <= sEnd;
-      });
+        });
+      }
 
       if (!activeSentence && sentences.length > 0) {
         activeSentence = sentences[0];
       }
       if (!activeSentence) return;
+      this.activeEditableSegmentId = activeSentence.id || null;
 
       activeAnchor = anchor;
       const videoRect = videoWrapper.getBoundingClientRect();
@@ -3085,6 +3287,9 @@ export class UserDashboard {
       const followAllBtn = e.target.closest('#btn-follow-all-segments');
       const breakWordsBtn = e.target.closest('#btn-break-segment-words');
       const resetBtn = e.target.closest('#btn-reset-segment-pos');
+      const actionAnchor = e.target.closest('.caption-segment-anchor');
+      const actionId = actionAnchor?.getAttribute('data-sentence-id');
+      if (actionId) this.activeEditableSegmentId = actionId;
 
       if (followAllBtn) {
         e.stopPropagation();
