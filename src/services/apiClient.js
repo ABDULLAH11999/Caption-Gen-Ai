@@ -298,6 +298,25 @@ class ApiClient {
     });
   }
 
+  async exportDatabaseBackup() {
+    const headers = {};
+    if (this.token) headers.Authorization = `Bearer ${this.token}`;
+
+    const response = await fetch('/api/admin/database/export', { headers });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Database export failed with status ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/i);
+    return {
+      blob,
+      filename: match?.[1] || `zen-caption-db-backup-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}Z.zip`
+    };
+  }
+
   // Telemetry & Visitor Tracking
   async trackVisit(data = {}) {
     try {

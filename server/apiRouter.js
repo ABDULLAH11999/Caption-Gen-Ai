@@ -8,6 +8,7 @@ import {
   generateContactReplyEmailHtml 
 } from './emailService.js';
 import { resolveCountry, detectDevice } from './geoService.js';
+import { createDatabaseBackupZip, getBackupFileName } from './dbBackup.js';
 
 export const apiRouter = express.Router();
 
@@ -488,45 +489,50 @@ apiRouter.post('/auth/verify-otp', otpVerifyLimiter.middleware(), async (req, re
 
 // Sign In (Rate Limited against Credential Stuffing & Password Brute Force)
 apiRouter.post('/auth/signin', signinLimiter.middleware(), async (req, res) => {
-  const { identifier, password } = req.body;
-  if (!identifier || !password) {
-    return res.status(400).json({ error: 'Username/Email and Password are required.' });
+  try {
+    const { identifier, password } = req.body;
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'Username/Email and Password are required.' });
+    }
+
+    const cleanId = identifier.toLowerCase().trim();
+    const passwordHash = hashPassword(password);
+    const trimmedPasswordHash = hashPassword(password.trim());
+
+    const userRes = await query(
+      `SELECT id, name, username, email, role, plan_id, daily_quota, monthly_quota, is_active
+       FROM users
+       WHERE (LOWER(email) = $1 OR LOWER(username) = $1) AND (password_hash = $2 OR password_hash = $3)`,
+      [cleanId, passwordHash, trimmedPasswordHash]
+    );
+
+    if (userRes.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid username/email or password.' });
+    }
+
+    const user = userRes.rows[0];
+    if (!user.is_active) {
+      return res.status(403).json({ error: 'This account has been suspended or deactivated. Please contact support.' });
+    }
+
+    // Issue 90-day persistent session
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days
+
+    await query(
+      'INSERT INTO sessions (token, user_id, expires_at) VALUES ($1, $2, $3)',
+      [token, user.id, expiresAt]
+    );
+
+    res.json({
+      success: true,
+      user,
+      token
+    });
+  } catch (err) {
+    console.error('[Auth Signin Error]', err);
+    res.status(500).json({ error: 'Failed to sign in: ' + (err.message || 'Server database error') });
   }
-
-  const cleanId = identifier.toLowerCase().trim();
-  const passwordHash = hashPassword(password);
-  const trimmedPasswordHash = hashPassword(password.trim());
-
-  const userRes = await query(
-    `SELECT id, name, username, email, role, plan_id, daily_quota, monthly_quota, is_active
-     FROM users
-     WHERE (LOWER(email) = $1 OR LOWER(username) = $1) AND (password_hash = $2 OR password_hash = $3)`,
-    [cleanId, passwordHash, trimmedPasswordHash]
-  );
-
-  if (userRes.rows.length === 0) {
-    return res.status(401).json({ error: 'Invalid username/email or password.' });
-  }
-
-  const user = userRes.rows[0];
-  if (!user.is_active) {
-    return res.status(403).json({ error: 'This account has been suspended or deactivated. Please contact support.' });
-  }
-
-  // Issue 90-day persistent session
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days
-
-  await query(
-    'INSERT INTO sessions (token, user_id, expires_at) VALUES ($1, $2, $3)',
-    [token, user.id, expiresAt]
-  );
-
-  res.json({
-    success: true,
-    user,
-    token
-  });
 });
 
 // Current Authenticated User Session Check
@@ -1167,6 +1173,22 @@ apiRouter.put('/admin/settings', requireAdmin, async (req, res) => {
     );
   }
   res.json({ success: true, message: 'Settings saved successfully!' });
+});
+
+apiRouter.get('/admin/database/export', requireAdmin, async (req, res) => {
+  try {
+    const startedAt = Date.now();
+    const { buffer, tableSummaries } = await createDatabaseBackupZip();
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${getBackupFileName()}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Backup-Tables', String(tableSummaries.length));
+    res.setHeader('X-Backup-Duration-Ms', String(Date.now() - startedAt));
+    return res.send(buffer);
+  } catch (err) {
+    console.error('[DB Backup] Export failed:', err);
+    return res.status(500).json({ error: err.message || 'Database export failed' });
+  }
 });
 
 // ----------------------------------------------------------------------------

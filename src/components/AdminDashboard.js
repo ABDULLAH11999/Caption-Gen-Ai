@@ -75,6 +75,9 @@ export class AdminDashboard {
             <li class="admin-menu-item" data-tab="settings">
               <span>⚙️</span><span>Site SEO &amp; Branding</span>
             </li>
+            <li class="admin-menu-item" data-tab="backup">
+              <span>🗄️</span><span>Backup DB</span>
+            </li>
           </ul>
 
           <div class="admin-sidebar-footer">
@@ -171,6 +174,9 @@ export class AdminDashboard {
         break;
       case 'settings':
         await this.renderSettingsTab(main);
+        break;
+      case 'backup':
+        this.renderBackupTab(main);
         break;
       case 'contact-reply':
         this.renderContactReplyTab(main);
@@ -1179,6 +1185,73 @@ export class AdminDashboard {
         this.showToast('Settings saved successfully!', 'success');
       } catch (err) {
         this.showToast(err.message, 'error');
+      }
+    });
+  }
+
+  renderBackupTab(container) {
+    container.innerHTML = `
+      <div class="admin-top-bar">
+        <div>
+          <h1 class="admin-view-title">Database Backup &amp; Restore</h1>
+          <p style="color: #64748b; font-size: 14px;">Export a clean ZIP backup of every Neon SQL table. Import UI is prepared for the next safe restore step.</p>
+        </div>
+      </div>
+
+      <div class="admin-table-card" style="margin-bottom: 24px;">
+        <div class="admin-table-header">
+          <h3 style="font-size: 18px; font-weight: 900;">Export Full Database</h3>
+        </div>
+        <div style="padding: 24px; display: grid; gap: 14px;">
+          <p style="color: #475569; line-height: 1.6; margin: 0;">
+            Downloads one ZIP with <code>manifest.json</code> plus clean JSON files for every database table. Tables are read one-by-one to avoid heavy server load.
+          </p>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+            <button class="btn btn-primary" id="btn-export-db-backup">Download ZIP Backup</button>
+            <span id="db-backup-status" style="font-size: 13px; color: #64748b;">Ready to export.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-table-card">
+        <div class="admin-table-header">
+          <h3 style="font-size: 18px; font-weight: 900;">Import Database</h3>
+        </div>
+        <div style="padding: 24px; display: grid; gap: 14px;">
+          <p style="color: #64748b; line-height: 1.6; margin: 0;">
+            Import will restore this ZIP into Neon SQL using validated table names and a transaction. It is intentionally disabled until export is confirmed safe.
+          </p>
+          <input type="file" class="form-control" accept=".zip,application/zip" disabled>
+          <button class="btn btn-outline" disabled>Import ZIP Backup</button>
+        </div>
+      </div>
+    `;
+
+    const button = container.querySelector('#btn-export-db-backup');
+    const status = container.querySelector('#db-backup-status');
+    button?.addEventListener('click', async () => {
+      try {
+        button.disabled = true;
+        button.textContent = 'Preparing ZIP...';
+        if (status) status.textContent = 'Reading tables sequentially and creating ZIP...';
+        const { blob, filename } = await api.exportDatabaseBackup();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+        if (status) status.textContent = `Export complete: ${filename}`;
+        this.showToast('Database backup ZIP downloaded.', 'success');
+      } catch (err) {
+        console.error('[AdminDashboard] DB backup export failed:', err);
+        if (status) status.textContent = err.message || 'Export failed.';
+        this.showToast(err.message || 'Database backup export failed.', 'error');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Download ZIP Backup';
       }
     });
   }
