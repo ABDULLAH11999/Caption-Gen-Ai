@@ -1260,9 +1260,20 @@ export class UserDashboard {
             </div>
 
             <!-- ACTION BUTTONS: APPLY SIZE & POS TO ALL, PROCESS AGAIN & EDIT SEGMENTS -->
-            <div class="caption-script-switch" style="display: ${this.isCurrentVideoNonEnglish() ? 'flex' : 'none'};">
-              <button type="button" class="caption-script-switch-btn" id="btn-caption-script-roman">Roman</button>
-              <button type="button" class="caption-script-switch-btn" id="btn-caption-script-native">Native</button>
+            <div class="caption-script-switch" id="caption-script-switch-container" style="display: ${this.isCurrentVideoNonEnglish() ? 'flex' : 'none'};">
+              <div class="caption-script-switch-row">
+                <button type="button" class="caption-script-switch-btn ${this.getCurrentScriptMode() === 'roman' ? 'active' : ''}" id="btn-caption-script-roman">Roman</button>
+                <button type="button" class="caption-script-switch-btn ${this.getCurrentScriptMode() === 'native' ? 'active' : ''}" id="btn-caption-script-native">Native</button>
+              </div>
+              <div class="caption-script-progress-wrap" id="caption-script-progress-wrap" style="display: none;">
+                <div class="caption-script-progress-info">
+                  <span class="caption-script-progress-status" id="caption-script-progress-status">Converting script...</span>
+                  <span class="caption-script-progress-pct" id="caption-script-progress-pct">0%</span>
+                </div>
+                <div class="caption-script-progress-track">
+                  <div class="caption-script-progress-bar" id="caption-script-progress-bar" style="width: 0%;"></div>
+                </div>
+              </div>
             </div>
 
             <div class="segments-header-actions-stack">
@@ -1820,6 +1831,13 @@ export class UserDashboard {
     this.setupCaptionDragAndResize(wrap);
   }
 
+  getCurrentScriptMode() {
+    if (this.activeScriptMode) return this.activeScriptMode;
+    const sentences = captionEngine.sentences || [];
+    const hasNative = sentences.some(s => translationService.hasNonLatinScript(s.text || ''));
+    return hasNative ? 'native' : 'roman';
+  }
+
   async switchCaptionScript(selection) {
     const sentences = captionEngine.sentences || [];
     if (!sentences.length) {
@@ -1827,23 +1845,58 @@ export class UserDashboard {
       return;
     }
 
+    const targetMode = selection?.scriptMode === 'native' ? 'native' : 'roman';
+    const targetLabel = targetMode === 'native' ? 'Native script' : 'Roman Urdu/Hindi';
+
+    const pWrap = this.container?.querySelector('#caption-script-progress-wrap');
+    const pBar = this.container?.querySelector('#caption-script-progress-bar');
+    const pPct = this.container?.querySelector('#caption-script-progress-pct');
+    const pStatus = this.container?.querySelector('#caption-script-progress-status');
+    const btnRoman = this.container?.querySelector('#btn-caption-script-roman');
+    const btnNative = this.container?.querySelector('#btn-caption-script-native');
+
+    const updateSwitchProgress = (percent, message) => {
+      const p = Math.min(100, Math.max(0, Math.round(percent)));
+      if (pBar) pBar.style.width = `${p}%`;
+      if (pPct) pPct.textContent = `${p}%`;
+      if (pStatus) pStatus.textContent = message || `Switching to ${targetLabel}...`;
+    };
+
+    if (pWrap) {
+      pWrap.style.display = 'flex';
+      updateSwitchProgress(15, `Preparing ${targetLabel}...`);
+    }
+    if (btnRoman) btnRoman.disabled = true;
+    if (btnNative) btnNative.disabled = true;
+
     soundFx.playProcessStart();
-    this.showToast('Switching caption script...', 'info');
+    this.showToast(`Switching to ${targetLabel}...`, 'info');
 
     try {
       const sourceSentences = sentences.map(s => ({
         ...s,
         text: s.originalText || s.nativeText || s.text
       }));
+
       const translated = await geminiTranslationService.translateSentencesWithGemini(
         sourceSentences,
-        () => {},
+        (p) => {
+          const currentPercent = p?.percent || 65;
+          const currentMsg = p?.message || `Localizing to ${targetLabel}...`;
+          updateSwitchProgress(currentPercent, currentMsg);
+        },
         selection
       );
 
       if (translated && translated.length > 0) {
+        updateSwitchProgress(100, 'Synchronized!');
         captionEngine.setSegmentsDirect(translated);
         this.isNonEnglishVideo = true;
+        this.activeScriptMode = targetMode;
+
+        if (btnRoman) btnRoman.classList.toggle('active', targetMode === 'roman');
+        if (btnNative) btnNative.classList.toggle('active', targetMode === 'native');
+
         this.renderMiniSegmentsList();
         const firstSeg = captionEngine.sentences[0];
         if (firstSeg) {
@@ -1851,11 +1904,19 @@ export class UserDashboard {
           if (this.videoElement) this.videoElement.currentTime = firstSeg.start + 0.01;
         }
         soundFx.playOutputReady();
-        this.showToast('Caption script loaded.', 'success');
+        this.showToast(`${targetLabel} loaded successfully.`, 'success');
       }
     } catch (err) {
       console.error('[Caption Script] Switch error:', err);
+      if (pStatus) pStatus.textContent = 'Error converting script';
       this.showToast('Script switch error: ' + (err.message || 'Failed'), 'error');
+    } finally {
+      setTimeout(() => {
+        if (pWrap) pWrap.style.display = 'none';
+        if (btnRoman) btnRoman.disabled = false;
+        if (btnNative) btnNative.disabled = false;
+        if (pBar) pBar.style.width = '0%';
+      }, 650);
     }
   }
 
