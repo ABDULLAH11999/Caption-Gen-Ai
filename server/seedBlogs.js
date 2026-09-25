@@ -1,5 +1,7 @@
 import { query } from './db.js';
 
+const BLOG_FEATURED_IMAGE = '/default-blog-cover.jpg';
+
 export const SEEDED_BLOGS = [
   {
     title: 'How to Add Hormozi-Style Captions to TikToks and Reels in 2026',
@@ -1725,12 +1727,25 @@ PEAK_SEO_TOPICS_10.forEach((blog) => {
   SEEDED_BLOGS.push(blog);
 });
 
+SEEDED_BLOGS.forEach((blog) => {
+  blog.featured_image = BLOG_FEATURED_IMAGE;
+});
+
 /**
  * Seed blog articles into PostgreSQL database without changing existing slugs.
  */
 export async function seedBlogs() {
   const check = await query('SELECT count(*) FROM blogs');
   const count = parseInt(check.rows[0]?.count || '0');
+  const imageUpdate = await query(
+    `UPDATE blogs
+     SET featured_image = $1
+     WHERE featured_image IS DISTINCT FROM $1`,
+    [BLOG_FEATURED_IMAGE]
+  );
+  if (imageUpdate.rowCount > 0) {
+    console.log(`[DB] Normalized ${imageUpdate.rowCount} blog featured images to the Zen Caption cover. Other blog data was unchanged.`);
+  }
   let blogsToSeed = SEEDED_BLOGS;
 
   if (count >= 50) {
