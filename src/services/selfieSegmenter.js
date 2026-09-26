@@ -21,8 +21,8 @@ class SelfieSegmenterService {
     this.lastSegmentWallTime = 0;
     this.lastCutoutWidth = 0;
     this.lastCutoutHeight = 0;
+    this.lastCutoutEnhanced = null;
     this.exportCutoutCache = [];
-    this.cutoutValidationCache = new WeakMap();
     this.cutoutValidationCache = new WeakMap();
   }
 
@@ -102,6 +102,7 @@ class SelfieSegmenterService {
     this.lastSegmentWallTime = 0;
     this.lastCutoutWidth = 0;
     this.lastCutoutHeight = 0;
+    this.lastCutoutEnhanced = null;
     this.exportCutoutCache = [];
     if (this.cutoutCtx && this.cutoutCanvas.width && this.cutoutCanvas.height) {
       this.cutoutCtx.clearRect(0, 0, this.cutoutCanvas.width, this.cutoutCanvas.height);
@@ -174,10 +175,13 @@ class SelfieSegmenterService {
     return usable;
   }
 
-  drawExportCutoutForTime(ctx, time, width, height, maxDistance = 0.45) {
+  drawExportCutoutForTime(ctx, time, width, height, maxDistance = 0.45, enhanceQuality = null) {
     if (!ctx || !this.exportCutoutCache || this.exportCutoutCache.length === 0) return false;
 
-    const cache = this.exportCutoutCache;
+    const cache = enhanceQuality === null
+      ? this.exportCutoutCache
+      : this.exportCutoutCache.filter(item => !!item.enhanceQuality === !!enhanceQuality);
+    if (cache.length === 0) return false;
     let lo = 0;
     let hi = cache.length - 1;
     while (lo <= hi) {
@@ -201,8 +205,9 @@ class SelfieSegmenterService {
     return true;
   }
 
-  drawCachedCutout(ctx, width, height) {
+  drawCachedCutout(ctx, width, height, enhanceQuality = null) {
     if (!ctx || !this.lastCutoutWidth || !this.lastCutoutHeight) return false;
+    if (enhanceQuality !== null && this.lastCutoutEnhanced !== null && this.lastCutoutEnhanced !== !!enhanceQuality) return false;
     if (!this.isUsableCutoutCanvas(this.cutoutCanvas)) return false;
     ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
     return true;
@@ -377,6 +382,7 @@ class SelfieSegmenterService {
             this.applyMaskAndCutout(mask, video, width, height, enhanceQuality);
             this.lastCutoutWidth = width;
             this.lastCutoutHeight = height;
+            this.lastCutoutEnhanced = !!enhanceQuality;
 
             const snapshot = document.createElement('canvas');
             snapshot.width = width;
@@ -476,7 +482,7 @@ class SelfieSegmenterService {
         await seekTo(videoElement, t);
         const canvas = await this.captureCutoutFrame(videoElement, width, height, enhanceQuality);
         if (canvas) {
-          cache.push({ time: t, canvas });
+          cache.push({ time: t, canvas, enhanceQuality: !!enhanceQuality });
         }
       } catch (err) {
         console.warn('Pre-bake frame skip:', err.message);
@@ -518,12 +524,12 @@ class SelfieSegmenterService {
     targetCtx.globalCompositeOperation = 'source-over';
 
     // Fast Path: Try pre-baked cutout cache (0ms GPU draw, zero neural inference overhead)
-    if (this.drawExportCutoutForTime(targetCtx, currentTime, width, height, 0.18)) {
+    if (this.drawExportCutoutForTime(targetCtx, currentTime, width, height, 0.18, enhanceQuality)) {
       return;
     }
 
     // Secondary Path: Cached still frame
-    if (this.drawCachedCutout(targetCtx, width, height)) {
+    if (this.drawCachedCutout(targetCtx, width, height, enhanceQuality)) {
       if (!this.shouldSegment(video, 4)) return;
     } else {
       if (!this.shouldSegment(video, 6)) return;
@@ -562,6 +568,7 @@ class SelfieSegmenterService {
           this.applyMaskAndCutout(mask, video, width, height, enhanceQuality);
           this.lastCutoutWidth = width;
           this.lastCutoutHeight = height;
+          this.lastCutoutEnhanced = !!enhanceQuality;
 
           // Composite person cutout over target canvas (Layer 3 over Layer 2 captions)
           targetCtx.save();
@@ -596,7 +603,7 @@ class SelfieSegmenterService {
     const height = canvasHeight;
     const time = Number(options.time ?? video.currentTime ?? 0);
 
-    if (this.drawExportCutoutForTime(ctx, time, width, height, options.useExportCache ? 0.06 : 0.18)) {
+    if (this.drawExportCutoutForTime(ctx, time, width, height, options.useExportCache ? 0.06 : 0.18, enhanceQuality)) {
       return;
     }
 
@@ -640,6 +647,7 @@ class SelfieSegmenterService {
           this.applyMaskAndCutout(mask, video, width, height, enhanceQuality);
           this.lastCutoutWidth = width;
           this.lastCutoutHeight = height;
+          this.lastCutoutEnhanced = !!enhanceQuality;
 
           ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
         } finally {

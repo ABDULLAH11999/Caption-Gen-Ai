@@ -720,7 +720,7 @@ export class VideoRenderer {
         const canvas = await selfieSegmenterService.captureCutoutFrame(videoElement, cacheWidth, cacheHeight, enhanceQuality);
         if (canvas) {
           const decodedTime = Number(videoElement.currentTime);
-          cache.push({ time: Number.isFinite(decodedTime) ? decodedTime : t, requestedTime: t, canvas });
+          cache.push({ time: Number.isFinite(decodedTime) ? decodedTime : t, requestedTime: t, canvas, enhanceQuality: !!enhanceQuality });
         }
       } catch (err) {
         console.warn('Export cutout cache frame skipped:', err.message);
@@ -952,7 +952,9 @@ export class VideoRenderer {
     video.crossOrigin = 'anonymous';
     video.muted = false;
     video.volume = 1.0;
-    video.classList.toggle('video-enhanced', !!enhanceQuality);
+    // Export applies enhancement exactly once in the canvas renderer/cutout renderer.
+    // Do not add the preview CSS filter to this hidden source element.
+    video.classList.remove('video-enhanced');
     // Keep the export source drawable by the decoder without showing it in the UI.
     video.style.cssText = 'position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:0.01;pointer-events:none;z-index:0;object-fit:cover;';
     document.body.appendChild(video);

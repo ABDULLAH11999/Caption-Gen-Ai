@@ -1657,9 +1657,6 @@ export class UserDashboard {
     // Apply video enhancement class immediately if enabled
     this.videoElement.classList.toggle('video-enhanced', !!this.enhanceVideoQuality);
     this.cutoutCanvas = wrap.querySelector('#user-cutout-canvas');
-    if (this.cutoutCanvas) {
-      this.cutoutCanvas.classList.toggle('video-enhanced', !!this.enhanceVideoQuality);
-    }
 
     const scrubber = wrap.querySelector('#user-timeline-scrubber');
     const timeDisplay = wrap.querySelector('#user-time-display');
@@ -1767,9 +1764,12 @@ export class UserDashboard {
       enhanceToggle.addEventListener('change', (e) => {
         this.enhanceVideoQuality = e.target.checked;
         this.videoElement.classList.toggle('video-enhanced', this.enhanceVideoQuality);
-        if (this.cutoutCanvas) {
-          this.cutoutCanvas.classList.toggle('video-enhanced', this.enhanceVideoQuality);
+        if (typeof selfieSegmenterService.resetCache === 'function') {
+          selfieSegmenterService.resetCache();
+        } else if (typeof selfieSegmenterService.clearExportCutoutCache === 'function') {
+          selfieSegmenterService.clearExportCutoutCache();
         }
+        this.lastRenderedSentenceKey = null;
         this.renderCutoutIfActiveBehind();
         soundFx.playEnhanceToggle(this.enhanceVideoQuality);
         this.showToast(this.enhanceVideoQuality ? '✨ Video Enhancement Enabled (+30% Vibrance & Contrast)' : 'Video Enhancement Disabled', 'info');
@@ -3370,7 +3370,6 @@ export class UserDashboard {
 
     if (hasAnyBehind) {
       this.cutoutCanvas.style.display = 'block';
-      this.cutoutCanvas.classList.toggle('video-enhanced', !!this.enhanceVideoQuality);
       if (selfieSegmenterService.isReady()) {
         selfieSegmenterService.renderCutout(this.videoElement, this.cutoutCanvas, this.enhanceVideoQuality);
       } else {
