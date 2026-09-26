@@ -711,6 +711,7 @@ export class VideoRenderer {
 
       const originalTime = videoElement.currentTime;
       const originalPaused = videoElement.paused;
+      const originalPlaybackRate = videoElement.playbackRate || 1.0;
       videoElement.pause();
 
       const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -902,14 +903,17 @@ export class VideoRenderer {
 
       // Restore video position
       videoElement.currentTime = originalTime;
+      videoElement.playbackRate = originalPlaybackRate;
       if (!originalPaused) videoElement.play();
 
       const finalDuration = duration > 0 ? duration : (videoElement.duration || 1);
       const fixedBlob = await fixVideoMetadata(rawBlob, finalDuration);
+      selfieSegmenterService.clearExportCutoutCache();
 
       return fixedBlob;
     } catch (err) {
       this.isRendering = false;
+      selfieSegmenterService.clearExportCutoutCache();
       console.error('Export error:', err);
       throw err;
     }
