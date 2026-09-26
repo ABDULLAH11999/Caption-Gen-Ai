@@ -606,6 +606,12 @@
   background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.7) 100%);
 }
 
+.compare-screen-frame .dummy-inner-content,
+.compare-screen-frame .dummy-subtitle-simulation,
+.compare-screen-frame .dummy-rotoscoping-badge {
+  display: none !important;
+}
+
 .dummy-inner-content {
   position: relative;
   z-index: 2;

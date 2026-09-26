@@ -138,7 +138,7 @@ export class LandingPage {
               <div class="compare-card-footer">
                 <ul class="compare-features-list">
                   <li class="negative">✕ Viewer drops off within first 3 seconds</li>
-                  <li class="negative">✕ Muted autoplay ignored on TikTok &amp; Reels feed</li>
+                  <li class="negative">✕ Ignored on TikTok &amp; Reels feed</li>
                   <li class="negative">✕ Zero keyword retention or visual anchors</li>
                 </ul>
               </div>
