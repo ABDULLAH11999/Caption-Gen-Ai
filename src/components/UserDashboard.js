@@ -1664,6 +1664,15 @@ export class UserDashboard {
     const scrubber = wrap.querySelector('#user-timeline-scrubber');
     const timeDisplay = wrap.querySelector('#user-time-display');
     const playBtn = wrap.querySelector('#user-btn-play');
+    if (playBtn) {
+      playBtn.removeAttribute('title');
+      playBtn.setAttribute('aria-label', 'Play or pause video');
+    }
+    const behindProcessBtn = wrap.querySelector('#btn-process-behind-again');
+    if (behindProcessBtn) {
+      behindProcessBtn.removeAttribute('title');
+      behindProcessBtn.setAttribute('aria-label', 'Process behind-text cutouts');
+    }
 
     this.videoElement.addEventListener('loadedmetadata', () => {
       this.videoDuration = this.videoElement.duration || 0;
@@ -3308,7 +3317,8 @@ export class UserDashboard {
     const pct = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
     btn.style.setProperty('--behind-progress', `${pct}`);
     btn.classList.add('is-processing');
-    btn.title = `Processing behind cutouts ${pct}%`;
+    btn.removeAttribute('title');
+    btn.setAttribute('aria-label', `Processing behind cutouts ${pct}%`);
     btn.innerHTML = `<span class="sidebar-icon-glyph">↻</span><span id="behind-active-badge" class="behind-count-pill">${count}</span>`;
   }
 
@@ -3409,7 +3419,7 @@ export class UserDashboard {
       btn.classList.remove('needs-process');
       btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;">⏳</span> Loading AI Rotoscoping...`;
       this.setBehindProcessProgress(3, behindCount);
-      btn.title = 'Loading AI rotoscoping...';
+      btn.setAttribute('aria-label', 'Loading AI rotoscoping...');
       btn.innerHTML = `<span class="sidebar-icon-glyph">↻</span><span id="behind-active-badge" class="behind-count-pill">${behindCount}</span>`;
     }
     soundFx.playProcessStart();
@@ -3470,7 +3480,8 @@ export class UserDashboard {
         btn.disabled = false;
         btn.classList.remove('is-processing');
         btn.style.removeProperty('--behind-progress');
-        btn.title = 'Process behind-text cutouts';
+        btn.removeAttribute('title');
+        btn.setAttribute('aria-label', 'Process behind-text cutouts');
         btn.innerHTML = `<span class="sidebar-icon-glyph">↻</span><span id="behind-active-badge" class="behind-count-pill">${behindCount}</span>`;
         this.updateBehindCountBadge();
       }

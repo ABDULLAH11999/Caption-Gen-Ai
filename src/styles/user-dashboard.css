@@ -1191,7 +1191,13 @@ body.app-shell-locked {
 
 .btn-play-circle:hover {
   background: #18181b !important;
-  transform: scale(1.06);
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.24) !important;
+}
+
+.btn-play-circle:focus-visible {
+  outline: 3px solid rgba(249, 115, 22, 0.28);
+  outline-offset: 3px;
 }
 
 .btn-compact-action {
@@ -1391,24 +1397,31 @@ body.app-shell-locked {
 }
 
 .sidebar-icon-action.is-processing {
-  border-color: transparent;
-  color: #ffffff;
-  background: conic-gradient(#000000 calc(var(--behind-progress) * 1%), #ff3b30 0);
-  box-shadow: 0 4px 14px rgba(255, 59, 48, 0.22);
+  border-color: #fed7aa;
+  color: #ea580c;
+  background:
+    radial-gradient(circle at center, #ffffff 58%, transparent 60%),
+    conic-gradient(#f97316 calc(var(--behind-progress) * 1%), #ffedd5 0);
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.22);
   overflow: hidden;
   font-size: 0;
   animation: behindRingGlow 1.2s ease-in-out infinite;
 }
 
 .sidebar-icon-action.is-processing .sidebar-icon-glyph {
-  color: #ffffff;
+  color: #ea580c;
   font-size: 15px;
   opacity: 1;
 }
 
+.sidebar-icon-action.is-processing:disabled {
+  cursor: wait;
+  opacity: 1;
+}
+
 @keyframes behindRingGlow {
-  0%, 100% { box-shadow: 0 4px 14px rgba(255, 59, 48, 0.18); }
-  50% { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24); }
+  0%, 100% { box-shadow: 0 4px 14px rgba(249, 115, 22, 0.18); }
+  50% { box-shadow: 0 6px 18px rgba(249, 115, 22, 0.3); }
 }
 
 .sidebar-icon-action .behind-count-pill {
