@@ -492,11 +492,13 @@
   height: 44px;
   border-radius: 50%;
   background: var(--cyan-primary);
-  color: #000;
+  color: #ffffff;
   box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
 }
 
 .btn-ctrl.btn-play-pause:hover {
+  background: #08d9ff;
+  color: #ffffff;
   transform: scale(1.08);
 }
 
