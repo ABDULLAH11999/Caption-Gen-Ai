@@ -1400,20 +1400,10 @@ body.app-shell-locked {
   animation: behindRingGlow 1.2s ease-in-out infinite;
 }
 
-.sidebar-icon-action.is-processing > * {
-  opacity: 0;
-}
-
-.sidebar-icon-action.is-processing::before {
-  content: "";
-  position: absolute;
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.45);
-  border-top-color: #ffffff;
-  animation: spinLoader 0.75s linear infinite;
-  z-index: 2;
+.sidebar-icon-action.is-processing .sidebar-icon-glyph {
+  color: #ffffff;
+  font-size: 15px;
+  opacity: 1;
 }
 
 @keyframes behindRingGlow {
@@ -3111,4 +3101,3 @@ body.app-shell-locked {
   0% { background-position: 100% 0; }
   100% { background-position: -100% 0; }
 }
-

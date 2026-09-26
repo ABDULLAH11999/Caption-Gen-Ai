@@ -42,6 +42,29 @@ export class VideoRenderer {
     });
   }
 
+  waitForDrawableFrame(video, timeoutMs = 700) {
+    return new Promise((resolve) => {
+      if (!video || video.readyState >= 3) {
+        resolve();
+        return;
+      }
+
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        video.removeEventListener('loadeddata', finish);
+        video.removeEventListener('canplay', finish);
+        clearTimeout(timer);
+        resolve();
+      };
+
+      const timer = setTimeout(finish, timeoutMs);
+      video.addEventListener('loadeddata', finish, { once: true });
+      video.addEventListener('canplay', finish, { once: true });
+    });
+  }
+
   /**
    * Helper to resolve font family from font ID or name
    */
@@ -812,6 +835,7 @@ export class VideoRenderer {
 
       // Reset video to start
       await this.seekVideoTo(videoElement, 0);
+      await this.waitForDrawableFrame(videoElement);
 
       const renderCapturedFrame = (time) => {
         const safeTime = Math.max(0, Math.min(duration, Number(time) || 0));
@@ -831,7 +855,6 @@ export class VideoRenderer {
 
       let isExportActive = true;
       let animId = null;
-      let videoFrameCallbackId = null;
       let lastRenderedTime = -1;
 
       const finishExport = () => {
@@ -842,10 +865,6 @@ export class VideoRenderer {
         if (animId) {
           cancelAnimationFrame(animId);
           animId = null;
-        }
-        if (videoFrameCallbackId && typeof videoElement.cancelVideoFrameCallback === 'function') {
-          videoElement.cancelVideoFrameCallback(videoFrameCallbackId);
-          videoFrameCallbackId = null;
         }
         renderCapturedFrame(Math.min(duration, videoElement.currentTime || duration));
         videoElement.pause();
@@ -872,13 +891,11 @@ export class VideoRenderer {
         renderCapturedFrame(curTime);
       };
 
-      // Sync to decoded video frames when available, falling back to rAF.
-      const renderLoop = (_now, metadata) => {
+      // Keep a deterministic canvas draw loop while the source video plays.
+      const renderLoop = () => {
         if (!isExportActive || !this.isRendering) return;
 
-        const curTime = metadata && Number.isFinite(metadata.mediaTime)
-          ? metadata.mediaTime
-          : videoElement.currentTime;
+        const curTime = videoElement.currentTime;
         renderAtTime(curTime);
 
         if (videoElement.ended || curTime >= duration) {
@@ -886,18 +903,10 @@ export class VideoRenderer {
           return;
         }
 
-        if (typeof videoElement.requestVideoFrameCallback === 'function') {
-          videoFrameCallbackId = videoElement.requestVideoFrameCallback(renderLoop);
-        } else {
-          animId = requestAnimationFrame(renderLoop);
-        }
+        animId = requestAnimationFrame(renderLoop);
       };
 
-      if (typeof videoElement.requestVideoFrameCallback === 'function') {
-        videoFrameCallbackId = videoElement.requestVideoFrameCallback(renderLoop);
-      } else {
-        animId = requestAnimationFrame(renderLoop);
-      }
+      animId = requestAnimationFrame(renderLoop);
 
       const rawBlob = await exportPromise;
 
@@ -932,16 +941,20 @@ export class VideoRenderer {
     video.muted = false;
     video.volume = 1.0;
     video.classList.toggle('video-enhanced', !!enhanceQuality);
-    // Use full opacity in viewport bounds with z-index: -999 to guarantee Chromium gives full GPU priority without occlusion throttling
-    video.style.cssText = 'position:fixed;bottom:0;right:0;width:320px;height:180px;opacity:1;pointer-events:none;z-index:-999;object-fit:cover;';
+    // Keep the export source drawable by the decoder without showing it in the UI.
+    video.style.cssText = 'position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:0.01;pointer-events:none;z-index:0;object-fit:cover;';
     document.body.appendChild(video);
 
     const videoUrl = URL.createObjectURL(videoBlob);
     video.src = videoUrl;
 
     await new Promise((resolve) => {
-      video.onloadedmetadata = () => resolve();
-      video.onerror = () => resolve();
+      const finish = () => resolve();
+      video.onloadeddata = finish;
+      video.onloadedmetadata = () => {
+        if (video.readyState >= 2) finish();
+      };
+      video.onerror = finish;
       setTimeout(resolve, 3500);
     });
 

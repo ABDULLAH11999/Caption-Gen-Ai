@@ -3408,8 +3408,7 @@ export class UserDashboard {
       btn.disabled = true;
       btn.classList.remove('needs-process');
       btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;">⏳</span> Loading AI Rotoscoping...`;
-      btn.classList.add('is-processing');
-      btn.style.setProperty('--behind-progress', '3');
+      this.setBehindProcessProgress(3, behindCount);
       btn.title = 'Loading AI rotoscoping...';
       btn.innerHTML = `<span class="sidebar-icon-glyph">↻</span><span id="behind-active-badge" class="behind-count-pill">${behindCount}</span>`;
     }
@@ -3467,6 +3466,7 @@ export class UserDashboard {
       }
       if (btn) {
         btn.style.setProperty('--behind-progress', '100');
+        await new Promise(resolve => window.setTimeout(resolve, 180));
         btn.disabled = false;
         btn.classList.remove('is-processing');
         btn.style.removeProperty('--behind-progress');
