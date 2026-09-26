@@ -34,19 +34,18 @@ export class BetaTopBar {
 
     parentElement.appendChild(this.container);
 
-    // Mark as shown so it appears only one time
-    try {
-      localStorage.setItem(this.storageKey, 'true');
-    } catch {
-      // Ignore storage errors
-    }
-
     const dismiss = () => {
       if (this.timer) {
         clearTimeout(this.timer);
         this.timer = null;
       }
       if (!this.container) return;
+
+      try {
+        localStorage.setItem(this.storageKey, 'true');
+      } catch {
+        // Ignore storage errors
+      }
 
       this.container.classList.add('hide');
       setTimeout(() => {

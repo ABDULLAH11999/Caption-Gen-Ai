@@ -5,8 +5,12 @@ export class CookieBanner {
   }
 
   render(parentElement) {
-    if (localStorage.getItem('zen_cookie_consent') === 'accepted') {
-      return null;
+    try {
+      if (localStorage.getItem('zen_cookie_consent') === 'accepted') {
+        return null;
+      }
+    } catch {
+      // Keep rendering the banner if storage is unavailable.
     }
 
     this.container = document.createElement('div');
@@ -29,7 +33,11 @@ export class CookieBanner {
     parentElement.appendChild(this.container);
 
     const dismiss = () => {
-      localStorage.setItem('zen_cookie_consent', 'accepted');
+      try {
+        localStorage.setItem('zen_cookie_consent', 'accepted');
+      } catch {
+        // Ignore storage errors
+      }
       this.container.classList.add('hide');
       setTimeout(() => this.container?.remove(), 300);
     };

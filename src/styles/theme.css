@@ -135,6 +135,230 @@ body {
   background-attachment: fixed;
 }
 
+/* Global Notices */
+.beta-topbar-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  width: 100%;
+  padding: 8px 16px;
+  background: rgba(9, 10, 20, 0.94);
+  color: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transform: translateY(0);
+  opacity: 1;
+  transition: transform 0.32s var(--ease-spring), opacity 0.22s ease;
+}
+
+.beta-topbar-banner.hide {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.beta-topbar-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-right: 36px;
+  position: relative;
+  text-align: center;
+}
+
+.beta-topbar-tag {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--radius-pill);
+  background: #ff5533;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+}
+
+.beta-topbar-text {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.beta-topbar-highlight {
+  color: #ffd2c8;
+  font-weight: 900;
+}
+
+.beta-topbar-close {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.beta-topbar-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-50%) scale(1.04);
+}
+
+.saas-cookie-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: 1300;
+  width: min(640px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 14px 14px 16px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #090a14;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 18px;
+  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  transition: transform 0.28s var(--ease-spring), opacity 0.2s ease;
+}
+
+.saas-cookie-banner.hide {
+  transform: translateX(-50%) translateY(16px);
+  opacity: 0;
+}
+
+.cookie-banner-content,
+.cookie-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cookie-icon-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-purple-light);
+  border: 1px solid var(--brand-purple-border);
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.cookie-text {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.cookie-policy-link {
+  color: #090a14;
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.btn-cookie-accept {
+  height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: #000000;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: var(--shadow-black-pill);
+  transition: transform 0.18s var(--ease-spring), background 0.18s ease;
+}
+
+.btn-cookie-accept:hover {
+  background: var(--btn-black-hover);
+  transform: translateY(-1px);
+}
+
+.cookie-close-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 50%;
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s ease;
+}
+
+.cookie-close-btn:hover {
+  color: #090a14;
+  border-color: rgba(15, 23, 42, 0.16);
+  transform: scale(1.04);
+}
+
+@media (max-width: 640px) {
+  .beta-topbar-banner {
+    padding: 8px 12px;
+  }
+
+  .beta-topbar-inner {
+    justify-content: flex-start;
+    text-align: left;
+    gap: 8px;
+  }
+
+  .beta-topbar-text {
+    font-size: 12px;
+  }
+
+  .saas-cookie-banner {
+    bottom: 12px;
+    width: calc(100vw - 24px);
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .cookie-banner-content {
+    align-items: flex-start;
+  }
+
+  .cookie-banner-actions {
+    justify-content: flex-end;
+  }
+}
+
 /* Custom Minimalist Scrollbars */
 ::-webkit-scrollbar {
   width: 7px;
