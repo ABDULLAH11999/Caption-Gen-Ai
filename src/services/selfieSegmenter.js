@@ -534,7 +534,7 @@ class SelfieSegmenterService {
     const height = canvasHeight;
     const time = Number(options.time ?? video.currentTime ?? 0);
 
-    if (this.drawExportCutoutForTime(ctx, time, width, height, options.useExportCache ? 0.035 : 0.18)) {
+    if (this.drawExportCutoutForTime(ctx, time, width, height, options.useExportCache ? 0.06 : 0.18)) {
       return;
     }
 

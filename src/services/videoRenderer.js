@@ -648,8 +648,13 @@ export class VideoRenderer {
     if (behindSegments.length === 0 || !selfieSegmenterService.isReady()) return;
 
     const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    // Dense cache for smooth 60 FPS exports; mobile uses a slightly wider step to avoid memory spikes.
-    const sampleStep = isMobile ? 0.025 : 0.0167;
+    // Keep the person layer light enough that recording stays smooth. The final
+    // canvas remains source-resolution; only the pre-baked mask layer is capped.
+    const cacheMaxSide = isMobile ? 720 : 960;
+    const cacheScale = Math.min(1, cacheMaxSide / Math.max(width, height));
+    const cacheWidth = Math.max(1, Math.round(width * cacheScale));
+    const cacheHeight = Math.max(1, Math.round(height * cacheScale));
+    const sampleStep = isMobile ? 1 / 24 : 1 / 30;
     const samples = [];
     const seen = new Set();
 
@@ -677,9 +682,10 @@ export class VideoRenderer {
       const t = samples[i];
       try {
         await this.seekVideoTo(videoElement, t);
-        const canvas = await selfieSegmenterService.captureCutoutFrame(videoElement, width, height, enhanceQuality);
+        const canvas = await selfieSegmenterService.captureCutoutFrame(videoElement, cacheWidth, cacheHeight, enhanceQuality);
         if (canvas) {
-          cache.push({ time: t, canvas });
+          const decodedTime = Number(videoElement.currentTime);
+          cache.push({ time: Number.isFinite(decodedTime) ? decodedTime : t, requestedTime: t, canvas });
         }
       } catch (err) {
         console.warn('Export cutout cache frame skipped:', err.message);
@@ -824,6 +830,8 @@ export class VideoRenderer {
 
       let isExportActive = true;
       let animId = null;
+      let videoFrameCallbackId = null;
+      let lastRenderedTime = -1;
 
       const finishExport = () => {
         if (!this.isRendering) return;
@@ -833,6 +841,10 @@ export class VideoRenderer {
         if (animId) {
           cancelAnimationFrame(animId);
           animId = null;
+        }
+        if (videoFrameCallbackId && typeof videoElement.cancelVideoFrameCallback === 'function') {
+          videoElement.cancelVideoFrameCallback(videoFrameCallbackId);
+          videoFrameCallbackId = null;
         }
         renderCapturedFrame(Math.min(duration, videoElement.currentTime || duration));
         videoElement.pause();
@@ -844,27 +856,47 @@ export class VideoRenderer {
 
       videoElement.addEventListener('ended', finishExport, { once: true });
 
-      // Smooth 60 FPS requestAnimationFrame render loop
-      const renderLoop = () => {
-        if (!isExportActive || !this.isRendering) return;
-
-        const curTime = videoElement.currentTime;
+      const updateProgress = (curTime) => {
         const baseOffset = hasBehindCaptions ? 15 : 0;
         const scaleFactor = hasBehindCaptions ? 0.85 : 1.0;
         const progress = Math.min(100, Math.round(baseOffset + (curTime / duration) * (100 * scaleFactor)));
         if (onProgress) onProgress(progress);
+      };
 
+      const renderAtTime = (time) => {
+        const curTime = Math.max(0, Math.min(duration, Number(time) || 0));
+        if (curTime === lastRenderedTime) return;
+        lastRenderedTime = curTime;
+        updateProgress(curTime);
         renderCapturedFrame(curTime);
+      };
+
+      // Sync to decoded video frames when available, falling back to rAF.
+      const renderLoop = (_now, metadata) => {
+        if (!isExportActive || !this.isRendering) return;
+
+        const curTime = metadata && Number.isFinite(metadata.mediaTime)
+          ? metadata.mediaTime
+          : videoElement.currentTime;
+        renderAtTime(curTime);
 
         if (videoElement.ended || curTime >= duration) {
           finishExport();
           return;
         }
 
-        animId = requestAnimationFrame(renderLoop);
+        if (typeof videoElement.requestVideoFrameCallback === 'function') {
+          videoFrameCallbackId = videoElement.requestVideoFrameCallback(renderLoop);
+        } else {
+          animId = requestAnimationFrame(renderLoop);
+        }
       };
 
-      animId = requestAnimationFrame(renderLoop);
+      if (typeof videoElement.requestVideoFrameCallback === 'function') {
+        videoFrameCallbackId = videoElement.requestVideoFrameCallback(renderLoop);
+      } else {
+        animId = requestAnimationFrame(renderLoop);
+      }
 
       const rawBlob = await exportPromise;
 
