@@ -22,6 +22,8 @@ class SelfieSegmenterService {
     this.lastCutoutWidth = 0;
     this.lastCutoutHeight = 0;
     this.exportCutoutCache = [];
+    this.cutoutValidationCache = new WeakMap();
+    this.cutoutValidationCache = new WeakMap();
   }
 
   /**
@@ -112,9 +114,63 @@ class SelfieSegmenterService {
 
   setExportCutoutCache(cache) {
     this.exportCutoutCache = Array.isArray(cache)
-      ? cache.filter(item => item && Number.isFinite(item.time) && item.canvas)
+      ? cache.filter(item => item && Number.isFinite(item.time) && item.canvas && this.isUsableCutoutCanvas(item.canvas))
           .sort((a, b) => a.time - b.time)
       : [];
+  }
+
+  isUsableCutoutCanvas(canvas) {
+    if (!canvas || !canvas.width || !canvas.height) return false;
+
+    const canUseCachedValidation = canvas !== this.cutoutCanvas;
+    if (cached && cached.width === canvas.width && cached.height === canvas.height) {
+      return cached.usable;
+    }
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) {
+      if (canUseCachedValidation) this.cutoutValidationCache.set(canvas, { width: canvas.width, height: canvas.height, usable: false });
+      return false;
+    }
+
+    const sampleSize = 18;
+    const stepX = Math.max(1, Math.floor(canvas.width / sampleSize));
+    const stepY = Math.max(1, Math.floor(canvas.height / sampleSize));
+    let samples = 0;
+    let visible = 0;
+    let solid = 0;
+    let brightness = 0;
+
+    try {
+      for (let y = Math.floor(stepY / 2); y < canvas.height; y += stepY) {
+        for (let x = Math.floor(stepX / 2); x < canvas.width; x += stepX) {
+          const pixel = ctx.getImageData(x, y, 1, 1).data;
+          const alpha = pixel[3];
+          samples += 1;
+          if (alpha > 8) visible += 1;
+          if (alpha > 220) solid += 1;
+          if (alpha > 80) brightness += (pixel[0] + pixel[1] + pixel[2]) / 3;
+        }
+      }
+    } catch (_) {
+      if (canUseCachedValidation) this.cutoutValidationCache.set(canvas, { width: canvas.width, height: canvas.height, usable: false });
+      return false;
+    }
+
+    if (samples === 0 || visible === 0) {
+      if (canUseCachedValidation) this.cutoutValidationCache.set(canvas, { width: canvas.width, height: canvas.height, usable: false });
+      return false;
+    }
+
+    const visibleRatio = visible / samples;
+    const solidRatio = solid / samples;
+    const averageBrightness = brightness / Math.max(1, visible);
+
+    // A subject cutout should not be a fully opaque black/full-frame layer.
+    // Those bad canvases cover the exported video and make it appear black.
+    const usable = !(visibleRatio > 0.92 && (solidRatio > 0.88 || averageBrightness < 12)) && visibleRatio >= 0.01;
+    if (canUseCachedValidation) this.cutoutValidationCache.set(canvas, { width: canvas.width, height: canvas.height, usable });
+    return usable;
   }
 
   drawExportCutoutForTime(ctx, time, width, height, maxDistance = 0.45) {
@@ -139,13 +195,14 @@ class SelfieSegmenterService {
     const best = beforeDiff <= afterDiff ? before : after;
     const bestDiff = Math.min(beforeDiff, afterDiff);
 
-    if (!best || bestDiff > maxDistance) return false;
+    if (!best || bestDiff > maxDistance || !this.isUsableCutoutCanvas(best.canvas)) return false;
     ctx.drawImage(best.canvas, 0, 0, width, height);
     return true;
   }
 
   drawCachedCutout(ctx, width, height) {
     if (!ctx || !this.lastCutoutWidth || !this.lastCutoutHeight) return false;
+    if (!this.isUsableCutoutCanvas(this.cutoutCanvas)) return false;
     ctx.drawImage(this.cutoutCanvas, 0, 0, width, height);
     return true;
   }
@@ -325,6 +382,10 @@ class SelfieSegmenterService {
             snapshot.height = height;
             const snapshotCtx = snapshot.getContext('2d');
             snapshotCtx.drawImage(this.cutoutCanvas, 0, 0, width, height);
+            if (!this.isUsableCutoutCanvas(snapshot)) {
+              finish(null);
+              return;
+            }
             finish(snapshot);
           } finally {
             if (result.confidenceMasks) {

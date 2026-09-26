@@ -582,6 +582,9 @@ export class VideoRenderer {
     }
 
     const isEnhanced = !!(config.enhanceQuality || config.enhanceVideoQuality);
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
     if (isEnhanced) {
       ctx.filter = 'contrast(1.18) saturate(1.28) brightness(1.02)';
     } else {
@@ -589,8 +592,16 @@ export class VideoRenderer {
     }
 
     // Layer 1: Background Video
-    ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+    try {
+      ctx.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+    } catch (err) {
+      ctx.restore();
+      return;
+    }
+    ctx.restore();
     ctx.filter = 'none';
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
 
     if (!sentences || sentences.length === 0) return;
 
@@ -705,6 +716,7 @@ export class VideoRenderer {
       const t = samples[i];
       try {
         await this.seekVideoTo(videoElement, t);
+        await this.waitForDrawableFrame(videoElement, 900);
         const canvas = await selfieSegmenterService.captureCutoutFrame(videoElement, cacheWidth, cacheHeight, enhanceQuality);
         if (canvas) {
           const decodedTime = Number(videoElement.currentTime);
