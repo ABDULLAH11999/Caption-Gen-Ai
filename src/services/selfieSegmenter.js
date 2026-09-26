@@ -123,6 +123,7 @@ class SelfieSegmenterService {
     if (!canvas || !canvas.width || !canvas.height) return false;
 
     const canUseCachedValidation = canvas !== this.cutoutCanvas;
+    const cached = canUseCachedValidation ? this.cutoutValidationCache.get(canvas) : null;
     if (cached && cached.width === canvas.width && cached.height === canvas.height) {
       return cached.usable;
     }
