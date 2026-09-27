@@ -1700,6 +1700,7 @@ export class UserDashboard {
 
     this.videoElement.addEventListener('pause', () => {
       wrap.querySelector('#user-video-wrapper')?.classList.add('is-paused');
+      this.updateCaptionOverlay();
     });
 
     this.videoElement.addEventListener('timeupdate', () => {
@@ -2199,6 +2200,19 @@ export class UserDashboard {
     const segmentFontMeta = currentSentence.fontFamily
       ? FONTS.find(f => f.id === currentSentence.fontFamily || f.name === currentSentence.fontFamily)
       : null;
+    const shouldTitleCaseWords = !cfg.uppercase && (
+      this.selectedTemplateId === 'emily-luxury' ||
+      segmentFontMeta?.id === 'Italiana' ||
+      /emily|bodoni/i.test(segmentFontMeta?.name || '')
+    );
+    const formatCaptionWord = (word) => {
+      const raw = String(word || '');
+      if (cfg.uppercase) return raw.toUpperCase();
+      if (!shouldTitleCaseWords) return raw;
+      return raw.toLowerCase().replace(/[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'’-]*/g, (token) => (
+        token.charAt(0).toUpperCase() + token.slice(1)
+      ));
+    };
     const forceItalic = currentSentence.italic !== undefined ? !!currentSentence.italic : !!segmentFontMeta?.defaultItalic;
     const forceBold = currentSentence.bold !== undefined ? !!currentSentence.bold : !!segmentFontMeta?.defaultBold;
     const forceUnderline = !!currentSentence.underline;
@@ -2249,7 +2263,7 @@ export class UserDashboard {
           -webkit-text-stroke:${strokeWidth}px ${strokeColor};paint-order:stroke fill;-webkit-paint-order:stroke fill;
           transform:${isSpeaking ? 'scale(1.15)' : 'scale(1)'}!important;transform-origin:center bottom!important;z-index:${isSpeaking ? 5 : 1}!important;
           white-space:nowrap!important;will-change:transform;transition:${isSpeaking ? 'transform .22s cubic-bezier(.34,1.56,.64,1), filter .2s ease' : 'transform .18s ease-out'};
-        ">${this.escapeHtml(w.word || '')}</span>
+        ">${this.escapeHtml(formatCaptionWord(w.word))}</span>
       `;
     }).join('');
 
@@ -2286,16 +2300,13 @@ export class UserDashboard {
           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="2"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/></svg>
           <span>Move</span>
         </span>
-        <button type="button" class="caption-toolbar-btn btn-follow-all" id="btn-follow-all-segments" title="Apply this style, color, size, animation, and position to ALL segments"><span>Apply to All</span></button>
-        <button type="button" class="caption-toolbar-btn btn-break-words" id="btn-break-segment-words" title="Break this caption line into one segment per word"><span>Break into words</span></button>
-        <button type="button" class="caption-toolbar-btn btn-reset-pos" id="btn-reset-segment-pos" title="Reset this segment to default middle-left"><span>↺ Reset</span></button>
       </div>
     ` : '';
 
     return `
       <div class="caption-segment-anchor" data-sentence-id="${currentSentence.id || ''}" data-segment-key="seg_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${posY};left:${posX};transform:${posTransform};width:${customWidth};max-width:${customMaxWidth};text-align:${textAlign};z-index:${anchorZIndex};">
         ${toolbarHtml}
-        <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${justifyAlign};align-items:baseline;gap:2px 5px;width:100%;max-width:100%;text-transform:uppercase;line-height:1.05;transform-origin:center center;will-change:transform,opacity;">
+        <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${justifyAlign};align-items:baseline;gap:2px 5px;width:100%;max-width:100%;text-transform:none;line-height:1.05;transform-origin:center center;will-change:transform,opacity;">
           ${wordsHtml}
         </div>
         <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines"><div class="resize-grip-line"></div></div>

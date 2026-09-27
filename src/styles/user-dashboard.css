@@ -2811,18 +2811,45 @@ body.app-shell-locked {
     touch-action: none !important;
   }
   .caption-drag-toolbar {
-    max-width: calc(100vw - 26px) !important;
-    flex-wrap: wrap !important;
+    width: max-content !important;
+    max-width: min(calc(100vw - 28px), 296px) !important;
+    flex-wrap: nowrap !important;
     justify-content: center !important;
-    gap: 5px !important;
-    padding: 6px 7px !important;
-    white-space: normal !important;
-    border-radius: 16px !important;
+    gap: 3px !important;
+    padding: 4px 5px !important;
+    white-space: nowrap !important;
+    border-radius: 999px !important;
+    overflow: visible !important;
   }
   .caption-toolbar-pill,
   .caption-toolbar-btn {
-    min-height: 28px !important;
-    font-size: 10.5px !important;
+    min-height: 22px !important;
+    padding: 2px 6px !important;
+    font-size: 9px !important;
+    line-height: 1 !important;
+    border-radius: 999px !important;
+    flex: 0 0 auto !important;
+  }
+  .caption-drag-handle {
+    gap: 2px !important;
+  }
+  .caption-drag-handle svg {
+    width: 9px !important;
+    height: 9px !important;
+  }
+  .caption-toolbar-btn.btn-follow-all {
+    max-width: 66px !important;
+  }
+  .caption-toolbar-btn.btn-break-words {
+    max-width: 84px !important;
+  }
+  .caption-toolbar-btn.btn-reset-pos {
+    max-width: 58px !important;
+  }
+  .caption-toolbar-btn span {
+    display: block !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
   .caption-resize-handle.resize-right {
     right: -14px !important;

@@ -74,6 +74,15 @@ export class VideoRenderer {
     return found ? found.family : `'${fontId}', -apple-system, sans-serif`;
   }
 
+  formatCaptionWord(word, { uppercase = false, titleCase = false } = {}) {
+    const raw = String(word || '');
+    if (uppercase) return raw.toUpperCase();
+    if (!titleCase) return raw;
+    return raw.toLowerCase().replace(/[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'’-]*/g, (token) => (
+      token.charAt(0).toUpperCase() + token.slice(1)
+    ));
+  }
+
   getSupportedRecordingMimeType() {
     if (typeof MediaRecorder === 'undefined') return '';
     if (typeof MediaRecorder.isTypeSupported !== 'function') return '';
@@ -341,6 +350,11 @@ export class VideoRenderer {
     const segmentFontMeta = sentence.fontFamily
       ? FONTS.find(f => f.id === sentence.fontFamily || f.name === sentence.fontFamily)
       : null;
+    const shouldTitleCaseWords = !config.uppercase && (
+      config.templateId === 'emily-luxury' ||
+      segmentFontMeta?.id === 'Italiana' ||
+      /emily|bodoni/i.test(segmentFontMeta?.name || '')
+    );
     const forceItalic = sentence.italic !== undefined ? !!sentence.italic : !!segmentFontMeta?.defaultItalic;
     const forceBold = sentence.bold !== undefined ? !!sentence.bold : !!segmentFontMeta?.defaultBold;
     const forceUnderline = !!sentence.underline;
@@ -391,7 +405,10 @@ export class VideoRenderer {
       const wordScale = isSpeaking ? 1.15 : 1.0;
 
       return {
-        word: (w.word || '').toUpperCase(),
+        word: this.formatCaptionWord(w.word, {
+          uppercase: !!config.uppercase,
+          titleCase: shouldTitleCaseWords
+        }),
         font,
         fontWeight,
         fontStyle,
