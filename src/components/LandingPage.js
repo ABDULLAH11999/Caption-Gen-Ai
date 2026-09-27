@@ -122,6 +122,12 @@ export class LandingPage {
 
               <!-- Dummy Media Frame -->
               <div class="compare-screen-frame">
+                <button type="button" class="compare-video-button" aria-label="Play raw footage before video">
+                  <video class="compare-demo-video" src="/Raw_Video.webm" preload="metadata" muted loop playsinline></video>
+                  <span class="compare-video-overlay">
+                    <span class="compare-video-play-icon"></span>
+                  </span>
+                </button>
                 <div class="dummy-media-placeholder before-placeholder">
                   <div class="dummy-video-scrim"></div>
                   <div class="dummy-inner-content">
@@ -156,6 +162,12 @@ export class LandingPage {
 
               <!-- Dummy Media Frame with Live Kinetic Overlay -->
               <div class="compare-screen-frame">
+                <button type="button" class="compare-video-button" aria-label="Play Zen Captions AI after video">
+                  <video class="compare-demo-video" src="/Zen_Captioned_Video_60FPS.webm" preload="metadata" muted loop playsinline></video>
+                  <span class="compare-video-overlay">
+                    <span class="compare-video-play-icon"></span>
+                  </span>
+                </button>
                 <div class="dummy-media-placeholder after-placeholder">
                   <div class="dummy-video-scrim after-scrim"></div>
                   <div class="dummy-inner-content">
@@ -811,7 +823,80 @@ export class LandingPage {
           if (mode === 'before') grid.classList.add('show-before-only');
           else if (mode === 'after') grid.classList.add('show-after-only');
         }
+
+        this.container.querySelectorAll('.compare-card').forEach(card => {
+          const isHiddenByMode = (mode === 'before' && card.classList.contains('compare-card-after')) ||
+            (mode === 'after' && card.classList.contains('compare-card-before'));
+          if (!isHiddenByMode) return;
+          const video = card.querySelector('.compare-demo-video');
+          if (!video) return;
+          video.pause();
+          video.currentTime = 0;
+          video.closest('.compare-video-button')?.classList.remove('is-playing', 'is-click-playing');
+        });
       });
+    });
+
+    this.container.querySelectorAll('.compare-video-button').forEach(button => {
+      const video = button.querySelector('.compare-demo-video');
+      if (!video) return;
+      const previewTime = 2.5;
+      let previewFrameReady = false;
+
+      const loadPreviewFrame = () => {
+        if (previewFrameReady || !Number.isFinite(video.duration) || video.duration <= 0) return;
+        previewFrameReady = true;
+        video.currentTime = Math.min(previewTime, Math.max(0, video.duration - 0.1));
+      };
+
+      const playVideo = () => {
+        video.muted = true;
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(() => {});
+        }
+      };
+      const pauseVideo = (reset = false) => {
+        video.pause();
+        if (reset) video.currentTime = 0;
+        button.classList.remove('is-playing');
+      };
+
+      video.addEventListener('loadedmetadata', loadPreviewFrame, { once: true });
+      video.addEventListener('play', () => button.classList.add('is-playing'));
+      video.addEventListener('pause', () => {
+        if (!button.classList.contains('is-click-playing')) {
+          button.classList.remove('is-playing');
+        }
+      });
+
+      button.addEventListener('mouseenter', playVideo);
+      button.addEventListener('focus', playVideo);
+      button.addEventListener('mouseleave', () => {
+        if (!button.classList.contains('is-click-playing')) pauseVideo(false);
+      });
+      button.addEventListener('blur', () => {
+        if (!button.classList.contains('is-click-playing')) pauseVideo(false);
+      });
+      button.addEventListener('click', () => {
+        const shouldPlay = video.paused || !button.classList.contains('is-click-playing');
+        this.container.querySelectorAll('.compare-video-button.is-click-playing').forEach(otherButton => {
+          if (otherButton === button) return;
+          const otherVideo = otherButton.querySelector('.compare-demo-video');
+          otherVideo?.pause();
+          otherButton.classList.remove('is-playing', 'is-click-playing');
+        });
+
+        if (shouldPlay) {
+          button.classList.add('is-click-playing');
+          playVideo();
+        } else {
+          button.classList.remove('is-click-playing');
+          pauseVideo(false);
+        }
+      });
+
+      if (video.readyState >= 1) loadPreviewFrame();
     });
 
     // 4. Architecture Step Items Interactive Switching
