@@ -2902,6 +2902,9 @@ body.app-shell-locked {
     font-size: 11px !important;
     padding: 12px 14px !important;
   }
+  .studio-canvas-panel > .dashboard-bottom-dock {
+    display: none !important;
+  }
 }
 
 /* ==========================================================================
