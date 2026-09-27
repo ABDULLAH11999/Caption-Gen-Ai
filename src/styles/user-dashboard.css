@@ -1178,7 +1178,7 @@ body.app-shell-locked {
   height: 44px;
   padding: 0;
   border-radius: 50%;
-  font-size: 17px;
+  font-size: 0;
   background: #000000 !important;
   color: #ffffff !important;
   border: 1px solid #000000 !important;
@@ -1189,10 +1189,41 @@ body.app-shell-locked {
   transition: all 0.2s var(--ease-spring);
 }
 
+.btn-play-circle::before {
+  content: "";
+  width: 0;
+  height: 0;
+  margin-left: 3px;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 12px solid currentColor;
+}
+
+.btn-play-circle.is-playing::before {
+  width: 13px;
+  height: 16px;
+  margin-left: 0;
+  border: 0;
+  background: linear-gradient(
+    90deg,
+    currentColor 0 35%,
+    transparent 35% 65%,
+    currentColor 65% 100%
+  );
+}
+
 .btn-play-circle:hover {
   background: #18181b !important;
+  color: #ffffff !important;
   transform: translateY(-1px) scale(1.04);
   box-shadow: 0 7px 18px rgba(0, 0, 0, 0.24) !important;
+}
+
+.btn-play-circle:active,
+.btn-play-circle:focus {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
 }
 
 .btn-play-circle:focus-visible {
@@ -2585,6 +2616,9 @@ body.app-shell-locked {
     width: 100%;
     max-width: 100%;
   }
+  .user-upload-limits-row {
+    display: none !important;
+  }
   .local-info-notice {
     width: 100%;
     font-size: 13px;
@@ -2812,20 +2846,20 @@ body.app-shell-locked {
   }
   .caption-drag-toolbar {
     width: max-content !important;
-    max-width: min(calc(100vw - 28px), 296px) !important;
+    max-width: min(calc(100vw - 20px), 310px) !important;
     flex-wrap: nowrap !important;
     justify-content: center !important;
-    gap: 3px !important;
-    padding: 4px 5px !important;
+    gap: 2px !important;
+    padding: 4px !important;
     white-space: nowrap !important;
     border-radius: 999px !important;
     overflow: visible !important;
   }
   .caption-toolbar-pill,
   .caption-toolbar-btn {
-    min-height: 22px !important;
-    padding: 2px 6px !important;
-    font-size: 9px !important;
+    min-height: 21px !important;
+    padding: 2px 5px !important;
+    font-size: 8.5px !important;
     line-height: 1 !important;
     border-radius: 999px !important;
     flex: 0 0 auto !important;
@@ -2838,13 +2872,13 @@ body.app-shell-locked {
     height: 9px !important;
   }
   .caption-toolbar-btn.btn-follow-all {
-    max-width: 66px !important;
+    max-width: 72px !important;
   }
   .caption-toolbar-btn.btn-break-words {
-    max-width: 84px !important;
+    max-width: 94px !important;
   }
   .caption-toolbar-btn.btn-reset-pos {
-    max-width: 58px !important;
+    max-width: 48px !important;
   }
   .caption-toolbar-btn span {
     display: block !important;

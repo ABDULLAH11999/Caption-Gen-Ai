@@ -995,7 +995,7 @@ export class UserDashboard {
                 Select any MP4, WebM or MOV video. The local Whisper engine will extract audio and align word-by-word timestamps.
               </p>
 
-              <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 26px;">
+              <div class="user-upload-limits-row" style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 26px;">
                 <span class="badge" style="background: #f1f5f9; color: #475569; font-weight: 700;">MAX SIZE: ${APP_CONFIG.MAX_FILE_SIZE_MB} MB</span>
                 <span class="badge badge-purple" style="font-weight: 700;">MAX DURATION: ${Math.floor(APP_CONFIG.MAX_DURATION_SEC / 60)} MIN</span>
                 <span class="badge badge-local-processing" style="font-weight: 700;">100% LOCAL PROCESSING</span>
@@ -1219,7 +1219,7 @@ export class UserDashboard {
               <div class="player-action-controls" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
                 <!-- Left Playback Buttons -->
                 <div class="player-playback-btns">
-                  <button class="btn btn-outline btn-play-circle" id="user-btn-play" title="Play / Pause">▶</button>
+                  <button class="btn btn-outline btn-play-circle" id="user-btn-play" title="Play / Pause"></button>
                   <button class="btn btn-outline btn-compact-action" id="user-btn-rw" title="Rewind 5s">↺ 5s</button>
                   <button class="btn btn-outline btn-compact-action" id="user-btn-ff" title="Forward 5s">5s ↻</button>
                   <button class="btn btn-outline btn-compact-action" id="user-btn-mute" title="Mute / Unmute">🔊</button>
@@ -1398,7 +1398,7 @@ export class UserDashboard {
       .replace(/'/g, '&#039;');
   }
 
-  showTranscriptErrorPopup(message) {
+  showTranscriptErrorPopup(message, titleOverride = '') {
     const existing = document.getElementById('transcript-error-popup');
     if (existing) existing.remove();
 
@@ -1406,7 +1406,7 @@ export class UserDashboard {
     modal.id = 'transcript-error-popup';
     modal.className = 'transcript-error-backdrop';
     const isHindiUrduGeminiError = /Hindi\/Urdu|Gemini/i.test(message || '');
-    const title = isHindiUrduGeminiError ? 'Hindi/Urdu Transcription Setup Needed' : 'Transcript Missing Dependency';
+    const title = titleOverride || (isHindiUrduGeminiError ? 'Hindi/Urdu Transcription Setup Needed' : 'Transcript Missing Dependency');
     modal.innerHTML = `
       <div class="transcript-error-card" role="alertdialog" aria-modal="true" aria-labelledby="transcript-error-title">
         <button type="button" class="transcript-error-close" id="btn-transcript-error-close" aria-label="Close">×</button>
@@ -1423,6 +1423,30 @@ export class UserDashboard {
     modal.querySelector('#btn-transcript-error-ok')?.addEventListener('click', close);
     modal.addEventListener('click', (e) => {
       if (e.target === modal) close();
+    });
+  }
+
+  getVideoFileDuration(file) {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      const url = URL.createObjectURL(file);
+      let settled = false;
+      const cleanup = () => {
+        URL.revokeObjectURL(url);
+        video.removeAttribute('src');
+        video.load();
+      };
+      const finish = (fn, value) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        fn(value);
+      };
+
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => finish(resolve, Number(video.duration) || 0);
+      video.onerror = () => finish(reject, new Error('Invalid or corrupted video file format.'));
+      video.src = url;
     });
   }
 
@@ -1556,7 +1580,26 @@ export class UserDashboard {
 
     const fileSizeMB = file.size / (1024 * 1024);
     if (fileSizeMB > APP_CONFIG.MAX_FILE_SIZE_MB) {
-      this.showToast(`Video size (${fileSizeMB.toFixed(1)} MB) exceeds maximum allowed ${APP_CONFIG.MAX_FILE_SIZE_MB} MB limit.`, 'error');
+      const message = `Video size is ${fileSizeMB.toFixed(1)} MB. Maximum allowed size is ${APP_CONFIG.MAX_FILE_SIZE_MB} MB.`;
+      this.showToast(message, 'error');
+      this.showTranscriptErrorPopup(message, 'Video File Too Large');
+      return;
+    }
+
+    let duration = 0;
+    try {
+      duration = await this.getVideoFileDuration(file);
+    } catch (err) {
+      const message = err.message || 'Invalid or corrupted video file format.';
+      this.showToast(message, 'error');
+      this.showTranscriptErrorPopup(message, 'Video File Error');
+      return;
+    }
+
+    if (duration > APP_CONFIG.MAX_DURATION_SEC) {
+      const message = `Video duration is ${(duration / 60).toFixed(1)} minutes. Maximum allowed duration is ${(APP_CONFIG.MAX_DURATION_SEC / 60).toFixed(0)} minutes.`;
+      this.showToast(message, 'error');
+      this.showTranscriptErrorPopup(message, 'Video Too Long');
       return;
     }
 
@@ -1696,10 +1739,12 @@ export class UserDashboard {
 
     this.videoElement.addEventListener('play', () => {
       wrap.querySelector('#user-video-wrapper')?.classList.remove('is-paused');
+      playBtn?.classList.add('is-playing');
     });
 
     this.videoElement.addEventListener('pause', () => {
       wrap.querySelector('#user-video-wrapper')?.classList.add('is-paused');
+      playBtn?.classList.remove('is-playing');
       this.updateCaptionOverlay();
     });
 
@@ -1716,12 +1761,10 @@ export class UserDashboard {
     playBtn?.addEventListener('click', () => {
       if (this.videoElement.paused) {
         this.videoElement.play();
-        playBtn.textContent = '⏸';
         soundFx.playVideoPlay();
         this.startRotoscopingLoop();
       } else {
         this.videoElement.pause();
-        playBtn.textContent = '▶';
         soundFx.playVideoPause();
       }
     });
@@ -2300,6 +2343,9 @@ export class UserDashboard {
           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="2"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/></svg>
           <span>Move</span>
         </span>
+        <button type="button" class="caption-toolbar-btn btn-follow-all" id="btn-follow-all-segments" title="Apply this style, color, size, animation, and position to ALL segments"><span>Apply to All</span></button>
+        <button type="button" class="caption-toolbar-btn btn-break-words" id="btn-break-segment-words" title="Break this caption line into one segment per word"><span>Break into words</span></button>
+        <button type="button" class="caption-toolbar-btn btn-reset-pos" id="btn-reset-segment-pos" title="Reset this segment to default middle-left"><span>Reset</span></button>
       </div>
     ` : '';
 
