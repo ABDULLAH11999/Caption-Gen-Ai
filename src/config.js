@@ -8,7 +8,7 @@ export const APP_CONFIG = {
 
 // Available Fonts (Local system & web-safe creative fonts)
 export const FONTS = [
-  { id: 'Italiana', name: 'Emily Luxury Serif (Italiana)', family: "'Italiana', 'Cormorant Garamond', Georgia, serif" },
+  { id: 'Italiana', name: 'Emily Reference Serif (Bodoni Italic)', family: "'Bodoni Moda', 'Playfair Display', Georgia, serif", defaultItalic: true, defaultBold: true },
   { id: 'CormorantGaramond', name: 'Cormorant Garamond (Editorial Chic)', family: "'Cormorant Garamond', 'Italiana', Georgia, serif" },
   { id: 'PlayfairDisplay', name: 'Playfair Display (Luxury Editorial)', family: "'Playfair Display', Georgia, serif" },
   { id: 'BodoniModa', name: 'Bodoni Moda (Vogue Runway Luxury)', family: "'Bodoni Moda', Georgia, serif" },
@@ -593,4 +593,3 @@ export const DEFAULT_PORTRAIT_CONFIG = {
   progressiveDisplay: true,
   enhanceQuality: true
 };
-

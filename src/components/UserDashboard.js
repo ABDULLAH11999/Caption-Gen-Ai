@@ -2196,6 +2196,12 @@ export class UserDashboard {
     const normalFontFamily = this.getFontFamily(cfg.normalFontFamily || 'Inter');
     const prominentFontFamily = this.getFontFamily(cfg.prominentFontFamily || 'Syne');
     const segmentFontFamily = currentSentence.fontFamily ? this.getFontFamily(currentSentence.fontFamily) : null;
+    const segmentFontMeta = currentSentence.fontFamily
+      ? FONTS.find(f => f.id === currentSentence.fontFamily || f.name === currentSentence.fontFamily)
+      : null;
+    const forceItalic = currentSentence.italic !== undefined ? !!currentSentence.italic : !!segmentFontMeta?.defaultItalic;
+    const forceBold = currentSentence.bold !== undefined ? !!currentSentence.bold : !!segmentFontMeta?.defaultBold;
+    const forceUnderline = !!currentSentence.underline;
     const defaultTextColor = currentSentence.textColor || cfg.textColor || '#FFFFFF';
     const prominentColor = currentSentence.prominentColor || cfg.prominentColor || '#FFE600';
     const hasLastWordColor = !currentSentence.prominentColor && (cfg.enableLastWordColor !== false && !!cfg.lastWordColor);
@@ -2225,6 +2231,9 @@ export class UserDashboard {
         color = lastWordColor;
       }
       if (isSpeaking) font = segmentFontFamily || prominentFontFamily;
+      const fontWeight = forceBold ? 900 : (isSpeaking ? 900 : (isProminent ? 800 : 700));
+      const fontStyle = forceItalic ? 'italic' : 'normal';
+      const textDecoration = forceUnderline ? 'text-decoration:underline;text-underline-offset:.12em;text-decoration-thickness:.08em;' : 'text-decoration:none;';
       const strokeWidth = strokeEnabled
         ? (isProminent ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.5) : (cfg.normalOutlineWidth !== undefined ? cfg.normalOutlineWidth : 1.5))
         : 0;
@@ -2235,7 +2244,7 @@ export class UserDashboard {
       return `
         <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''}" style="
           display:inline-block!important;vertical-align:baseline!important;margin:1px 3px!important;padding:0 1px!important;box-sizing:border-box!important;
-          font-family:${font}!important;color:${color}!important;font-size:${baseFontSize}px!important;font-weight:${isSpeaking ? 900 : (isProminent ? 800 : 700)};
+          font-family:${font}!important;color:${color}!important;font-size:${baseFontSize}px!important;font-weight:${fontWeight};font-style:${fontStyle};${textDecoration}
           opacity:1!important;visibility:visible!important;line-height:1.05;letter-spacing:.2px;${glowStyles}
           -webkit-text-stroke:${strokeWidth}px ${strokeColor};paint-order:stroke fill;-webkit-paint-order:stroke fill;
           transform:${isSpeaking ? 'scale(1.15)' : 'scale(1)'}!important;transform-origin:center bottom!important;z-index:${isSpeaking ? 5 : 1}!important;
@@ -2407,14 +2416,16 @@ export class UserDashboard {
       const curSize = s.fontSize !== undefined && s.fontSize !== null ? Number(s.fontSize) : defaultFontSize;
       const curColor = s.textColor || cfg.textColor || '#FFFFFF';
       const curProminentColor = s.prominentColor || cfg.prominentColor || '#FFE600';
+      const curFontMeta = FONTS.find(f => f.id === curFont || f.name === curFont) || FONTS[0];
       const strokeEnabled = s.strokeEnabled !== false;
+      const curBold = s.bold !== undefined ? !!s.bold : !!curFontMeta.defaultBold;
+      const curItalic = s.italic !== undefined ? !!s.italic : !!curFontMeta.defaultItalic;
+      const curUnderline = !!s.underline;
       const curStrokeColor = s.strokeColor || cfg.prominentOutlineColor || '#000000';
       const hasGlow = s.glowColor && s.glowColor !== 'transparent' && s.glowColor !== '';
       const curGlowColor = hasGlow ? s.glowColor : '#ff2079';
       const curAnim = s.animation || cfg.animation || 'anim-auto';
       const curAnimMeta = CAPTION_ANIMATIONS.find(a => a.id === curAnim) || CAPTION_ANIMATIONS[0];
-
-      const curFontMeta = FONTS.find(f => f.id === curFont || f.name === curFont) || FONTS[0];
 
       const item = document.createElement('div');
       item.id = `seg-mini-${idx}`;
@@ -2440,6 +2451,21 @@ export class UserDashboard {
           </div>
         </div>
 
+        <div class="seg-text-style-row" onclick="event.stopPropagation()">
+          <label class="seg-style-check" title="Make this segment bold">
+            <input type="checkbox" class="chk-seg-bold" data-idx="${idx}" ${curBold ? 'checked' : ''}>
+            <span>B</span>
+          </label>
+          <label class="seg-style-check" title="Make this segment italic">
+            <input type="checkbox" class="chk-seg-italic" data-idx="${idx}" ${curItalic ? 'checked' : ''}>
+            <span><em>I</em></span>
+          </label>
+          <label class="seg-style-check" title="Underline this segment">
+            <input type="checkbox" class="chk-seg-underline" data-idx="${idx}" ${curUnderline ? 'checked' : ''}>
+            <span><u>U</u></span>
+          </label>
+        </div>
+
         <!-- 2. Text Context Banner with Settings Dropdown Toggle Arrow -->
         <div class="seg-text-banner" data-idx="${idx}" title="Click to seek / configure style">
           <div class="seg-text-banner-left">
@@ -2458,16 +2484,16 @@ export class UserDashboard {
             <div class="seg-typo-bar" onclick="event.stopPropagation()">
               <div class="seg-font-picker-wrap">
                 <button type="button" class="seg-font-trigger" data-idx="${idx}" title="Select font for segment #${idx + 1}">
-                  <span class="seg-font-trigger-text" style="font-family: ${curFontMeta.family};">
+                  <span class="seg-font-trigger-text" style="font-family: ${curFontMeta.family}; font-style: ${curFontMeta.defaultItalic ? 'italic' : 'normal'}; font-weight: ${curFontMeta.defaultBold ? 900 : 700};">
                     ${curFontMeta.name}
                   </span>
                   <svg class="seg-dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </button>
                 <div class="seg-font-dropdown-menu" id="seg-font-menu-${idx}">
                   ${FONTS.map(f => `
-                    <div class="seg-font-option ${curFontMeta.id === f.id ? 'is-selected' : ''}" data-idx="${idx}" data-font="${f.id}" style="font-family: ${f.family};">
+                    <div class="seg-font-option ${curFontMeta.id === f.id ? 'is-selected' : ''}" data-idx="${idx}" data-font="${f.id}" style="font-family: ${f.family}; font-style: ${f.defaultItalic ? 'italic' : 'normal'}; font-weight: ${f.defaultBold ? 900 : 700};">
                       <span class="opt-name">${f.name}</span>
-                      ${f.id === 'Italiana' ? '<span class="opt-tag">Image 2</span>' : ''}
+                      ${f.id === 'Italiana' ? '<span class="opt-tag">Emily</span>' : ''}
                     </div>
                   `).join('')}
                 </div>
@@ -2653,6 +2679,24 @@ export class UserDashboard {
         }
       });
 
+      item.querySelector('.chk-seg-bold')?.addEventListener('change', (e) => {
+        s.bold = e.target.checked;
+        soundFx.playKeyBeep(s.bold ? 650 : 420);
+        syncActiveSegment();
+      });
+
+      item.querySelector('.chk-seg-italic')?.addEventListener('change', (e) => {
+        s.italic = e.target.checked;
+        soundFx.playKeyBeep(s.italic ? 650 : 420);
+        syncActiveSegment();
+      });
+
+      item.querySelector('.chk-seg-underline')?.addEventListener('change', (e) => {
+        s.underline = e.target.checked;
+        soundFx.playKeyBeep(s.underline ? 650 : 420);
+        syncActiveSegment();
+      });
+
       // 2. Custom Font Dropdown (OPENS STRICTLY BELOW THAT!)
       const fontTrigger = item.querySelector('.seg-font-trigger');
       const fontMenu = item.querySelector('.seg-font-dropdown-menu');
@@ -2678,10 +2722,18 @@ export class UserDashboard {
           const fontId = opt.getAttribute('data-font');
           s.fontFamily = fontId;
           const chosenFont = FONTS.find(f => f.id === fontId);
+          if (chosenFont?.defaultItalic !== undefined) s.italic = !!chosenFont.defaultItalic;
+          if (chosenFont?.defaultBold !== undefined) s.bold = !!chosenFont.defaultBold;
+          const boldToggle = item.querySelector('.chk-seg-bold');
+          const italicToggle = item.querySelector('.chk-seg-italic');
+          if (boldToggle && chosenFont?.defaultBold !== undefined) boldToggle.checked = !!chosenFont.defaultBold;
+          if (italicToggle && chosenFont?.defaultItalic !== undefined) italicToggle.checked = !!chosenFont.defaultItalic;
           const labelSpan = fontTrigger?.querySelector('.seg-font-trigger-text');
           if (labelSpan && chosenFont) {
             labelSpan.textContent = chosenFont.name;
             labelSpan.style.fontFamily = chosenFont.family;
+            labelSpan.style.fontStyle = chosenFont.defaultItalic ? 'italic' : 'normal';
+            labelSpan.style.fontWeight = chosenFont.defaultBold ? '900' : '700';
           }
           fontMenu.querySelectorAll('.seg-font-option').forEach(o => {
             o.classList.toggle('is-selected', o.getAttribute('data-font') === fontId);
@@ -2978,6 +3030,7 @@ export class UserDashboard {
 
     const styleKeys = [
       'posX', 'posY', 'boxWidth', 'fontSize', 'fontFamily',
+      'bold', 'italic', 'underline',
       'textColor', 'prominentColor', 'strokeEnabled', 'strokeColor',
       'glowColor', 'animation', 'behind'
     ];
@@ -3070,6 +3123,10 @@ export class UserDashboard {
       const targetBoxWidth = currentSentence.boxWidth || null;
       const targetFontSize = currentSentence.fontSize !== undefined ? currentSentence.fontSize : (this.currentMode === 'portrait' ? 25 : 28);
       const targetFontFamily = currentSentence.fontFamily;
+      const targetFontMeta = targetFontFamily ? FONTS.find(f => f.id === targetFontFamily || f.name === targetFontFamily) : null;
+      const targetBold = currentSentence.bold !== undefined ? !!currentSentence.bold : !!targetFontMeta?.defaultBold;
+      const targetItalic = currentSentence.italic !== undefined ? !!currentSentence.italic : !!targetFontMeta?.defaultItalic;
+      const targetUnderline = !!currentSentence.underline;
       const targetTextColor = currentSentence.textColor;
       const targetProminentColor = currentSentence.prominentColor;
       const targetStrokeEnabled = currentSentence.strokeEnabled;
@@ -3083,6 +3140,9 @@ export class UserDashboard {
         s.boxWidth = targetBoxWidth;
         s.fontSize = targetFontSize;
         if (targetFontFamily !== undefined) s.fontFamily = targetFontFamily;
+        s.bold = targetBold;
+        s.italic = targetItalic;
+        s.underline = targetUnderline;
         if (targetTextColor !== undefined) s.textColor = targetTextColor;
         if (targetProminentColor !== undefined) s.prominentColor = targetProminentColor;
         if (targetStrokeEnabled !== undefined) s.strokeEnabled = targetStrokeEnabled;

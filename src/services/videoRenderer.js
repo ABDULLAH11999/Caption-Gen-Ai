@@ -338,6 +338,12 @@ export class VideoRenderer {
     const normalFontFamily = this.getFontFamily(config.normalFontFamily || 'Inter');
     const prominentFontFamily = this.getFontFamily(config.prominentFontFamily || 'Syne');
     const segmentFontFamily = sentence.fontFamily ? this.getFontFamily(sentence.fontFamily) : null;
+    const segmentFontMeta = sentence.fontFamily
+      ? FONTS.find(f => f.id === sentence.fontFamily || f.name === sentence.fontFamily)
+      : null;
+    const forceItalic = sentence.italic !== undefined ? !!sentence.italic : !!segmentFontMeta?.defaultItalic;
+    const forceBold = sentence.bold !== undefined ? !!sentence.bold : !!segmentFontMeta?.defaultBold;
+    const forceUnderline = !!sentence.underline;
 
     const defaultTextColor = sentence.textColor || config.textColor || '#FFFFFF';
     const prominentColor = sentence.prominentColor || config.prominentColor || '#FFE600';
@@ -371,7 +377,8 @@ export class VideoRenderer {
         font = segmentFontFamily || prominentFontFamily;
       }
 
-      const fontWeight = isSpeaking ? '900' : (isProminent ? '800' : '700');
+      const fontWeight = forceBold ? '900' : (isSpeaking ? '900' : (isProminent ? '800' : '700'));
+      const fontStyle = forceItalic ? 'italic' : 'normal';
       const strokeWidth = strokeEnabled
         ? ((isProminent
             ? (config.prominentOutlineWidth !== undefined ? config.prominentOutlineWidth : 2.5)
@@ -387,10 +394,12 @@ export class VideoRenderer {
         word: (w.word || '').toUpperCase(),
         font,
         fontWeight,
+        fontStyle,
         color,
         strokeWidth: Math.max(0, strokeWidth),
         strokeColor,
         isSpeaking,
+        underline: forceUnderline,
         wordScale,
         fontSize: baseFontSize
       };
@@ -415,7 +424,7 @@ export class VideoRenderer {
     const wordGap = Math.max(3, Math.round(baseFontSize * 0.20));
 
     styledWords.forEach((sw) => {
-      ctx.font = `${sw.fontWeight} ${sw.fontSize}px ${sw.font}`;
+      ctx.font = `${sw.fontStyle} ${sw.fontWeight} ${sw.fontSize}px ${sw.font}`;
       const rawWidth = ctx.measureText(sw.word).width;
       const wordWidth = rawWidth;
       const testWidth = curLineWidth + (curLine.length > 0 ? wordGap : 0) + wordWidth;
@@ -500,7 +509,7 @@ export class VideoRenderer {
           ctx.scale(w.wordScale, w.wordScale);
         }
 
-        ctx.font = `${w.fontWeight} ${w.fontSize}px ${w.font}`;
+        ctx.font = `${w.fontStyle} ${w.fontWeight} ${w.fontSize}px ${w.font}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
@@ -538,6 +547,21 @@ export class VideoRenderer {
 
         ctx.fillStyle = w.color;
         ctx.fillText(w.word, 0, 0);
+
+        if (w.underline) {
+          const underlineY = Math.round(w.fontSize * 0.38);
+          ctx.save();
+          ctx.shadowColor = 'transparent';
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = w.color;
+          ctx.lineWidth = Math.max(2 * scale, Math.round(w.fontSize * 0.065));
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(-w.width / 2, underlineY);
+          ctx.lineTo(w.width / 2, underlineY);
+          ctx.stroke();
+          ctx.restore();
+        }
 
         if (animState.shine > 0) {
           const shimmerX = Number.isFinite(animState.shimmerX) ? animState.shimmerX : animState.shine;
