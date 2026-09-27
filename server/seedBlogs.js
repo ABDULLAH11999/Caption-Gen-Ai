@@ -1719,11 +1719,291 @@ Zen Caption makes it simple to generate subtitles, style them, export SRT/VTT fi
   }
 ];
 
+// 10 researched, high-intent SEO articles added append-only.
+// These target 2026 demand around short-form video search, VideoObject SEO,
+// SRT/VTT workflows, B2B video captions, UGC ads, ecommerce, and privacy-first editing.
+const RESEARCHED_SEO_TOPICS_10 = [
+  {
+    title: 'Short-Form Video SEO: Captions, On-Screen Text, and Spoken Keywords',
+    slug: 'short-form-video-seo-captions-on-screen-text-spoken-keywords',
+    excerpt: 'A practical short-form video SEO guide for creators who want TikTok, Reels, and Shorts to understand captions, spoken hooks, and on-screen keywords.',
+    keywords: 'short form video seo, captions on screen text, spoken keywords video, tiktok seo captions, reels seo subtitles, shorts seo captions',
+    meta_title: 'Short-Form Video SEO: Captions, On-Screen Text & Spoken Keywords',
+    meta_desc: 'Use captions, on-screen text, and spoken keywords to make TikToks, Reels, and Shorts easier to understand, search, and recommend.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# Short-Form Video SEO: Captions, On-Screen Text, and Spoken Keywords
+
+Short-form platforms increasingly understand videos through multiple signals: what you say, what appears on screen, and what you write in the caption. That makes subtitles more than an accessibility feature. They are part of your discovery strategy.
+
+## The Three-Layer SEO Signal
+1. **Spoken keywords** tell the platform what the clip is about.
+2. **On-screen captions** reinforce the exact phrases viewers can read instantly.
+3. **Written post captions** provide extra context for search and recommendations.
+
+## How to Use Captions Without Keyword Stuffing
+Say the target phrase naturally in the first few seconds, show it in one readable caption line, and support it with related words later in the video. Avoid hiding tiny keyword text or repeating the same phrase unnaturally.
+
+## Best Workflow
+Create a hook, generate accurate subtitles, highlight only the most important words, and export a clean video without a watermark. Then use a matching title and description on the platform.
+
+Zen Caption helps creators align spoken words, visible captions, and clean exports for search-friendly short-form videos.`
+  },
+  {
+    title: 'VideoObject SEO for Captioned Videos: Thumbnails, Transcripts, and Schema',
+    slug: 'videoobject-seo-captioned-videos-thumbnails-transcripts-schema',
+    excerpt: 'Learn how VideoObject schema, thumbnails, transcripts, and captioned pages help Google understand and index videos more effectively.',
+    keywords: 'videoobject schema, video seo captions, video transcript seo, video thumbnail seo, captioned video indexing',
+    meta_title: 'VideoObject SEO for Captioned Videos: Schema & Transcript Guide',
+    meta_desc: 'Use VideoObject schema, accessible thumbnails, transcripts, and captioned video pages to help Google understand and index your videos.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# VideoObject SEO for Captioned Videos: Thumbnails, Transcripts, and Schema
+
+If you publish videos on your site, Google needs clear signals to understand the content. Captions and transcripts help users, while structured data helps search engines.
+
+## Core Video SEO Elements
+- A public page for each important video.
+- A stable video URL that can be fetched.
+- A high-quality thumbnail.
+- A clear title and description.
+- A transcript or summary near the video.
+- VideoObject structured data when possible.
+
+## Why Captions Matter
+Captions turn speech into readable text. That text improves accessibility, supports page relevance, and gives visitors a faster way to understand the video.
+
+## Practical Setup
+Burn captions into social clips for viewers, export SRT/VTT for accessibility, and use the transcript in your blog or landing page. Match your thumbnail, title, and page copy to the real topic of the video.
+
+Zen Caption gives teams captioned exports and subtitle files that fit a stronger video SEO workflow.`
+  },
+  {
+    title: 'LinkedIn Video Captions for B2B Leads: Make Expert Clips Clearer',
+    slug: 'linkedin-video-captions-b2b-leads-expert-clips-clearer',
+    excerpt: 'Use LinkedIn video captions to make founder clips, consultant tips, product explainers, and B2B thought leadership watchable without sound.',
+    keywords: 'linkedin video captions, b2b video subtitles, founder video captions, consultant video captions, linkedin thought leadership video',
+    meta_title: 'LinkedIn Video Captions for B2B Leads and Expert Clips',
+    meta_desc: 'Caption LinkedIn videos for B2B audiences. Make founder clips, consultant tips, and product explainers clearer when viewers watch without sound.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# LinkedIn Video Captions for B2B Leads: Make Expert Clips Clearer
+
+LinkedIn viewers often browse between meetings, on commutes, or inside work environments where audio is off. Captions help B2B videos communicate before the viewer chooses to listen.
+
+## Best Videos to Caption on LinkedIn
+- Founder POV clips.
+- Consultant tips.
+- Product explainers.
+- Webinar highlights.
+- Case study summaries.
+- Hiring and culture videos.
+
+## Caption Style for Professional Audiences
+Use clean typography, moderate motion, and strong contrast. Avoid overly chaotic effects unless your brand voice supports it. The goal is authority plus readability.
+
+## Lead Generation Tip
+Turn the first caption line into a clear promise: "Three ways to reduce churn" or "How we cut onboarding time." Then use the post copy to invite comments or demos.
+
+Zen Caption helps B2B teams publish polished captioned clips without sending private client footage through a heavy cloud workflow.`
+  },
+  {
+    title: 'UGC Ad Captions: Hooks, Benefits, and CTAs for TikTok Shop and Meta Ads',
+    slug: 'ugc-ad-captions-hooks-benefits-ctas-tiktok-shop-meta-ads',
+    excerpt: 'A UGC ad caption strategy for creators and brands: highlight the problem, product benefit, proof, and call to action in readable subtitles.',
+    keywords: 'ugc ad captions, tiktok shop video captions, meta ads subtitles, creator ad captions, ecommerce ugc subtitles',
+    meta_title: 'UGC Ad Captions for TikTok Shop and Meta Ads',
+    meta_desc: 'Create better UGC ad captions with clear hooks, benefits, proof points, and CTAs for TikTok Shop, Reels ads, and Meta campaigns.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# UGC Ad Captions: Hooks, Benefits, and CTAs for TikTok Shop and Meta Ads
+
+UGC ads need to feel natural, but they also need to be instantly clear. Captions help silent viewers understand the problem, product, and offer before they scroll.
+
+## UGC Caption Formula
+1. Problem: "I kept wasting money on..."
+2. Product: "Then I tried..."
+3. Benefit: "It made this easier because..."
+4. Proof: "After seven days..."
+5. CTA: "Check the link" or "Try it today."
+
+## Design Rules
+Use bold text, keep lines short, and avoid covering the product. Highlight one benefit word at a time instead of coloring every phrase.
+
+## Testing Tip
+Export three versions with different first captions. The video may be the same, but the opening subtitle can change thumb-stop rate dramatically.
+
+Zen Caption lets UGC editors produce clean, no-watermark captioned ad variations quickly.`
+  },
+  {
+    title: 'Course Video Subtitles: SRT and VTT Captions for Online Lessons',
+    slug: 'course-video-subtitles-srt-vtt-captions-online-lessons',
+    excerpt: 'Create course video subtitles with readable burned-in captions plus SRT and VTT files for accessibility, LMS uploads, and student comprehension.',
+    keywords: 'course video subtitles, srt captions for courses, vtt captions online lessons, lecture subtitle generator, elearning captions',
+    meta_title: 'Course Video Subtitles: SRT and VTT Captions for Lessons',
+    meta_desc: 'Generate course video subtitles, SRT files, and VTT captions for online lessons, LMS platforms, lectures, and accessibility workflows.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# Course Video Subtitles: SRT and VTT Captions for Online Lessons
+
+Online courses perform better when students can read along. Captions support accessibility, improve comprehension, and make lessons easier to review.
+
+## What Course Creators Need
+- Accurate transcription.
+- Easy correction of technical terms.
+- SRT files for platforms that support closed captions.
+- VTT files for web players.
+- Optional burned-in captions for previews and social clips.
+
+## Caption Style for Lessons
+Course captions should be clean and stable. Avoid excessive animation. Prioritize readability, timing accuracy, and terminology.
+
+## Workflow
+Caption the full lesson, export SRT or VTT for your LMS, then create short captioned clips for marketing. Use the same terminology in titles, descriptions, and transcripts.
+
+Zen Caption helps educators generate editable subtitles and export files for multiple course platforms.`
+  },
+  {
+    title: 'Shopify Product Video Captions: Make Ecommerce Demos Sell Without Sound',
+    slug: 'shopify-product-video-captions-ecommerce-demos-sell-without-sound',
+    excerpt: 'Caption Shopify product videos, UGC demos, and landing page clips so shoppers understand benefits, objections, and offers without audio.',
+    keywords: 'shopify product video captions, ecommerce video subtitles, product demo captions, product video seo, ugc product captions',
+    meta_title: 'Shopify Product Video Captions for Ecommerce Demos',
+    meta_desc: 'Add captions to Shopify product videos and ecommerce demos so shoppers understand product benefits, objections, and CTAs without sound.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# Shopify Product Video Captions: Make Ecommerce Demos Sell Without Sound
+
+Product videos often autoplay muted on landing pages, product pages, and ads. If the benefit is only spoken, shoppers may miss the reason to buy.
+
+## What Captions Should Communicate
+- The product category.
+- The main problem.
+- The strongest benefit.
+- The proof or demonstration.
+- The offer or next step.
+
+## Ecommerce Caption Tips
+Use direct language, short lines, and bold benefit words. Avoid placing captions over the product when details matter. For beauty, fitness, gadgets, and home products, keep the demo visible.
+
+## SEO Bonus
+A transcript or product video summary can help the page explain what the video covers. This supports users and search engines.
+
+Zen Caption helps ecommerce teams create captioned demos for Shopify pages, ads, Reels, TikTok, and Shorts.`
+  },
+  {
+    title: 'Captioned Landing Page Videos: Improve Clarity, Trust, and Conversions',
+    slug: 'captioned-landing-page-videos-improve-clarity-trust-conversions',
+    excerpt: 'Use captions on landing page videos to explain the offer faster, help muted visitors, improve accessibility, and support conversion-focused pages.',
+    keywords: 'captioned landing page video, landing page video captions, website video subtitles, conversion video captions, saas explainer captions',
+    meta_title: 'Captioned Landing Page Videos for Better Conversions',
+    meta_desc: 'Add captions to landing page videos so visitors understand your offer faster, even when audio is muted. Improve clarity and accessibility.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# Captioned Landing Page Videos: Improve Clarity, Trust, and Conversions
+
+Landing page videos need to communicate quickly. Many visitors will not turn sound on immediately, especially on mobile or at work. Captions make the message visible from the first frame.
+
+## Where Captions Help Most
+- SaaS explainer videos.
+- Product demos.
+- Founder introductions.
+- Customer testimonials.
+- Before-and-after clips.
+- Tutorial previews.
+
+## Conversion-Focused Caption Rules
+Start with the outcome, not the setup. Keep lines short, highlight the product benefit, and avoid covering important UI or product visuals.
+
+## Accessibility and SEO
+Captions help more people use the page. A transcript or summary also gives search engines more context about the video and offer.
+
+Zen Caption helps teams create clean captioned landing page videos without forcing a watermark into the brand experience.`
+  },
+  {
+    title: 'AI Captions for Coaches and Consultants: Turn Advice Into Short Clips',
+    slug: 'ai-captions-coaches-consultants-advice-short-clips',
+    excerpt: 'Help coaches, consultants, and experts turn talking-head advice into captioned short clips that are easier to watch, save, and share.',
+    keywords: 'ai captions for coaches, consultant video captions, talking head subtitles, expert content clips, coaching reels captions',
+    meta_title: 'AI Captions for Coaches and Consultants',
+    meta_desc: 'Turn coaching and consulting advice into captioned short-form clips with clear hooks, readable subtitles, and professional exports.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# AI Captions for Coaches and Consultants: Turn Advice Into Short Clips
+
+Coaches and consultants often create high-value ideas in live calls, webinars, podcasts, and talking-head videos. Captions make those ideas easier to package into short clips.
+
+## Best Clip Types
+- One mistake clients make.
+- A three-step framework.
+- A before-and-after result.
+- A myth your audience believes.
+- A quick teardown or audit.
+
+## Caption Style
+Use professional, readable captions with one highlighted keyword per line. Avoid overly loud animations if the brand depends on trust and expertise.
+
+## Content Workflow
+Extract a 20 to 45 second answer, generate captions, tighten the transcript, add a clear hook, and export the clip for LinkedIn, Reels, Shorts, and TikTok.
+
+Zen Caption helps experts turn spoken advice into polished captioned clips that feel clear, useful, and shareable.`
+  },
+  {
+    title: 'SRT vs VTT vs Burned-In Captions: Which Subtitle Format Should You Use?',
+    slug: 'srt-vtt-burned-in-captions-which-subtitle-format',
+    excerpt: 'Compare SRT, VTT, and burned-in captions for YouTube, websites, courses, social media, ads, and client delivery workflows.',
+    keywords: 'srt vs vtt, burned in captions, subtitle file formats, webvtt captions, srt subtitle generator',
+    meta_title: 'SRT vs VTT vs Burned-In Captions: Subtitle Format Guide',
+    meta_desc: 'Compare SRT, VTT, and burned-in captions. Learn which subtitle format to use for YouTube, websites, courses, social media, and ads.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# SRT vs VTT vs Burned-In Captions: Which Subtitle Format Should You Use?
+
+Different platforms need different caption formats. The best workflow often exports more than one version.
+
+## SRT
+SRT is simple and widely supported. Use it for YouTube uploads, archives, translations, and platforms that accept closed caption files.
+
+## VTT
+VTT works well for website video players because it supports web caption workflows. Use it for HTML5 video and course platforms that prefer WebVTT.
+
+## Burned-In Captions
+Burned-in captions become part of the video image. Use them for TikTok, Instagram Reels, YouTube Shorts, ads, messaging apps, and landing page videos where captions must always appear.
+
+## Recommended Workflow
+Generate accurate captions once, edit timing, export SRT/VTT for accessibility, and export burned-in captions for social distribution.
+
+Zen Caption supports both subtitle files and styled burned-in exports so creators can publish across more platforms.`
+  },
+  {
+    title: 'Private Browser Captioning: Why Client-Side Video Tools Protect Creators',
+    slug: 'private-browser-captioning-client-side-video-tools-protect-creators',
+    excerpt: 'Learn why client-side browser captioning helps protect unreleased footage, client videos, course lessons, ads, and private creator content.',
+    keywords: 'private browser captioning, client side video tools, secure subtitle generator, local video captions, privacy first caption tool',
+    meta_title: 'Private Browser Captioning: Client-Side Video Tool Guide',
+    meta_desc: 'Use private browser captioning to protect client videos, unreleased footage, course content, and creator clips with local processing.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# Private Browser Captioning: Why Client-Side Video Tools Protect Creators
+
+Many caption tools upload video files to cloud servers for processing. That can be convenient, but it is not ideal for every project. Client-side captioning keeps more of the workflow inside your browser.
+
+## Who Benefits From Private Captioning?
+- Agencies handling client ads.
+- Course creators with paid lessons.
+- Founders editing unreleased product demos.
+- Creators working with private podcast episodes.
+- Real estate teams using unpublished listing footage.
+
+## Why Local Processing Matters
+Local browser processing can reduce server queues, avoid unnecessary uploads, and give creators more control over sensitive media files.
+
+## Practical Privacy Workflow
+Use local captioning where possible, avoid uploading raw footage unnecessarily, export clean files, and delete temporary local assets after delivery.
+
+Zen Caption is designed around client-side processing so creators can caption videos with more privacy and less waiting.`
+  }
+];
+
 MORE_SEO_TOPICS_20.forEach((blog) => {
   SEEDED_BLOGS.push(blog);
 });
 
 PEAK_SEO_TOPICS_10.forEach((blog) => {
+  SEEDED_BLOGS.push(blog);
+});
+
+RESEARCHED_SEO_TOPICS_10.forEach((blog) => {
   SEEDED_BLOGS.push(blog);
 });
 
@@ -1737,19 +2017,10 @@ SEEDED_BLOGS.forEach((blog) => {
 export async function seedBlogs() {
   const check = await query('SELECT count(*) FROM blogs');
   const count = parseInt(check.rows[0]?.count || '0');
-  const imageUpdate = await query(
-    `UPDATE blogs
-     SET featured_image = $1
-     WHERE featured_image IS DISTINCT FROM $1`,
-    [BLOG_FEATURED_IMAGE]
-  );
-  if (imageUpdate.rowCount > 0) {
-    console.log(`[DB] Normalized ${imageUpdate.rowCount} blog featured images to the Zen Caption cover. Other blog data was unchanged.`);
-  }
   let blogsToSeed = SEEDED_BLOGS;
 
   if (count >= 50) {
-    const appendOnlyBlogs = [...MORE_SEO_TOPICS_20, ...PEAK_SEO_TOPICS_10];
+    const appendOnlyBlogs = [...MORE_SEO_TOPICS_20, ...PEAK_SEO_TOPICS_10, ...RESEARCHED_SEO_TOPICS_10];
     const newSlugs = appendOnlyBlogs.map(blog => blog.slug);
     const newCheck = await query('SELECT count(*) FROM blogs WHERE slug = ANY($1)', [newSlugs]);
     const newCount = parseInt(newCheck.rows[0]?.count || '0');
