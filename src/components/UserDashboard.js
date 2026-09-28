@@ -50,7 +50,7 @@ const DASHBOARD_TEMPLATE_OPTIONS = [
     baseType: 'real-estate',
     fontSetId: 'basic',
     description: 'Bold stacked caption with top headline and centered punchy body.',
-    previewWords: ['HOW', 'TO', 'MAKE']
+    previewWords: ['MAKE', 'EVERY', 'WORD']
   },
   {
     id: 'real-estate-fancy',
@@ -58,7 +58,7 @@ const DASHBOARD_TEMPLATE_OPTIONS = [
     baseType: 'real-estate',
     fontSetId: 'fancy',
     description: 'Refined stacked caption featuring luxury editorial typography.',
-    previewWords: ['HOW', 'TO', 'MAKE']
+    previewWords: ['MAKE', 'EVERY', 'WORD']
   }
 ];
 
