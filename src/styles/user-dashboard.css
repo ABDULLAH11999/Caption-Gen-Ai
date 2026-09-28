@@ -546,7 +546,7 @@ body.app-shell-locked {
   width: 90%;
   transform: translateX(-50%);
   text-align: center;
-  font-size: 32px;
+  font-size: 30px;
   font-style: normal !important;
   font-weight: 900;
   color: #ffffff !important;
@@ -571,8 +571,9 @@ body.app-shell-locked {
   align-items: baseline;
   justify-content: center;
   white-space: nowrap;
-  gap: 8px;
-  font-size: 26px;
+  gap: 6px;
+  font-size: 21px;
+  letter-spacing: -0.01em;
   font-style: normal !important;
   font-weight: 900;
   padding: 0;

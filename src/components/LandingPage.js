@@ -529,7 +529,7 @@ export class LandingPage {
       {
         id: 'real-estate',
         name: 'Real Estate',
-        previewWords: ['HOW', 'TO', 'MAKE'],
+        previewWords: ['MAKE', 'EVERY', 'WORD'],
         isRealEstate: true,
         normalFont: "'Righteous', sans-serif",
         prominentFont: "'Outfit', sans-serif",
@@ -538,7 +538,7 @@ export class LandingPage {
       {
         id: 'real-estate-fancy',
         name: 'Real Estate Fancy',
-        previewWords: ['HOW', 'TO', 'MAKE'],
+        previewWords: ['MAKE', 'EVERY', 'WORD'],
         isRealEstate: true,
         normalFont: "'Cormorant Garamond', Georgia, serif",
         prominentFont: "'Italiana', serif",
