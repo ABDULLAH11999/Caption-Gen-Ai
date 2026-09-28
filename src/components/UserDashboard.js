@@ -22,9 +22,40 @@ import { languageIdentifier } from '../services/languageIdentifier.js';
 import { translationService } from '../services/translationService.js';
 import { geminiTranslationService } from '../services/geminiTranslationService.js';
 import { generateDemoVideoBlob } from '../utils/sampleVideoGenerator.js';
+
 import { autoTypographyEngine } from '../services/autoTypographyEngine.js';
 import { videoColorAnalyzer } from '../services/videoColorAnalyzer.js';
 import { selfieSegmenterService } from '../services/selfieSegmenter.js';
+
+const DASHBOARD_TEMPLATE_OPTIONS = [
+  {
+    id: 'normal-line',
+    name: 'Normal Line Captions',
+    description: 'Standard single-line captions using the Midnight Minimalist base.',
+    previewWords: ['MAKE', 'EVERY', 'WORD']
+  },
+  {
+    id: 'real-estate',
+    name: 'Real Estate Captions',
+    description: 'Luxury layout with one top word and two supporting words.',
+    previewWords: ['HOW', 'TO', 'MAKE']
+  }
+];
+
+const BASE_FONT_SETS = {
+  fancy: {
+    id: 'fancy',
+    name: 'Fancy',
+    label: 'Cormorant / Emily / Cinzel',
+    fonts: ['CormorantGaramond', 'Italiana', 'Cinzel']
+  },
+  basic: {
+    id: 'basic',
+    name: 'Basic',
+    label: 'Righteous / Outfit / Oswald',
+    fonts: ['Righteous', 'Outfit', 'Oswald']
+  }
+};
 
 export class UserDashboard {
   constructor(options = {}) {
@@ -34,12 +65,16 @@ export class UserDashboard {
     this.toolStudio = options.toolStudio || null;
     this.initialFile = options.initialFile || null;
     this.initialFileStarted = false;
+    this.initialTemplateId = DASHBOARD_TEMPLATE_OPTIONS.some(t => t.id === options.initialTemplateId)
+      ? options.initialTemplateId
+      : 'normal-line';
 
     this.activeTab = 'apply'; // 'templates' | 'apply' | 'quota'
     this.currentMode = 'landscape'; // 'landscape' | 'portrait'
-    this.selectedTemplateId = 'september-pop';
+    this.selectedTemplateId = this.initialTemplateId;
+    this.selectedBaseFontSet = 'basic';
     this.userCustomTemplates = {}; // templateId -> custom config
-    this.activeConfig = { ...DEFAULT_LANDSCAPE_CONFIG };
+    this.activeConfig = this.getTemplateConfig(this.selectedTemplateId, this.selectedBaseFontSet);
 
     // Video State
     this.videoBlob = null;
@@ -62,6 +97,7 @@ export class UserDashboard {
 
     // Line Segments
     this.segments = [];
+    this.sourceCaptionSentences = [];
 
     // Quota State
     this.quotaInfo = {
@@ -92,6 +128,117 @@ export class UserDashboard {
     }
     await this.loadUserData();
     await this.loadQuotaData();
+  }
+
+  getDashboardTemplateMeta(templateId = this.selectedTemplateId) {
+    return DASHBOARD_TEMPLATE_OPTIONS.find(t => t.id === templateId) || DASHBOARD_TEMPLATE_OPTIONS[0];
+  }
+
+  getBaseFontSet(fontSetId = this.selectedBaseFontSet) {
+    return BASE_FONT_SETS[fontSetId] || BASE_FONT_SETS.basic;
+  }
+
+  getTemplateConfig(templateId = this.selectedTemplateId, fontSetId = this.selectedBaseFontSet) {
+    const fontSet = this.getBaseFontSet(fontSetId);
+    const [normalFont, prominentFont, accentFont] = fontSet.fonts;
+    const isRealEstate = templateId === 'real-estate';
+    return {
+      ...DEFAULT_LANDSCAPE_CONFIG,
+      templateId,
+      normalFontFamily: normalFont,
+      prominentFontFamily: prominentFont,
+      accentFontFamily: accentFont,
+      fontSize: isRealEstate ? 50 : 30,
+      position: 'middle-left',
+      textColor: '#FFFFFF',
+      prominentColor: isRealEstate ? '#FF5533' : '#FFFFFF',
+      normalOutlineColor: 'transparent',
+      normalOutlineWidth: 0,
+      prominentOutlineColor: 'transparent',
+      prominentOutlineWidth: 0,
+      shadowBlur: isRealEstate ? 10 : 0,
+      animation: isRealEstate ? 'anim-fade' : 'anim-fade',
+      uppercase: false,
+      karaokeHighlightColor: isRealEstate ? '#FF5533' : '#FFFFFF',
+      enableLastWordColor: isRealEstate,
+      lastWordColor: '#FF5533',
+      realEstateMode: isRealEstate,
+      baseFontSet: fontSet.id
+    };
+  }
+
+  syncTemplateConfig() {
+    this.activeConfig = this.getTemplateConfig(this.selectedTemplateId, this.selectedBaseFontSet);
+    if (this.toolStudio) this.toolStudio.setActiveConfig(this.activeConfig);
+    this.lastRenderedSentenceKey = null;
+  }
+
+  cloneSourceSentences(sentences = []) {
+    return (sentences || []).map(sentence => ({
+      ...sentence,
+      words: Array.isArray(sentence.words) ? sentence.words.map(word => ({ ...word })) : sentence.words
+    }));
+  }
+
+  styleCaptionSentencesForActiveTemplate(sentences = []) {
+    const cfg = this.getTemplateConfig(this.selectedTemplateId, this.selectedBaseFontSet);
+    const isRealEstate = this.selectedTemplateId === 'real-estate';
+    return (sentences || []).map((sentence, index) => {
+      const text = String(sentence.text || '').trim();
+      const tokens = text.split(/\s+/).filter(Boolean);
+      const start = Number(sentence.start ?? sentence.startTime ?? index * 2.5);
+      const end = Number(sentence.end ?? sentence.endTime ?? start + 2.5);
+      const sourceWords = Array.isArray(sentence.words) && sentence.words.length
+        ? sentence.words.map((word, wordIndex) => ({
+          ...word,
+          word: String(word.word || word.text || tokens[wordIndex] || '').trim()
+        })).filter(word => word.word)
+        : tokens.map(word => ({ word, start, end, startTime: start, endTime: end }));
+
+      const base = {
+        ...sentence,
+        start,
+        end,
+        startTime: start,
+        endTime: end,
+        strokeEnabled: false,
+        strokeColor: 'transparent',
+        textColor: '#FFFFFF',
+        prominentColor: cfg.prominentColor,
+        fontFamily: cfg.normalFontFamily,
+        animation: cfg.animation,
+        fontSize: isRealEstate ? 50 : 30,
+        boxWidth: isRealEstate ? 92 : 74,
+        templateMode: this.selectedTemplateId,
+        baseFontSet: this.selectedBaseFontSet,
+        italic: false,
+        words: sourceWords
+      };
+
+      if (!isRealEstate) {
+        return { ...base, posX: 6, posY: 50 };
+      }
+
+      return {
+        ...base,
+        posX: 6,
+        posY: 50,
+        boxWidth: 92,
+        realEstateLayout: true,
+        templateMode: 'real-estate',
+        fontSize: 50,
+        italic: false,
+        topWord: sourceWords[0]?.word || '',
+        bodyWords: sourceWords.slice(1).map(word => word.word),
+        words: sourceWords.map((word, wordIndex) => ({
+          ...word,
+          italic: false,
+          isTopWord: wordIndex === 0,
+          isProminent: wordIndex === sourceWords.length - 1,
+          fontSize: wordIndex === 0 ? 70 : 50
+        }))
+      };
+    });
   }
 
   getSystemRequirementsProfile() {
@@ -664,140 +811,141 @@ export class UserDashboard {
     const wrap = document.createElement('div');
     wrap.className = 'dashboard-page-container';
 
-    const activeTpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
-    const activeTemplateName = activeTpl ? activeTpl.name : 'September Vibrant Pop';
+    const activeTpl = this.getDashboardTemplateMeta();
+    const activeFontSet = this.getBaseFontSet();
 
     wrap.innerHTML = `
-      <header class="dashboard-top-bar">
+      <header class="dashboard-top-bar dashboard-top-bar-aligned">
         <div>
-          <h1 class="user-tab-title">16 Professional Caption Templates</h1>
+          <h1 class="user-tab-title">Caption Templates</h1>
         </div>
-
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div class="workspace-style-preset-box" title="Active Preset">
+        <div class="dashboard-header-actions">
+          <div class="workspace-style-preset-box" title="Active caption template">
             <span class="style-preset-label">Active:</span>
-            <strong>${activeTemplateName}</strong>
+            <strong>${activeTpl.name}</strong>
           </div>
-          <button class="btn btn-primary btn-sm" id="btn-templates-apply-shortcut" style="padding: 7px 16px; font-size: 12.5px;">
-            ✨ Apply to Video
+          <button class="btn btn-primary btn-sm" id="btn-templates-apply-shortcut" style="padding: 7px 16px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <span>Apply to Video</span>
           </button>
         </div>
       </header>
 
       <div class="dashboard-content-scroll">
-        <div style="margin-bottom: 22px;">
-          <p style="color: #64748b; font-size: 13.5px; margin: 0; line-height: 1.5;">
-            Universal presets engineered for TikTok, Shorts, Reels &amp; Landscape videos. Click any card to select as default, or customize typography, colors &amp; kinetic animations.
-          </p>
+        <div class="simple-template-intro">
+          <p>Choose one fixed caption preset, then choose a base font set. Templates are non-customizable so Apply Captions stays predictable.</p>
         </div>
 
-        <div class="user-templates-grid" id="user-templates-grid">
-          <!-- Cards rendered below -->
+        <div class="template-fontset-panel">
+          <div>
+            <h3>Base Font Set</h3>
+            <p>${activeFontSet.label}</p>
+          </div>
+          <div class="template-fontset-row" id="template-fontset-row">
+            ${Object.values(BASE_FONT_SETS).map(set => `
+              <button class="template-fontset-option ${this.selectedBaseFontSet === set.id ? 'selected' : ''}" data-font-set="${set.id}" type="button">
+                <span class="fontset-radio-dot"></span>
+                <span>
+                  <strong>${set.name}</strong>
+                  <small>${set.label}</small>
+                </span>
+              </button>
+            `).join('')}
+          </div>
         </div>
+
+        <div class="simple-template-grid" id="simple-template-grid"></div>
       </div>
 
       <footer class="dashboard-bottom-dock">
-        <span>⚡ Zen Caption AI Studio &bull; 16 Ready-Made High-Conversion Viral Styles</span>
-        <span>Auto Typography &bull; Instant 60 FPS GPU Export</span>
+        <span>⚡ Zen Caption AI Studio &bull; 2 fixed caption presets</span>
+        <span>Normal Line &bull; Real Estate &bull; No stroke by default</span>
       </footer>
     `;
 
     parent.appendChild(wrap);
+    wrap.querySelector('#btn-templates-apply-shortcut')?.addEventListener('click', () => this.switchTab('apply'));
+    wrap.querySelectorAll('[data-font-set]').forEach(btn => btn.addEventListener('click', () => this.selectBaseFontSet(btn.dataset.fontSet)));
+    const grid = wrap.querySelector('#simple-template-grid');
+    DASHBOARD_TEMPLATE_OPTIONS.forEach(tpl => grid.appendChild(this.renderTemplateOptionCard(tpl)));
+  }
 
-    wrap.querySelector('#btn-templates-apply-shortcut')?.addEventListener('click', () => {
-      this.switchTab('apply');
-    });
-
-    const grid = wrap.querySelector('#user-templates-grid');
-    CAPTION_TEMPLATES.forEach(tpl => {
-      // Check if user has customized this template
-      const customConfig = this.userCustomTemplates[tpl.id];
-      const effectiveConfig = customConfig ? { ...tpl.config, ...customConfig } : tpl.config;
-      const isSelected = this.selectedTemplateId === tpl.id;
-      const isCustomized = !!customConfig;
-
-      const card = document.createElement('div');
-      card.className = `user-tpl-card ${isSelected ? 'selected' : ''}`;
-      card.dataset.tplId = tpl.id;
-
-      card.innerHTML = `
-        <div class="user-tpl-preview-box" style="background: #000000;">
-          <div class="user-tpl-preview-text" style="font-family: ${effectiveConfig.normalFontFamily || 'Inter'}, sans-serif; color: ${effectiveConfig.textColor || '#fff'}; font-size: 21px; font-weight: 800; text-align: center; line-height: 1.25; letter-spacing: -0.2px;">
-            ${tpl.sampleNormal || 'Viral'} 
-            <span style="font-family: ${effectiveConfig.prominentFontFamily || 'Syne'}, sans-serif; color: ${effectiveConfig.prominentColor || '#FFE600'}; font-weight: 900; text-transform: uppercase;">
-              ${tpl.sampleProminent || 'Captions'}
-            </span>
+  renderTemplateOptionCard(tpl) {
+    const isSelected = this.selectedTemplateId === tpl.id;
+    const fontSet = this.getBaseFontSet();
+    const [normalFont, prominentFont, accentFont] = fontSet.fonts;
+    const normalFamily = this.getFontFamily(normalFont);
+    const prominentFamily = this.getFontFamily(prominentFont);
+    const accentFamily = this.getFontFamily(accentFont);
+    const isRealEstate = tpl.id === 'real-estate';
+    const card = document.createElement('article');
+    card.className = `simple-template-card ${isSelected ? 'selected' : ''}`;
+    card.dataset.tplId = tpl.id;
+    card.innerHTML = `
+      <div class="template-image-preview ${isRealEstate ? 'real-estate-preview' : 'normal-preview'}">
+        <img src="/preview-img.png" alt="${tpl.name} preview" loading="lazy">
+        <div class="template-preview-vignette"></div>
+        ${isRealEstate ? `
+          <div class="template-preview-overlay template-preview-real-top" style="font-family: ${accentFamily}; font-style: normal !important;">
+            <span style="font-family: ${accentFamily}; font-style: normal !important; text-transform: uppercase;">${tpl.previewWords[0]}</span>
           </div>
-        </div>
-
-        <div class="user-tpl-card-header">
-          <h3 class="user-tpl-title">${tpl.name}</h3>
-          <div style="display: flex; gap: 6px; align-items: center;">
-            ${isSelected ? `<span class="badge badge-success" style="font-size: 10px; font-weight: 800; padding: 3px 7px;">ACTIVE</span>` : ''}
-            ${isCustomized ? `<span class="badge badge-purple" style="font-size: 10px; padding: 3px 7px;">Edited</span>` : ''}
+          <div class="template-preview-overlay template-preview-real-body" style="font-style: normal !important;">
+            <span style="font-family: ${normalFamily}; font-style: normal !important; text-transform: uppercase;">${tpl.previewWords[1]}</span>
+            <span class="accent-word" style="font-family: ${prominentFamily}; font-style: normal !important; color: var(--primary-coral); text-transform: uppercase;">${tpl.previewWords[2]}</span>
           </div>
+        ` : `
+          <div class="template-preview-overlay template-preview-normal-line" style="font-style: normal !important;">
+            <span style="font-family: ${normalFamily}; font-style: normal !important; text-transform: uppercase;">${tpl.previewWords[0]}</span>
+            <span style="font-family: ${normalFamily}; font-style: normal !important; text-transform: uppercase;">${tpl.previewWords[1]}</span>
+            <span class="accent-word" style="font-family: ${prominentFamily}; font-style: normal !important; color: var(--primary-coral); text-transform: uppercase;">${tpl.previewWords[2]}</span>
+          </div>
+        `}
+      </div>
+      <div class="simple-template-card-body">
+        <div class="simple-template-title-row">
+          <h3>${tpl.name}</h3>
+          ${isSelected ? '<span class="badge badge-success">ACTIVE</span>' : ''}
         </div>
-
-        <div class="user-tpl-card-actions">
-          <button class="btn-tpl-customize" data-action="customize" data-tpl="${tpl.id}" title="Customize fonts, colors and styling for this template">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"></path>
-              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"></path>
-            </svg>
-            Customize
-          </button>
-
-          ${isCustomized ? `
-          <button class="btn-tpl-revert" data-action="revert" data-tpl="${tpl.id}" title="Revert to original preset">
-            ↺
-          </button>
-          ` : ''}
+        <p class="simple-template-desc">${tpl.description}</p>
+        <div class="simple-template-meta">
+          <span>${isRealEstate ? 'Split layout' : 'Single line'}</span>
+          <span>${fontSet.name} fonts</span>
         </div>
-      `;
-
-      // Select template on card click
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('button')) return;
-        this.selectTemplate(tpl.id);
-      });
-
-      // Customize button
-      card.querySelector('[data-action="customize"]')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.selectTemplate(tpl.id);
-        this.openCustomizerForTemplate(tpl.id);
-      });
-
-      // Revert button
-      card.querySelector('[data-action="revert"]')?.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await this.revertTemplate(tpl.id);
-      });
-
-      grid.appendChild(card);
+        <button class="btn btn-black btn-block btn-select-simple-template" type="button">${isSelected ? 'Selected' : 'Select Template'}</button>
+      </div>
+    `;
+    card.addEventListener('click', () => this.selectTemplate(tpl.id));
+    card.querySelector('.btn-select-simple-template')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.selectTemplate(tpl.id);
     });
+    return card;
   }
 
   selectTemplate(tplId) {
+    if (!DASHBOARD_TEMPLATE_OPTIONS.some(t => t.id === tplId)) return;
     this.selectedTemplateId = tplId;
-    this.lastRenderedSentenceKey = null; // Re-trigger entrance animation
+    this.syncTemplateConfig();
     soundFx.playTemplateSelect();
-    const tpl = CAPTION_TEMPLATES.find(t => t.id === tplId);
-    if (tpl) {
-      const customConfig = this.userCustomTemplates[tplId];
-      this.activeConfig = customConfig ? { ...tpl.config, ...customConfig } : { ...tpl.config };
-      if (this.toolStudio) {
-        this.toolStudio.setActiveConfig(this.activeConfig);
-      }
-      this.showToast(`Selected "${tpl.name}" as active style.`, 'info');
-      // Update UI cards
-      this.container.querySelectorAll('.user-tpl-card').forEach(c => {
-        c.classList.toggle('selected', c.dataset.tplId === tplId);
-      });
-      this.updateCaptionOverlay();
+    if (this.sourceCaptionSentences?.length) {
+      captionEngine.setSentences(this.styleCaptionSentencesForActiveTemplate(this.sourceCaptionSentences));
     }
+    this.showToast(`Selected "${this.getDashboardTemplateMeta().name}" template.`, 'info');
+    if (this.activeTab === 'templates') this.renderTemplatesTab(this.container.querySelector('#user-workspace-content'));
+    this.updateCaptionOverlay();
   }
 
+  selectBaseFontSet(fontSetId) {
+    if (!BASE_FONT_SETS[fontSetId]) return;
+    this.selectedBaseFontSet = fontSetId;
+    this.syncTemplateConfig();
+    if (this.sourceCaptionSentences?.length) {
+      captionEngine.setSentences(this.styleCaptionSentencesForActiveTemplate(this.sourceCaptionSentences));
+    }
+    this.showToast(`${this.getBaseFontSet().name} font set selected.`, 'info');
+    if (this.activeTab === 'templates') this.renderTemplatesTab(this.container.querySelector('#user-workspace-content'));
+    this.updateCaptionOverlay();
+  }
   openCustomizerForTemplate(tplId) {
     if (!this.toolStudio) return;
     this.toolStudio.selectedTemplateId = tplId;
@@ -1409,7 +1557,7 @@ export class UserDashboard {
     const title = titleOverride || (isHindiUrduGeminiError ? 'Hindi/Urdu Transcription Setup Needed' : 'Transcript Missing Dependency');
     modal.innerHTML = `
       <div class="transcript-error-card" role="alertdialog" aria-modal="true" aria-labelledby="transcript-error-title">
-        <button type="button" class="transcript-error-close" id="btn-transcript-error-close" aria-label="Close">×</button>
+          <button type="button" class="transcript-error-close" id="btn-transcript-error-close" aria-label="Close">×</button>
         <div class="transcript-error-icon">!</div>
         <h2 id="transcript-error-title">${title}</h2>
         <p>${this.escapeHtml(message || 'Whisper could not extract a real transcript from this video. No fallback captions were loaded.')}</p>
@@ -1494,7 +1642,7 @@ export class UserDashboard {
               <div class="script-option-icon">🇮🇳</div>
               <div class="script-option-content">
                 <div class="script-option-title-row">
-                  <span class="script-option-name">Native Hindi (हिन्दी)</span>
+                    <span class="script-option-name">Native Hindi (हिन्दी)</span>
                   <span class="script-option-tag tag-native">PURE DEVANAGARI</span>
                 </div>
                 <div class="script-option-desc">Pure Devanagari script for Hindi speech. Strictly zero English letters.</div>
@@ -1508,11 +1656,11 @@ export class UserDashboard {
               <div class="script-option-icon">🇵🇰</div>
               <div class="script-option-content">
                 <div class="script-option-title-row">
-                  <span class="script-option-name">Native Urdu (اردو)</span>
+                    <span class="script-option-name">Native Urdu (اردو)</span>
                   <span class="script-option-tag tag-native">PURE NASTALIQ</span>
                 </div>
                 <div class="script-option-desc">Authentic Nastaliq Urdu script. Strictly zero English letters.</div>
-                <div class="script-option-preview">Preview: &ldquo;اگر آپ اس کو دیکھ سکتے ہیں تو لائیک کریں&rdquo;</div>
+             <div class="script-option-preview">Preview: &ldquo;اگر آپ اس کو دیکھ سکتے ہیں تو لائیک کریں&rdquo;</div>
               </div>
             </label>
           </div>
@@ -2232,10 +2380,14 @@ export class UserDashboard {
     let chunkOffset = 0;
 
     const isPortrait = this.currentMode === 'portrait';
+    const isRealEstate = this.selectedTemplateId === 'real-estate' || currentSentence.templateMode === 'real-estate' || !!currentSentence.realEstateLayout;
     const defaultBaseFontSize = isPortrait ? 25 : ((cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28);
-    const baseFontSize = (currentSentence.fontSize !== undefined && currentSentence.fontSize !== null && currentSentence.fontSize > 0)
+    const customSentenceSize = (currentSentence.fontSize !== undefined && currentSentence.fontSize !== null && currentSentence.fontSize > 0)
       ? Number(currentSentence.fontSize)
-      : defaultBaseFontSize;
+      : null;
+    const baseFontSize = customSentenceSize || defaultBaseFontSize;
+    const realEstateTopSize = customSentenceSize ? Math.round(customSentenceSize * (70 / 50)) : 70;
+    const realEstateBodySize = customSentenceSize || 50;
 
     const normalFontFamily = this.getFontFamily(cfg.normalFontFamily || 'Inter');
     const prominentFontFamily = this.getFontFamily(cfg.prominentFontFamily || 'Syne');
@@ -2252,11 +2404,11 @@ export class UserDashboard {
       const raw = String(word || '');
       if (cfg.uppercase) return raw.toUpperCase();
       if (!shouldTitleCaseWords) return raw;
-      return raw.toLowerCase().replace(/[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'’-]*/g, (token) => (
+      return raw.toLowerCase().replace(/[A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF][A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF'’-]*/g, (token) => (
         token.charAt(0).toUpperCase() + token.slice(1)
       ));
     };
-    const forceItalic = currentSentence.italic !== undefined ? !!currentSentence.italic : !!segmentFontMeta?.defaultItalic;
+    const forceItalic = isRealEstate ? false : (currentSentence.italic !== undefined ? !!currentSentence.italic : !!segmentFontMeta?.defaultItalic);
     const forceBold = currentSentence.bold !== undefined ? !!currentSentence.bold : !!segmentFontMeta?.defaultBold;
     const forceUnderline = !!currentSentence.underline;
     const defaultTextColor = currentSentence.textColor || cfg.textColor || '#FFFFFF';
@@ -2281,14 +2433,28 @@ export class UserDashboard {
       const isSpeaking = globalIdx === speakingWordIdx;
       const isLastWord = globalIdx === words.length - 1;
       const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && globalIdx === 1);
+
+      const isTopWord = isRealEstate && localIdx === 0;
+      const currentFontSize = isRealEstate ? (isTopWord ? realEstateTopSize : realEstateBodySize) : baseFontSize;
+
       let font = segmentFontFamily || (isProminent ? prominentFontFamily : normalFontFamily);
-      let color = isProminent ? prominentColor : defaultTextColor;
-      if (isLastWord && hasLastWordColor) {
+      if (isRealEstate) {
+        font = isTopWord
+          ? this.getFontFamily(cfg.accentFontFamily || cfg.prominentFontFamily)
+          : (localIdx === displayWords.length - 1 ? prominentFontFamily : normalFontFamily);
+      } else if (isLastWord && hasLastWordColor) {
         font = segmentFontFamily || prominentFontFamily;
+      }
+      if (isSpeaking && !isRealEstate) font = segmentFontFamily || prominentFontFamily;
+
+      let color = isProminent ? prominentColor : defaultTextColor;
+      if (isRealEstate) {
+        color = isTopWord ? '#FFFFFF' : prominentColor;
+      } else if (isLastWord && hasLastWordColor) {
         color = lastWordColor;
       }
-      if (isSpeaking) font = segmentFontFamily || prominentFontFamily;
-      const fontWeight = forceBold ? 900 : (isSpeaking ? 900 : (isProminent ? 800 : 700));
+
+      const fontWeight = forceBold ? 900 : ((isSpeaking && !isRealEstate) ? 900 : (isProminent ? 800 : 700));
       const fontStyle = forceItalic ? 'italic' : 'normal';
       const textDecoration = forceUnderline ? 'text-decoration:underline;text-underline-offset:.12em;text-decoration-thickness:.08em;' : 'text-decoration:none;';
       const strokeWidth = strokeEnabled
@@ -2298,15 +2464,20 @@ export class UserDashboard {
         ? (customStrokeColor || (isProminent ? (cfg.prominentOutlineColor || '#000000') : (cfg.normalOutlineColor || '#000000')))
         : 'transparent';
 
+      // In real estate mode, do not animate words individually 3 times per segment; the segment animation runs once for the segment
+      const wordScale = isRealEstate ? 'scale(1)' : (isSpeaking ? 'scale(1.15)' : 'scale(1)');
+      const wordTransition = isRealEstate ? 'none' : (isSpeaking ? 'transform .22s cubic-bezier(.34,1.56,.64,1), filter .2s ease' : 'transform .18s ease-out');
+      const isBreakAfter = isRealEstate && isTopWord && displayWords.length > 1;
+
       return `
-        <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''}" style="
+        <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''} ${isTopWord ? 'real-estate-top-token' : ''}" style="
           display:inline-block!important;vertical-align:baseline!important;margin:1px 3px!important;padding:0 1px!important;box-sizing:border-box!important;
-          font-family:${font}!important;color:${color}!important;font-size:${baseFontSize}px!important;font-weight:${fontWeight};font-style:${fontStyle};${textDecoration}
-          opacity:1!important;visibility:visible!important;line-height:1.05;letter-spacing:.2px;${glowStyles}
+          font-family:${font}!important;color:${color}!important;font-size:${currentFontSize}px!important;font-weight:${fontWeight};font-style:${fontStyle};${textDecoration}
+          opacity:1!important;visibility:visible!important;line-height:1.08;letter-spacing:.2px;${glowStyles}
           -webkit-text-stroke:${strokeWidth}px ${strokeColor};paint-order:stroke fill;-webkit-paint-order:stroke fill;
-          transform:${isSpeaking ? 'scale(1.15)' : 'scale(1)'}!important;transform-origin:center bottom!important;z-index:${isSpeaking ? 5 : 1}!important;
-          white-space:nowrap!important;will-change:transform;transition:${isSpeaking ? 'transform .22s cubic-bezier(.34,1.56,.64,1), filter .2s ease' : 'transform .18s ease-out'};
-        ">${this.escapeHtml(formatCaptionWord(w.word))}</span>
+          transform:${wordScale}!important;transform-origin:center bottom!important;z-index:${isSpeaking ? 5 : 1}!important;
+          white-space:nowrap!important;will-change:transform;transition:${wordTransition};
+        ">${this.escapeHtml(formatCaptionWord(w.word))}</span>${isBreakAfter ? '<span style="flex-basis:100%;height:0;margin:0;padding:0;display:block;"></span>' : ''}
       `;
     }).join('');
 
@@ -2509,10 +2680,6 @@ export class UserDashboard {
         </div>
 
         <div class="seg-text-style-row" onclick="event.stopPropagation()">
-          <label class="seg-style-check" title="Make this segment bold">
-            <input type="checkbox" class="chk-seg-bold" data-idx="${idx}" ${curBold ? 'checked' : ''}>
-            <span>B</span>
-          </label>
           <label class="seg-style-check" title="Make this segment italic">
             <input type="checkbox" class="chk-seg-italic" data-idx="${idx}" ${curItalic ? 'checked' : ''}>
             <span><em>I</em></span>
@@ -2736,12 +2903,6 @@ export class UserDashboard {
         }
       });
 
-      item.querySelector('.chk-seg-bold')?.addEventListener('change', (e) => {
-        s.bold = e.target.checked;
-        soundFx.playKeyBeep(s.bold ? 650 : 420);
-        syncActiveSegment();
-      });
-
       item.querySelector('.chk-seg-italic')?.addEventListener('change', (e) => {
         s.italic = e.target.checked;
         soundFx.playKeyBeep(s.italic ? 650 : 420);
@@ -2779,12 +2940,15 @@ export class UserDashboard {
           const fontId = opt.getAttribute('data-font');
           s.fontFamily = fontId;
           const chosenFont = FONTS.find(f => f.id === fontId);
-          if (chosenFont?.defaultItalic !== undefined) s.italic = !!chosenFont.defaultItalic;
+          const isRealEstateMode = this.selectedTemplateId === 'real-estate' || s.templateMode === 'real-estate' || !!s.realEstateLayout;
+          if (isRealEstateMode) {
+            s.italic = false;
+          } else if (chosenFont?.defaultItalic !== undefined) {
+            s.italic = !!chosenFont.defaultItalic;
+          }
           if (chosenFont?.defaultBold !== undefined) s.bold = !!chosenFont.defaultBold;
-          const boldToggle = item.querySelector('.chk-seg-bold');
           const italicToggle = item.querySelector('.chk-seg-italic');
-          if (boldToggle && chosenFont?.defaultBold !== undefined) boldToggle.checked = !!chosenFont.defaultBold;
-          if (italicToggle && chosenFont?.defaultItalic !== undefined) italicToggle.checked = !!chosenFont.defaultItalic;
+          if (italicToggle) italicToggle.checked = !!s.italic;
           const labelSpan = fontTrigger?.querySelector('.seg-font-trigger-text');
           if (labelSpan && chosenFont) {
             labelSpan.textContent = chosenFont.name;

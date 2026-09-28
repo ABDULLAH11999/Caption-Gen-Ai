@@ -13,6 +13,7 @@ if (!env.backends.onnx.wasm) env.backends.onnx.wasm = {};
 env.backends.onnx.wasm.numThreads = 1;
 env.backends.onnx.wasm.simd = true;
 env.backends.onnx.wasm.proxy = false;
+env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/';
 
 class SpeechTranscriberService {
   constructor() {
@@ -52,6 +53,13 @@ class SpeechTranscriberService {
     const multiplier = this._isIOS ? 12000 : this._isSafari ? 9000 : 6000;
     const base = this._isIOS ? 360000 : this._isSafari ? 300000 : this._isMobile ? 240000 : 180000;
     return Math.min(900000, Math.max(base, Math.ceil((duration || 30) * multiplier)));
+  }
+
+  shouldUseWorkerTranscription() {
+    if (typeof Worker === 'undefined') return false;
+    // Safari/iOS can instantiate module workers but still fail ONNX WASM loading
+    // inside that worker. Main-thread fallback is slower but more reliable there.
+    return !(this._isIOS || this._isSafari);
   }
 
   /**
@@ -920,6 +928,53 @@ class SpeechTranscriberService {
     });
   }
 
+  async _loadMainThreadPipeline(modelId, onProgress = () => {}) {
+    if (!this.pipeline || this.currentPipelineModelId !== modelId) {
+      if (this.currentPipelineModelId !== modelId) {
+        this.pipeline = null;
+        this.pipelinePromise = null;
+      }
+      if (!this.pipelinePromise) {
+        this.pipelinePromise = pipeline('automatic-speech-recognition', modelId, {
+          quantized: true,
+          progress_callback: (prog) => {
+            const progress = Number(prog?.progress ?? 0);
+            if (Number.isFinite(progress) && progress > 0) {
+              onProgress({
+                status: 'loading_model',
+                message: `Loading Whisper model (${Math.round(progress)}%)...`,
+                percent: Math.min(75, 45 + Math.round(progress * 0.3))
+              });
+            }
+          }
+        });
+      }
+
+      this.pipeline = await this.withTimeout(
+        this.pipelinePromise,
+        this.getModelTimeoutMs(),
+        'Whisper model setup took too long'
+      );
+      this.currentPipelineModelId = modelId;
+    }
+
+    return this.pipeline;
+  }
+
+  async _transcribeOnMainThread(rawPcm, duration, onProgress, fileBlob, modelId) {
+    onProgress({
+      status: 'loading_model',
+      message: this._isIOS || this._isSafari
+        ? 'Loading iPhone/Mac compatible speech model...'
+        : 'Loading fallback speech model...',
+      percent: 46
+    });
+    await new Promise(r => setTimeout(r, 60));
+    const mainPipeline = await this._loadMainThreadPipeline(modelId, onProgress);
+    await new Promise(r => setTimeout(r, 40));
+    return this.runWhisperAttempts(mainPipeline, rawPcm, duration, onProgress, fileBlob);
+  }
+
   /**
    * Transcribes the audio file using neural in-browser Whisper AI
    */
@@ -968,47 +1023,18 @@ class SpeechTranscriberService {
         let result = null;
 
         // 1. Run inference in dedicated Web Worker to ensure main browser thread stays 100% responsive
-        const workerSupported = typeof Worker !== 'undefined';
-        if (workerSupported) {
-          result = await this._transcribeWithWorker(rawPcm, duration, onProgress, targetModelId);
-          if (!this.hasTranscriptText(result)) {
-            throw new Error('Whisper did not detect any speech in this audio track.');
+        if (this.shouldUseWorkerTranscription()) {
+          try {
+            result = await this._transcribeWithWorker(rawPcm, duration, onProgress, targetModelId);
+            if (!this.hasTranscriptText(result)) {
+              throw new Error('Whisper did not detect any speech in this audio track.');
+            }
+          } catch (workerErr) {
+            console.warn('[speechTranscriber] Worker transcription failed; retrying main-thread fallback:', workerErr.message);
+            result = await this._transcribeOnMainThread(rawPcm, duration, onProgress, fileBlob, targetModelId);
           }
         } else {
-          // 2. Fallback only if Web Worker is physically unsupported in the browser environment
-          await new Promise(r => setTimeout(r, 60));
-
-          if (!this.pipeline || this.currentPipelineModelId !== targetModelId) {
-            if (this.currentPipelineModelId !== targetModelId) {
-              this.pipeline = null;
-              this.pipelinePromise = null;
-            }
-            if (!this.pipelinePromise) {
-              this.pipelinePromise = pipeline('automatic-speech-recognition', targetModelId, {
-                quantized: true,
-                progress_callback: (prog) => {
-                  const progress = Number(prog?.progress ?? 0);
-                  if (Number.isFinite(progress) && progress > 0) {
-                    onProgress({
-                      status: 'loading_model',
-                      message: `Loading Whisper model (${Math.round(progress)}%)...`,
-                      percent: Math.min(75, 45 + Math.round(progress * 0.3))
-                    });
-                  }
-                }
-              });
-            }
-
-            this.pipeline = await this.withTimeout(
-              this.pipelinePromise,
-              this.getModelTimeoutMs(),
-              'Whisper model setup took too long'
-            );
-            this.currentPipelineModelId = targetModelId;
-          }
-
-          await new Promise(r => setTimeout(r, 40));
-          result = await this.runWhisperAttempts(this.pipeline, rawPcm, duration, onProgress, fileBlob);
+          result = await this._transcribeOnMainThread(rawPcm, duration, onProgress, fileBlob, targetModelId);
         }
 
         if (this.hasTranscriptText(result)) {

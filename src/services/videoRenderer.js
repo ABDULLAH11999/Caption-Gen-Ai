@@ -339,10 +339,14 @@ export class VideoRenderer {
     }
 
     const isPortrait = canvasHeight > canvasWidth;
-    const previewFontSize = (sentence.fontSize !== undefined && sentence.fontSize !== null && sentence.fontSize > 0)
+    const isRealEstate = (config.templateId === 'real-estate' || sentence.templateMode === 'real-estate' || !!sentence.realEstateLayout);
+    const customSentenceSize = (sentence.fontSize !== undefined && sentence.fontSize !== null && sentence.fontSize > 0)
       ? Number(sentence.fontSize)
-      : (isPortrait ? 25 : ((config.fontSize && Number(config.fontSize) <= 30) ? Number(config.fontSize) : 28));
+      : null;
+    const previewFontSize = customSentenceSize || (isPortrait ? 25 : ((config.fontSize && Number(config.fontSize) <= 30) ? Number(config.fontSize) : 28));
     const baseFontSize = Math.max(16, Math.round(previewFontSize * scale));
+    const realEstateTopSize = Math.max(16, Math.round((customSentenceSize ? customSentenceSize * (70 / 50) : 70) * scale));
+    const realEstateBodySize = Math.max(16, Math.round((customSentenceSize || 50) * scale));
 
     const normalFontFamily = this.getFontFamily(config.normalFontFamily || 'Inter');
     const prominentFontFamily = this.getFontFamily(config.prominentFontFamily || 'Syne');
@@ -355,7 +359,7 @@ export class VideoRenderer {
       segmentFontMeta?.id === 'Italiana' ||
       /emily|bodoni/i.test(segmentFontMeta?.name || '')
     );
-    const forceItalic = sentence.italic !== undefined ? !!sentence.italic : !!segmentFontMeta?.defaultItalic;
+    const forceItalic = isRealEstate ? false : (sentence.italic !== undefined ? !!sentence.italic : !!segmentFontMeta?.defaultItalic);
     const forceBold = sentence.bold !== undefined ? !!sentence.bold : !!segmentFontMeta?.defaultBold;
     const forceUnderline = !!sentence.underline;
 
@@ -379,19 +383,29 @@ export class VideoRenderer {
       const isSpeaking = (localIdx === speakingWordIdx);
       const isLastWord = (localIdx === words.length - 1);
       const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && localIdx === 1);
+      const isTopWord = isRealEstate && localIdx === 0;
+      const currentFontSize = isRealEstate ? (isTopWord ? realEstateTopSize : realEstateBodySize) : baseFontSize;
 
       let font = segmentFontFamily || (isProminent ? prominentFontFamily : normalFontFamily);
-      let color = isProminent ? prominentColor : defaultTextColor;
-
-      if (isLastWord && hasLastWordColor) {
+      if (isRealEstate) {
+        font = isTopWord
+          ? this.getFontFamily(config.accentFontFamily || config.prominentFontFamily)
+          : (localIdx === words.length - 1 ? prominentFontFamily : normalFontFamily);
+      } else if (isLastWord && hasLastWordColor) {
         font = segmentFontFamily || prominentFontFamily;
+      }
+      if (isSpeaking && !isRealEstate) {
+        font = segmentFontFamily || prominentFontFamily;
+      }
+
+      let color = isProminent ? prominentColor : defaultTextColor;
+      if (isRealEstate) {
+        color = isTopWord ? '#FFFFFF' : prominentColor;
+      } else if (isLastWord && hasLastWordColor) {
         color = lastWordColor;
       }
-      if (isSpeaking) {
-        font = segmentFontFamily || prominentFontFamily;
-      }
 
-      const fontWeight = forceBold ? '900' : (isSpeaking ? '900' : (isProminent ? '800' : '700'));
+      const fontWeight = forceBold ? '900' : ((isSpeaking && !isRealEstate) ? '900' : (isProminent ? '800' : '700'));
       const fontStyle = forceItalic ? 'italic' : 'normal';
       const strokeWidth = strokeEnabled
         ? ((isProminent
@@ -402,7 +416,7 @@ export class VideoRenderer {
         ? (customStrokeColor || (isProminent ? (config.prominentOutlineColor || '#000000') : (config.normalOutlineColor || '#000000')))
         : 'transparent';
 
-      const wordScale = isSpeaking ? 1.15 : 1.0;
+      const wordScale = isRealEstate ? 1.0 : (isSpeaking ? 1.15 : 1.0);
 
       return {
         word: this.formatCaptionWord(w.word, {
@@ -418,7 +432,7 @@ export class VideoRenderer {
         isSpeaking,
         underline: forceUnderline,
         wordScale,
-        fontSize: baseFontSize
+        fontSize: currentFontSize
       };
     });
 

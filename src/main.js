@@ -238,8 +238,13 @@ class ZenSaaSApp {
 
   navigate(route, params = {}, pushState = true) {
     if (typeof params === 'string') {
-      const match = params.match(/slug=([^&]+)/);
-      params = match ? { slug: decodeURIComponent(match[1]) } : { slug: params };
+      const parsedParams = new URLSearchParams(params);
+      if ([...parsedParams.keys()].length > 0) {
+        params = Object.fromEntries(parsedParams.entries());
+      } else {
+        const match = params.match(/slug=([^&]+)/);
+        params = match ? { slug: decodeURIComponent(match[1]) } : { slug: params };
+      }
     }
     this.currentRoute = route;
     this.routeParams = params;
@@ -423,7 +428,8 @@ class ZenSaaSApp {
           showToast: (msg, t) => this.showToast(msg, t),
           openAuthModal: (m) => this.authModal.open(m),
           toolStudio: this.toolStudio,
-          initialFile: params?.file || null
+          initialFile: params?.file || null,
+          initialTemplateId: params?.template || null
         });
         this.userDashboard.render(this.mainContainer);
         this.userDashboard.init();

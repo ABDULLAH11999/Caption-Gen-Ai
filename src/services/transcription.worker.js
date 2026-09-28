@@ -10,6 +10,7 @@ if (!env.backends.onnx.wasm) env.backends.onnx.wasm = {};
 env.backends.onnx.wasm.numThreads = 1;
 env.backends.onnx.wasm.simd = true;
 env.backends.onnx.wasm.proxy = false;
+env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/';
 
 let transcriberPipeline = null;
 let currentModelId = 'Xenova/whisper-tiny';

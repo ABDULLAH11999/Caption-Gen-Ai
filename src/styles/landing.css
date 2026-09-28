@@ -479,12 +479,92 @@
   transition: all 0.3s ease;
 }
 
+@media (min-width: 1025px) {
+  .compare-container {
+    max-width: 820px;
+    margin: 0 auto;
+  }
+
+  .compare-cards-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 360px));
+    justify-content: center;
+    gap: 36px;
+    align-items: stretch;
+  }
+
+  /* Desktop Vertical Cards */
+  .compare-card {
+    min-height: unset;
+    padding: 20px;
+    max-width: 360px;
+    width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+
+  .compare-card-before,
+  .compare-card-after {
+    padding: 20px;
+  }
+
+  .compare-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+
+  .compare-badge-pill {
+    font-size: 10px;
+    padding: 4px 9px;
+    white-space: nowrap;
+  }
+
+  .compare-stat-pill {
+    font-size: 11px;
+    padding: 3px 8px;
+    white-space: nowrap;
+  }
+
+  /* Vertical 2:3 Video Frame for Desktop */
+  .compare-screen-frame {
+    aspect-ratio: 2 / 3;
+    height: auto;
+    max-height: 520px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    background: #000000;
+  }
+
+  .compare-demo-video {
+    height: 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .compare-features-list {
+    gap: 9px;
+  }
+
+  .compare-features-list li {
+    font-size: 13px;
+    line-height: 1.35;
+  }
+}
+
 .compare-cards-grid.show-before-only .compare-card-after {
   display: none;
 }
 .compare-cards-grid.show-before-only {
   grid-template-columns: 1fr;
-  max-width: 620px;
+  max-width: 360px;
   margin: 0 auto;
 }
 
@@ -493,7 +573,7 @@
 }
 .compare-cards-grid.show-after-only {
   grid-template-columns: 1fr;
-  max-width: 620px;
+  max-width: 360px;
   margin: 0 auto;
 }
 
@@ -576,7 +656,7 @@
 }
 
 .compare-screen-frame {
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 2 / 3;
   height: auto;
   max-height: none;
   border-radius: 16px;
@@ -1592,7 +1672,7 @@
   }
   .compare-screen-frame {
     height: auto;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 2 / 3;
     border-radius: 14px;
   }
   .compare-video-button {

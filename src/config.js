@@ -576,18 +576,20 @@ export const CAPTION_TEMPLATES = [
   }
 ];
 
-// Default configuration for Landscape (16:9) - Pre-configured from Template 1 (September Vibrant Pop)
+const MIDNIGHT_MINIMALIST_TEMPLATE = CAPTION_TEMPLATES.find(t => t.id === 'midnight-minimalist') || CAPTION_TEMPLATES[0];
+
+// Default configuration for Landscape (16:9) - Pre-configured from Midnight Minimalist
 export const DEFAULT_LANDSCAPE_CONFIG = {
-  ...CAPTION_TEMPLATES[0].config,
+  ...MIDNIGHT_MINIMALIST_TEMPLATE.config,
   fontSize: 30,
   maxWordsPerLine: 6,
   progressiveDisplay: true,
   enhanceQuality: true
 };
 
-// Default configuration for Portrait (9:16 Shorts/Reels) - Pre-configured from Template 1 (September Vibrant Pop)
+// Default configuration for Portrait (9:16 Shorts/Reels) - Pre-configured from Midnight Minimalist
 export const DEFAULT_PORTRAIT_CONFIG = {
-  ...CAPTION_TEMPLATES[0].config,
+  ...MIDNIGHT_MINIMALIST_TEMPLATE.config,
   fontSize: 34,
   maxWordsPerLine: 5,
   progressiveDisplay: true,
