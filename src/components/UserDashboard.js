@@ -100,6 +100,7 @@ export class UserDashboard {
 
     // Video State
     this.videoBlob = null;
+    this.videoObjectURL = null;
     this.videoDuration = 0;
     this.videoElement = null;
     this.cutoutCanvas = null;
@@ -877,7 +878,9 @@ export class UserDashboard {
     `;
 
     parent.appendChild(wrap);
-    wrap.querySelector('#btn-templates-apply-shortcut')?.addEventListener('click', () => this.switchTab('apply'));
+    wrap.querySelector('#btn-templates-apply-shortcut')?.addEventListener('click', () => {
+      this.selectTemplate(this.selectedTemplateId, true);
+    });
     const grid = wrap.querySelector('#simple-template-grid');
     DASHBOARD_TEMPLATE_OPTIONS.forEach(tpl => grid.appendChild(this.renderTemplateOptionCard(tpl)));
   }
@@ -930,7 +933,43 @@ export class UserDashboard {
     return card;
   }
 
-  selectTemplate(tplId) {
+  resetVideoWorkspace() {
+    if (this.videoElement) {
+      try {
+        this.videoElement.pause();
+        this.videoElement.removeAttribute('src');
+        this.videoElement.load();
+      } catch (e) {
+        // Video teardown best effort
+      }
+    }
+    if (this.videoObjectURL) {
+      try {
+        URL.revokeObjectURL(this.videoObjectURL);
+      } catch (e) {}
+      this.videoObjectURL = null;
+    }
+    this.videoBlob = null;
+    this.videoDuration = 0;
+    this.videoElement = null;
+    this.cutoutCanvas = null;
+    this.rotoscopingLoopRunning = false;
+    this.isPlaying = false;
+    this.isProcessing = false;
+    this.processingCancelled = false;
+    this.segments = [];
+    this.sourceCaptionSentences = [];
+    captionEngine.setSentences([]);
+    this.expandedSegments = new Set([0]);
+    this.lastRenderedSentenceKey = null;
+    if (typeof selfieSegmenterService?.resetCache === 'function') {
+      selfieSegmenterService.resetCache();
+    } else if (typeof selfieSegmenterService?.clearExportCutoutCache === 'function') {
+      selfieSegmenterService.clearExportCutoutCache();
+    }
+  }
+
+  selectTemplate(tplId, promptUpload = true) {
     const targetId = tplId === 'normal-line' ? 'subtitle' : tplId;
     if (!DASHBOARD_TEMPLATE_OPTIONS.some(t => t.id === targetId)) return;
     this.selectedTemplateId = targetId;
@@ -940,6 +979,21 @@ export class UserDashboard {
     }
     this.syncTemplateConfig();
     soundFx.playTemplateSelect();
+
+    if (promptUpload) {
+      this.resetVideoWorkspace();
+      this.showToast(`Selected "${tpl.name}" template. Please upload a video to apply.`, 'info');
+      this.switchTab('apply');
+      const fileInput = this.container?.querySelector('#user-file-input');
+      if (fileInput) {
+        try {
+          fileInput.click();
+        } catch (e) {
+          console.warn('Auto file input browse failed:', e);
+        }
+      }
+      return;
+    }
 
     const currentSentences = captionEngine.sentences?.length ? captionEngine.sentences : (this.sourceCaptionSentences?.length ? this.sourceCaptionSentences : []);
     if (currentSentences?.length) {
@@ -1016,7 +1070,7 @@ export class UserDashboard {
     } else {
       localStorage.setItem('zen_guest_custom_templates', JSON.stringify(this.userCustomTemplates));
     }
-    this.selectTemplate(tplId);
+    this.selectTemplate(tplId, false);
     this.showToast('Template reverted to factory preset.', 'success');
     this.renderTemplatesTab(this.container.querySelector('#user-workspace-content'));
   }
@@ -1552,8 +1606,7 @@ export class UserDashboard {
 
   cancelProcessing() {
     this.processingCancelled = true;
-    this.isProcessing = false;
-    this.videoBlob = null;
+    this.resetVideoWorkspace();
     this.showToast('Transcription cancelled.', 'info');
     this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
   }
@@ -1861,7 +1914,11 @@ export class UserDashboard {
     this.cutoutCanvas = wrap.querySelector('#user-cutout-canvas');
     if (!this.videoElement || !this.videoBlob) return;
 
+    if (this.videoObjectURL) {
+      try { URL.revokeObjectURL(this.videoObjectURL); } catch (e) {}
+    }
     const url = URL.createObjectURL(this.videoBlob);
+    this.videoObjectURL = url;
     this.videoElement.playsInline = true;
     this.videoElement.setAttribute('playsinline', '');
     this.videoElement.setAttribute('webkit-playsinline', '');
@@ -1992,8 +2049,12 @@ export class UserDashboard {
 
     wrap.querySelector('#btn-reselect-video')?.addEventListener('click', () => {
       soundFx.playTabSwitch();
-      this.videoBlob = null;
+      this.resetVideoWorkspace();
       this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
+      const fileInput = this.container?.querySelector('#user-file-input');
+      if (fileInput) {
+        try { fileInput.click(); } catch (e) {}
+      }
     });
 
     wrap.querySelector('#btn-workspace-style')?.addEventListener('click', () => {

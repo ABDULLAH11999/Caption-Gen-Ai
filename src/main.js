@@ -429,7 +429,7 @@ class ZenSaaSApp {
           openAuthModal: (m) => this.authModal.open(m),
           toolStudio: this.toolStudio,
           initialFile: params?.file || null,
-          initialTemplateId: params?.template || null
+          initialTemplateId: params?.template || params?.templateId || null
         });
         this.userDashboard.render(this.mainContainer);
         this.userDashboard.init();
