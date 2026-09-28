@@ -1,5 +1,5 @@
 // Offline Service Worker for Zen Caption Studio
-const CACHE_NAME = 'zen-caption-v3';
+const CACHE_NAME = 'zen-caption-v4';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -24,6 +24,14 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  // Video files: Always fetch fresh from network to prevent stale letterbox or aspect cache
+  if (url.pathname.endsWith('.webm') || url.pathname.endsWith('.mp4')) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
 
   // Network-first for navigation / HTML requests so users ALWAYS see fresh builds
   if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {

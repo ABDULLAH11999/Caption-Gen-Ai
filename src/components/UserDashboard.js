@@ -30,13 +30,13 @@ import { selfieSegmenterService } from '../services/selfieSegmenter.js';
 const DASHBOARD_TEMPLATE_OPTIONS = [
   {
     id: 'normal-line',
-    name: 'Normal Line Captions',
+    name: 'Subtitle',
     description: 'Standard single-line captions using the Midnight Minimalist base.',
     previewWords: ['MAKE', 'EVERY', 'WORD']
   },
   {
     id: 'real-estate',
-    name: 'Real Estate Captions',
+    name: 'Real Estate',
     description: 'Luxury layout with one top word and two supporting words.',
     previewWords: ['HOW', 'TO', 'MAKE']
   }
@@ -151,7 +151,7 @@ export class UserDashboard {
       fontSize: isRealEstate ? 50 : 30,
       position: 'middle-left',
       textColor: '#FFFFFF',
-      prominentColor: isRealEstate ? '#FF5533' : '#FFFFFF',
+      prominentColor: '#FF5533',
       normalOutlineColor: 'transparent',
       normalOutlineWidth: 0,
       prominentOutlineColor: 'transparent',
@@ -159,8 +159,8 @@ export class UserDashboard {
       shadowBlur: isRealEstate ? 10 : 0,
       animation: isRealEstate ? 'anim-fade' : 'anim-fade',
       uppercase: false,
-      karaokeHighlightColor: isRealEstate ? '#FF5533' : '#FFFFFF',
-      enableLastWordColor: isRealEstate,
+      karaokeHighlightColor: '#FF5533',
+      enableLastWordColor: true,
       lastWordColor: '#FF5533',
       realEstateMode: isRealEstate,
       baseFontSet: fontSet.id
@@ -825,17 +825,11 @@ export class UserDashboard {
             <span class="style-preset-label">Active:</span>
             <strong>${activeTpl.name}</strong>
           </div>
-          <button class="btn btn-primary btn-sm" id="btn-templates-apply-shortcut" style="padding: 7px 16px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-            <span>Apply to Video</span>
-          </button>
         </div>
       </header>
 
       <div class="dashboard-content-scroll">
-        <div class="simple-template-intro">
-          <p>Choose one fixed caption preset, then choose a base font set. Templates are non-customizable so Apply Captions stays predictable.</p>
-        </div>
+       
 
         <div class="template-fontset-panel">
           <div>
@@ -860,7 +854,7 @@ export class UserDashboard {
 
       <footer class="dashboard-bottom-dock">
         <span>⚡ Zen Caption AI Studio &bull; 2 fixed caption presets</span>
-        <span>Normal Line &bull; Real Estate &bull; No stroke by default</span>
+        <span>Subtitle &bull; Real Estate &bull; No stroke by default</span>
       </footer>
     `;
 
@@ -882,43 +876,39 @@ export class UserDashboard {
     const card = document.createElement('article');
     card.className = `simple-template-card ${isSelected ? 'selected' : ''}`;
     card.dataset.tplId = tpl.id;
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
     card.innerHTML = `
       <div class="template-image-preview ${isRealEstate ? 'real-estate-preview' : 'normal-preview'}">
         <img src="/preview-img.jpg" alt="${tpl.name} preview" loading="lazy">
         <div class="template-preview-vignette"></div>
         ${isRealEstate ? `
-          <div class="template-preview-overlay template-preview-real-top" style="font-family: ${accentFamily}; font-style: normal !important;">
-            <span style="font-family: ${accentFamily}; font-style: normal !important; text-transform: uppercase;">${tpl.previewWords[0]}</span>
+          <div class="template-preview-overlay template-preview-real-top" style="font-family: ${accentFamily}; font-style: normal !important; color: #ffffff;">
+            <span style="font-family: ${accentFamily}; font-style: normal !important; text-transform: uppercase; color: #ffffff;">${tpl.previewWords[0]}</span>
           </div>
           <div class="template-preview-overlay template-preview-real-body" style="font-style: normal !important;">
-            <span style="font-family: ${normalFamily}; font-style: normal !important; text-transform: uppercase;">${tpl.previewWords[1]}</span>
-            <span class="accent-word" style="font-family: ${prominentFamily}; font-style: normal !important; color: var(--primary-coral); text-transform: uppercase;">${tpl.previewWords[2]}</span>
+            <span style="font-family: ${normalFamily}; font-style: normal !important; text-transform: uppercase; color: #ffffff;">${tpl.previewWords[1]}</span>
+            <span class="accent-word" style="font-family: ${prominentFamily}; font-style: normal !important; color: var(--primary-coral, #ff5533); text-transform: uppercase;">${tpl.previewWords[2]}</span>
           </div>
         ` : `
           <div class="template-preview-overlay template-preview-normal-line" style="font-style: normal !important;">
-            <span style="font-family: ${normalFamily}; font-style: normal !important; text-transform: uppercase;">${tpl.previewWords[0]}</span>
-            <span style="font-family: ${normalFamily}; font-style: normal !important; text-transform: uppercase;">${tpl.previewWords[1]}</span>
-            <span class="accent-word" style="font-family: ${prominentFamily}; font-style: normal !important; color: var(--primary-coral); text-transform: uppercase;">${tpl.previewWords[2]}</span>
+            <span style="font-family: ${normalFamily}; font-style: normal !important; text-transform: uppercase; color: #ffffff;">${tpl.previewWords[0]}</span>
+            <span style="font-family: ${normalFamily}; font-style: normal !important; text-transform: uppercase; color: #ffffff;">${tpl.previewWords[1]}</span>
+            <span class="accent-word" style="font-family: ${prominentFamily}; font-style: normal !important; color: var(--primary-coral, #ff5533); text-transform: uppercase;">${tpl.previewWords[2]}</span>
           </div>
         `}
       </div>
-      <div class="simple-template-card-body">
-        <div class="simple-template-title-row">
-          <h3>${tpl.name}</h3>
-          ${isSelected ? '<span class="badge badge-success">ACTIVE</span>' : ''}
-        </div>
-        <p class="simple-template-desc">${tpl.description}</p>
-        <div class="simple-template-meta">
-          <span>${isRealEstate ? 'Split layout' : 'Single line'}</span>
-          <span>${fontSet.name} fonts</span>
-        </div>
-        <button class="btn btn-black btn-block btn-select-simple-template" type="button">${isSelected ? 'Selected' : 'Select Template'}</button>
+      <div class="template-name-row">
+        <h3 class="template-item-name ${isSelected ? 'active' : ''}">${tpl.name}</h3>
       </div>
     `;
     card.addEventListener('click', () => this.selectTemplate(tpl.id));
-    card.querySelector('.btn-select-simple-template')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.selectTemplate(tpl.id);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.selectTemplate(tpl.id);
+      }
     });
     return card;
   }

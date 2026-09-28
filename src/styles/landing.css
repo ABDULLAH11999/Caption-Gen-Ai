@@ -532,8 +532,9 @@
   /* Vertical 2:3 Video Frame for Desktop */
   .compare-screen-frame {
     aspect-ratio: 2 / 3;
+    width: 100%;
     height: auto;
-    max-height: 520px;
+    max-height: none;
     align-items: center;
     justify-content: center;
     border-radius: 18px;
@@ -657,6 +658,7 @@
 
 .compare-screen-frame {
   aspect-ratio: 2 / 3;
+  width: 100%;
   height: auto;
   max-height: none;
   border-radius: 16px;
@@ -676,7 +678,7 @@
   height: 100%;
   padding: 0;
   border: 0;
-  background: #050508;
+  background: transparent;
   color: #ffffff;
   cursor: pointer;
   display: flex;
@@ -691,13 +693,13 @@
 
 .compare-demo-video {
   height: 100%;
-  width: auto;
+  width: 100%;
   max-width: 100%;
   max-height: 100%;
   display: block;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
-  background: #050508;
+  background: #000000;
 }
 
 .compare-video-overlay {
@@ -1672,17 +1674,19 @@
   }
   .compare-screen-frame {
     height: auto;
+    width: 100%;
     aspect-ratio: 2 / 3;
+    max-height: none;
     border-radius: 14px;
   }
   .compare-video-button {
-    background: #050508;
+    background: transparent;
   }
   .compare-demo-video {
-    width: auto;
+    width: 100%;
     height: 100%;
     max-width: 100%;
-    object-fit: contain;
+    object-fit: cover;
     object-position: center;
   }
   .compare-features-list {

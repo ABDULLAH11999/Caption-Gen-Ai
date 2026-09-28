@@ -117,13 +117,12 @@ export class LandingPage {
                   <span class="dot-indicator red"></span>
                   <span>BEFORE: RAW FOOTAGE</span>
                 </div>
-                <span class="compare-stat-pill red">&minus;58% Completion Rate</span>
               </div>
 
               <!-- Dummy Media Frame -->
               <div class="compare-screen-frame">
                 <button type="button" class="compare-video-button" aria-label="Play raw footage before video">
-                  <video class="compare-demo-video" src="/RawVideo.webm" preload="metadata" muted loop playsinline></video>
+                  <video class="compare-demo-video" src="/RawVideo.webm?v=20260929_23" preload="auto" muted loop playsinline></video>
                   <span class="compare-video-overlay">
                     <span class="compare-video-play-icon"></span>
                   </span>
@@ -157,7 +156,7 @@ export class LandingPage {
               <!-- Dummy Media Frame with Live Kinetic Overlay -->
               <div class="compare-screen-frame">
                 <button type="button" class="compare-video-button" aria-label="Play Zen Captions AI after video">
-                  <video class="compare-demo-video" src="/ZenCaptioned.webm" preload="metadata" muted loop playsinline></video>
+                  <video class="compare-demo-video" src="/ZenCaptioned.webm?v=20260929_23" preload="auto" muted loop playsinline></video>
                   <span class="compare-video-overlay">
                     <span class="compare-video-play-icon"></span>
                   </span>
