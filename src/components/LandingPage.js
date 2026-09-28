@@ -557,18 +557,18 @@ export class LandingPage {
           <img src="/preview-img.jpg?v=20260929_fresh3" alt="${tmpl.name} preview" loading="lazy">
           <div class="template-preview-vignette"></div>
           ${tmpl.isRealEstate ? `
-            <div class="template-preview-overlay template-preview-real-top" style="font-family: ${tmpl.accentFont}; font-style: normal !important; color: #ffffff;">
-              <span style="font-family: ${tmpl.accentFont}; font-style: normal !important; text-transform: uppercase; color: #ffffff;">${tmpl.previewWords[0]}</span>
+            <div class="template-preview-overlay template-preview-real-top" style="font-family: ${tmpl.accentFont}; font-style: normal !important; color: #ffffff !important;">
+              <span style="font-family: ${tmpl.accentFont}; font-style: normal !important; text-transform: uppercase; color: #ffffff !important;">${tmpl.previewWords[0]}</span>
             </div>
             <div class="template-preview-overlay template-preview-real-body" style="font-style: normal !important;">
-              <span style="font-family: ${tmpl.normalFont}; font-style: normal !important; text-transform: uppercase; color: #ffffff;">${tmpl.previewWords[1]}</span>
-              <span class="accent-word" style="font-family: ${tmpl.prominentFont}; font-style: normal !important; color: var(--primary-coral, #ff5533); text-transform: uppercase;">${tmpl.previewWords[2]}</span>
+              <span style="font-family: ${tmpl.normalFont}; font-style: normal !important; text-transform: uppercase; color: #ffffff !important;">${tmpl.previewWords[1]}</span>
+              <span class="accent-word" style="font-family: ${tmpl.prominentFont}; font-style: normal !important; color: #ff5533 !important; text-transform: uppercase;">${tmpl.previewWords[2]}</span>
             </div>
           ` : `
             <div class="template-preview-overlay template-preview-normal-line" style="font-style: normal !important;">
-              <span style="font-family: ${tmpl.normalFont}; font-style: normal !important; text-transform: uppercase; color: #ffffff;">${tmpl.previewWords[0]}</span>
-              <span style="font-family: ${tmpl.normalFont}; font-style: normal !important; text-transform: uppercase; color: #ffffff;">${tmpl.previewWords[1]}</span>
-              <span class="accent-word" style="font-family: ${tmpl.prominentFont}; font-style: normal !important; color: var(--primary-coral, #ff5533); text-transform: uppercase;">${tmpl.previewWords[2]}</span>
+              <span style="font-family: ${tmpl.normalFont}; font-style: normal !important; text-transform: uppercase; color: #ffffff !important;">${tmpl.previewWords[0]}</span>
+              <span style="font-family: ${tmpl.normalFont}; font-style: normal !important; text-transform: uppercase; color: #ffffff !important;">${tmpl.previewWords[1]}</span>
+              <span class="accent-word" style="font-family: ${tmpl.prominentFont}; font-style: normal !important; color: #ff5533 !important; text-transform: uppercase;">${tmpl.previewWords[2]}</span>
             </div>
           `}
         </div>

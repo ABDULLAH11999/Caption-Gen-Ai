@@ -426,8 +426,8 @@ body.app-shell-locked {
 .simple-template-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
-  max-width: 980px;
+  gap: 24px;
+  max-width: 1140px;
   margin: 0 auto;
   justify-content: center;
   width: 100%;
@@ -459,12 +459,12 @@ body.app-shell-locked {
 .template-image-preview {
   position: relative;
   width: 100%;
-  max-width: 200px;
+  max-width: 245px;
   aspect-ratio: 1311 / 1954;
   height: auto;
   margin: 0 auto 12px auto;
   overflow: hidden;
-  border-radius: 16px;
+  border-radius: 18px;
   background: #030712;
   display: flex;
   align-items: center;
@@ -499,38 +499,44 @@ body.app-shell-locked {
 .template-preview-overlay {
   position: absolute;
   z-index: 2;
-  color: #fff;
+  color: #ffffff;
   line-height: 1;
-  letter-spacing: -0.02em;
-  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.95);
   font-style: normal !important;
+  pointer-events: none;
 }
 
 /* Subtitle Preview: Top Left */
 .template-preview-normal-line {
-  left: 14px;
-  right: auto;
+  left: 12px;
+  right: 12px;
   top: 22px;
   transform: none;
   display: flex;
   flex-direction: row;
   align-items: baseline;
-  gap: 5px;
-  font-size: 15px;
-  font-weight: 800;
+  justify-content: flex-start;
+  gap: 4px;
+  font-size: 17.5px;
+  letter-spacing: -0.015em;
+  font-weight: 900;
   text-align: left;
   padding: 0;
-  color: #ffffff;
+  color: #ffffff !important;
+  white-space: nowrap;
 }
 
 .template-preview-normal-line span {
-  color: #ffffff;
+  color: #ffffff !important;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.95);
 }
 
 .template-preview-normal-line .accent-word,
 .template-preview-real-body .accent-word {
-  color: var(--primary-coral, #ff5533) !important;
+  color: #ff5533 !important;
   font-weight: 900;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.95);
 }
 
 /* Real Estate Preview: Top Center Word */
@@ -540,14 +546,16 @@ body.app-shell-locked {
   width: 90%;
   transform: translateX(-50%);
   text-align: center;
-  font-size: 22px;
+  font-size: 32px;
   font-style: normal !important;
-  font-weight: 800;
-  color: #ffffff;
+  font-weight: 900;
+  color: #ffffff !important;
+  letter-spacing: 0.02em;
 }
 
 .template-preview-real-top span {
-  color: #ffffff;
+  color: #ffffff !important;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.95);
 }
 
 /* Real Estate Preview: Middle Center Two Words */
@@ -563,18 +571,23 @@ body.app-shell-locked {
   align-items: baseline;
   justify-content: center;
   white-space: nowrap;
-  gap: 6px;
-  font-size: 16px;
+  gap: 8px;
+  font-size: 26px;
   font-style: normal !important;
-  font-weight: 800;
+  font-weight: 900;
   padding: 0;
-  color: #ffffff;
+  color: #ffffff !important;
   z-index: 2;
   text-align: center;
 }
 
 .template-preview-real-body span {
-  color: #ffffff;
+  color: #ffffff !important;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.95);
+}
+
+.template-preview-real-body .accent-word {
+  color: #ff5533 !important;
 }
 
 .template-name-row {
@@ -598,30 +611,34 @@ body.app-shell-locked {
   color: var(--primary-coral, #ff5533);
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1140px) {
   .simple-template-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 24px;
-    max-width: 520px;
+    max-width: 560px;
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 600px) {
   .simple-template-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    max-width: 360px;
+    gap: 14px;
+    max-width: 420px;
   }
   .template-item-name {
-    font-size: 13.5px;
+    font-size: 14px;
+  }
+  .template-preview-normal-line {
+    font-size: 14px;
+    gap: 3px;
   }
 }
 
-@media (max-width: 360px) {
+@media (max-width: 380px) {
   .simple-template-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
-    max-width: 220px;
+    gap: 18px;
+    max-width: 240px;
   }
 }
 
