@@ -883,7 +883,7 @@ export class UserDashboard {
     card.dataset.tplId = tpl.id;
     card.innerHTML = `
       <div class="template-image-preview ${isRealEstate ? 'real-estate-preview' : 'normal-preview'}">
-        <img src="/preview-img.png" alt="${tpl.name} preview" loading="lazy">
+        <img src="/preview-img.jpg" alt="${tpl.name} preview" loading="lazy">
         <div class="template-preview-vignette"></div>
         ${isRealEstate ? `
           <div class="template-preview-overlay template-preview-real-top" style="font-family: ${accentFamily}; font-style: normal !important;">

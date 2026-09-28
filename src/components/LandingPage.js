@@ -123,7 +123,7 @@ export class LandingPage {
               <!-- Dummy Media Frame -->
               <div class="compare-screen-frame">
                 <button type="button" class="compare-video-button" aria-label="Play raw footage before video">
-                  <video class="compare-demo-video" src="/Raw_Video.webm" preload="metadata" muted loop playsinline></video>
+                  <video class="compare-demo-video" src="/RawVideo.webm" preload="metadata" muted loop playsinline></video>
                   <span class="compare-video-overlay">
                     <span class="compare-video-play-icon"></span>
                   </span>
@@ -141,13 +141,7 @@ export class LandingPage {
                 </div>
               </div>
 
-              <div class="compare-card-footer">
-                <ul class="compare-features-list">
-                  <li class="negative">✕ Viewer drops off within first 3 seconds</li>
-                  <li class="negative">✕ Ignored on TikTok &amp; Reels feed</li>
-                  <li class="negative">✕ Zero keyword retention or visual anchors</li>
-                </ul>
-              </div>
+            
             </div>
 
             <!-- Card 2: After (Zen Captions Studio) -->
@@ -163,7 +157,7 @@ export class LandingPage {
               <!-- Dummy Media Frame with Live Kinetic Overlay -->
               <div class="compare-screen-frame">
                 <button type="button" class="compare-video-button" aria-label="Play Zen Captions AI after video">
-                  <video class="compare-demo-video" src="/Zen_Captioned_Video_60FPS.webm" preload="metadata" muted loop playsinline></video>
+                  <video class="compare-demo-video" src="/ZenCaptioned.webm" preload="metadata" muted loop playsinline></video>
                   <span class="compare-video-overlay">
                     <span class="compare-video-play-icon"></span>
                   </span>
@@ -191,14 +185,7 @@ export class LandingPage {
                 </div>
               </div>
 
-              <div class="compare-card-footer">
-                <ul class="compare-features-list">
-                  <li class="positive">✓ 99.2% Whisper AI transcription accuracy</li>
-                  <li class="positive">✓ High-impact dual font &amp; glowing neon keyword colors</li>
-                  <li class="positive">✓ Auto subject cutout renders text behind creators</li>
-                  <li class="positive">✓ Buttery-smooth 60 FPS broadcast export</li>
-                </ul>
-              </div>
+             
             </div>
 
           </div>
