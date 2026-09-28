@@ -781,6 +781,7 @@ export class UserDashboard {
     const isStudioWorkspace = this.activeTab === 'apply' && !!this.videoBlob && !this.isProcessing;
     host.classList.toggle('studio-workspace-active', isStudioWorkspace);
     host.classList.toggle('apply-workspace-active', this.activeTab === 'apply');
+    host.classList.add('dashboard-shell-active');
     this.resetDashboardScroll();
 
     if (this.activeTab === 'templates') {
@@ -4115,18 +4116,19 @@ export class UserDashboard {
     const monthlyPct = Math.min(100, Math.round((monthlyUsed / Math.max(1, monthlyLimit)) * 100));
 
     wrap.innerHTML = `
-      <header class="dashboard-top-bar">
+      <header class="dashboard-top-bar dashboard-top-bar-aligned">
         <div>
           <h1 class="user-tab-title">My Plan &amp; Quota Management</h1>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="dashboard-header-actions">
           <div class="workspace-style-preset-box" title="Active Plan">
             <span class="style-preset-label">Plan:</span>
             <strong>${planName}</strong>
           </div>
-          <button class="btn btn-outline btn-sm" id="btn-quota-create-shortcut" style="padding: 7px 16px; font-size: 12.5px;">
-            🎬 Create Video
+          <button class="btn btn-primary btn-sm" id="btn-quota-create-shortcut" style="padding: 7px 16px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <span>Create Video</span>
           </button>
         </div>
       </header>
