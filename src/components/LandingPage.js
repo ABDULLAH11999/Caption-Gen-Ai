@@ -267,17 +267,17 @@ export class LandingPage {
       <!-- 4. TEMPLATES & PRESETS SHOWCASE (SPLIT LAYOUT: 16+ PRESETS TEXT ON LEFT, 3 POPULAR ON RIGHT) -->
       <section class="section-wrap" id="templates">
         <div class="presets-split-container">
-          <!-- LEFT SIDE: 16+ Creator Presets Headline, Description, Perks, & Studio Trigger -->
+          <!-- LEFT SIDE: Creator Presets Headline, Description, Perks, & Studio Trigger -->
           <div class="presets-split-left">
             <div class="presets-badge-row">
               <span class="badge badge-purple">✨ Preset Library</span>
-              <span class="presets-count-badge">16 Total Styles</span>
+              <span class="presets-count-badge">Studio Presets</span>
             </div>
 
-            <h2 class="presets-split-heading">16+ Ready-Made Creator Presets &amp; Customizable Styles</h2>
+            <h2 class="presets-split-heading">Ready-Made Creator Presets &amp; Customizable Styles</h2>
             
             <p class="presets-split-subheading">
-              A 100% free captions generator customizable for TikTok, YouTube Shorts, Real Estate, and Instagram Reels. Every template is engineered for maximum retention, instant virality, and crisp mobile viewing.
+              A 100% free captions generator customizable for TikTok, YouTube Shorts, Real Estate, and Instagram Reels. Choose between Subtitle, Subtitle Fancy, Real Estate, and Real Estate Fancy presets with built-in typography sets.
             </p>
 
             <div class="presets-split-cta-group">
@@ -285,7 +285,7 @@ export class LandingPage {
                 <span>⚡ Open Studio Presets</span>
               </button>
               <button class="btn btn-outline" id="btn-toggle-all-templates">
-                <span id="btn-toggle-templates-label">Explore All 16 Presets ↓</span>
+                <span id="btn-toggle-templates-label">Explore Presets ↓</span>
               </button>
             </div>
           </div>
@@ -324,11 +324,11 @@ export class LandingPage {
         <div class="all-presets-drawer" id="all-presets-drawer" style="display: none;">
           <div class="all-presets-drawer-header">
             <div>
-              <h3 class="all-presets-drawer-title">All 16+ Creator Presets &amp; Aesthetic Styles</h3>
+              <h3 class="all-presets-drawer-title">Creator Caption Presets &amp; Aesthetic Styles</h3>
               <p class="all-presets-drawer-sub">Select any preset below to immediately load into Caption Studio</p>
             </div>
             <button class="btn btn-outline btn-sm" id="btn-close-all-templates">
-              <span>✕ Hide Full Library</span>
+              <span>✕ Hide Presets</span>
             </button>
           </div>
 
@@ -503,24 +503,89 @@ export class LandingPage {
   }
 
   renderTemplatesShowcase() {
-    const popularContainer = this.container.querySelector('#popular-presets-container');
     const fullGrid = this.container.querySelector('#templates-grid');
     if (!fullGrid) return;
-
-    if (popularContainer) {
-      popularContainer.innerHTML = '';
-      const popularTemplates = CAPTION_TEMPLATES.slice(0, 3);
-      popularTemplates.forEach((tmpl, idx) => {
-        const card = this.createTemplateCard(tmpl, true, idx + 1);
-        popularContainer.appendChild(card);
-      });
-    }
-
     fullGrid.innerHTML = '';
 
-    // All 16 Presets for Expandable Drawer
-    CAPTION_TEMPLATES.forEach(tmpl => {
-      const card = this.createTemplateCard(tmpl, false);
+    const studioTemplates = [
+      {
+        id: 'subtitle',
+        name: 'Subtitle',
+        previewWords: ['MAKE', 'EVERY', 'WORD'],
+        isRealEstate: false,
+        normalFont: "'Righteous', sans-serif",
+        prominentFont: "'Outfit', sans-serif",
+        accentFont: "'Oswald', sans-serif"
+      },
+      {
+        id: 'subtitle-fancy',
+        name: 'Subtitle Fancy',
+        previewWords: ['MAKE', 'EVERY', 'WORD'],
+        isRealEstate: false,
+        normalFont: "'Cormorant Garamond', Georgia, serif",
+        prominentFont: "'Italiana', serif",
+        accentFont: "'Cinzel', serif"
+      },
+      {
+        id: 'real-estate',
+        name: 'Real Estate',
+        previewWords: ['HOW', 'TO', 'MAKE'],
+        isRealEstate: true,
+        normalFont: "'Righteous', sans-serif",
+        prominentFont: "'Outfit', sans-serif",
+        accentFont: "'Oswald', sans-serif"
+      },
+      {
+        id: 'real-estate-fancy',
+        name: 'Real Estate Fancy',
+        previewWords: ['HOW', 'TO', 'MAKE'],
+        isRealEstate: true,
+        normalFont: "'Cormorant Garamond', Georgia, serif",
+        prominentFont: "'Italiana', serif",
+        accentFont: "'Cinzel', serif"
+      }
+    ];
+
+    studioTemplates.forEach(tmpl => {
+      const card = document.createElement('article');
+      card.className = 'simple-template-card';
+      card.dataset.tplId = tmpl.id;
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.innerHTML = `
+        <div class="template-image-preview ${tmpl.isRealEstate ? 'real-estate-preview' : 'normal-preview'}">
+          <img src="/preview-img.jpg?v=20260929_fresh3" alt="${tmpl.name} preview" loading="lazy">
+          <div class="template-preview-vignette"></div>
+          ${tmpl.isRealEstate ? `
+            <div class="template-preview-overlay template-preview-real-top" style="font-family: ${tmpl.accentFont}; font-style: normal !important; color: #ffffff;">
+              <span style="font-family: ${tmpl.accentFont}; font-style: normal !important; text-transform: uppercase; color: #ffffff;">${tmpl.previewWords[0]}</span>
+            </div>
+            <div class="template-preview-overlay template-preview-real-body" style="font-style: normal !important;">
+              <span style="font-family: ${tmpl.normalFont}; font-style: normal !important; text-transform: uppercase; color: #ffffff;">${tmpl.previewWords[1]}</span>
+              <span class="accent-word" style="font-family: ${tmpl.prominentFont}; font-style: normal !important; color: var(--primary-coral, #ff5533); text-transform: uppercase;">${tmpl.previewWords[2]}</span>
+            </div>
+          ` : `
+            <div class="template-preview-overlay template-preview-normal-line" style="font-style: normal !important;">
+              <span style="font-family: ${tmpl.normalFont}; font-style: normal !important; text-transform: uppercase; color: #ffffff;">${tmpl.previewWords[0]}</span>
+              <span style="font-family: ${tmpl.normalFont}; font-style: normal !important; text-transform: uppercase; color: #ffffff;">${tmpl.previewWords[1]}</span>
+              <span class="accent-word" style="font-family: ${tmpl.prominentFont}; font-style: normal !important; color: var(--primary-coral, #ff5533); text-transform: uppercase;">${tmpl.previewWords[2]}</span>
+            </div>
+          `}
+        </div>
+        <div class="template-name-row">
+          <h3 class="template-item-name">${tmpl.name}</h3>
+        </div>
+      `;
+      const selectTpl = () => {
+        this.onNavigate('app', { templateId: tmpl.id });
+      };
+      card.addEventListener('click', selectTpl);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectTpl();
+        }
+      });
       fullGrid.appendChild(card);
     });
 
@@ -534,18 +599,18 @@ export class LandingPage {
       const isHidden = drawer.style.display === 'none';
       if (isHidden) {
         drawer.style.display = 'block';
-        if (toggleLabel) toggleLabel.textContent = '✕ Hide Full Library';
+        if (toggleLabel) toggleLabel.textContent = '✕ Hide Presets';
         drawer.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else {
         drawer.style.display = 'none';
-        if (toggleLabel) toggleLabel.textContent = 'Explore All 16 Presets ↓';
+        if (toggleLabel) toggleLabel.textContent = 'Explore Presets ↓';
       }
     };
 
     toggleBtn?.addEventListener('click', toggleDrawer);
     closeBtn?.addEventListener('click', () => {
       drawer.style.display = 'none';
-      if (toggleLabel) toggleLabel.textContent = 'Explore All 16 Presets ↓';
+      if (toggleLabel) toggleLabel.textContent = 'Explore Presets ↓';
     });
 
     this.container.querySelector('#btn-hero-launch-studio')?.addEventListener('click', () => {

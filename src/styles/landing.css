@@ -1272,8 +1272,18 @@
 
 .templates-showcase-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px 24px;
+  max-width: 640px;
+  margin: 0 auto;
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .templates-showcase-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
 }
 
 .template-showcase-card {

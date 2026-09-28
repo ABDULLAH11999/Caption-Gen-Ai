@@ -425,11 +425,12 @@ body.app-shell-locked {
 
 .simple-template-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 32px 24px;
-  max-width: 640px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  max-width: 980px;
   margin: 0 auto;
   justify-content: center;
+  width: 100%;
 }
 
 .simple-template-card {
@@ -549,22 +550,27 @@ body.app-shell-locked {
   color: #ffffff;
 }
 
-/* Real Estate Preview: Middle Left Two Words */
+/* Real Estate Preview: Middle Center Two Words */
 .template-preview-real-body {
-  left: 14px;
+  position: absolute;
+  left: 50%;
   right: auto;
   top: 48%;
   bottom: auto;
-  transform: translateY(-50%);
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: row;
   align-items: baseline;
-  gap: 5px;
+  justify-content: center;
+  white-space: nowrap;
+  gap: 6px;
   font-size: 16px;
   font-style: normal !important;
   font-weight: 800;
   padding: 0;
   color: #ffffff;
+  z-index: 2;
+  text-align: center;
 }
 
 .template-preview-real-body span {
@@ -592,12 +598,29 @@ body.app-shell-locked {
   color: var(--primary-coral, #ff5533);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
+  .simple-template-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    max-width: 520px;
+  }
+}
+
+@media (max-width: 560px) {
+  .simple-template-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    max-width: 360px;
+  }
+  .template-item-name {
+    font-size: 13.5px;
+  }
+}
+
+@media (max-width: 360px) {
   .simple-template-grid {
     grid-template-columns: 1fr;
-    gap: 24px;
-  }
-  .template-image-preview {
+    gap: 16px;
     max-width: 220px;
   }
 }

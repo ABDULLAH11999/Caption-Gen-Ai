@@ -29,31 +29,51 @@ import { selfieSegmenterService } from '../services/selfieSegmenter.js';
 
 const DASHBOARD_TEMPLATE_OPTIONS = [
   {
-    id: 'normal-line',
+    id: 'subtitle',
     name: 'Subtitle',
-    description: 'Standard single-line captions using the Midnight Minimalist base.',
+    baseType: 'subtitle',
+    fontSetId: 'basic',
+    description: 'Clean modern subtitle with basic bold typography.',
+    previewWords: ['MAKE', 'EVERY', 'WORD']
+  },
+  {
+    id: 'subtitle-fancy',
+    name: 'Subtitle Fancy',
+    baseType: 'subtitle',
+    fontSetId: 'fancy',
+    description: 'Elegant serif subtitle with luxury editorial aesthetic.',
     previewWords: ['MAKE', 'EVERY', 'WORD']
   },
   {
     id: 'real-estate',
     name: 'Real Estate',
-    description: 'Luxury layout with one top word and two supporting words.',
+    baseType: 'real-estate',
+    fontSetId: 'basic',
+    description: 'Bold stacked caption with top headline and centered punchy body.',
+    previewWords: ['HOW', 'TO', 'MAKE']
+  },
+  {
+    id: 'real-estate-fancy',
+    name: 'Real Estate Fancy',
+    baseType: 'real-estate',
+    fontSetId: 'fancy',
+    description: 'Refined stacked caption featuring luxury editorial typography.',
     previewWords: ['HOW', 'TO', 'MAKE']
   }
 ];
 
 const BASE_FONT_SETS = {
-  fancy: {
-    id: 'fancy',
-    name: 'Fancy',
-    label: 'Cormorant / Emily / Cinzel',
-    fonts: ['CormorantGaramond', 'Italiana', 'Cinzel']
-  },
   basic: {
     id: 'basic',
     name: 'Basic',
     label: 'Righteous / Outfit / Oswald',
     fonts: ['Righteous', 'Outfit', 'Oswald']
+  },
+  fancy: {
+    id: 'fancy',
+    name: 'Fancy',
+    label: 'Cormorant / Emily / Cinzel',
+    fonts: ['CormorantGaramond', 'Italiana', 'Cinzel']
   }
 };
 
@@ -65,14 +85,16 @@ export class UserDashboard {
     this.toolStudio = options.toolStudio || null;
     this.initialFile = options.initialFile || null;
     this.initialFileStarted = false;
-    this.initialTemplateId = DASHBOARD_TEMPLATE_OPTIONS.some(t => t.id === options.initialTemplateId)
-      ? options.initialTemplateId
-      : 'normal-line';
+    const candidateId = options.initialTemplateId === 'normal-line' ? 'subtitle' : options.initialTemplateId;
+    this.initialTemplateId = DASHBOARD_TEMPLATE_OPTIONS.some(t => t.id === candidateId)
+      ? candidateId
+      : 'subtitle';
 
     this.activeTab = 'apply'; // 'templates' | 'apply' | 'quota'
     this.currentMode = 'landscape'; // 'landscape' | 'portrait'
     this.selectedTemplateId = this.initialTemplateId;
-    this.selectedBaseFontSet = 'basic';
+    const initialTpl = this.getDashboardTemplateMeta(this.selectedTemplateId);
+    this.selectedBaseFontSet = initialTpl?.fontSetId || 'basic';
     this.userCustomTemplates = {}; // templateId -> custom config
     this.activeConfig = this.getTemplateConfig(this.selectedTemplateId, this.selectedBaseFontSet);
 
@@ -131,20 +153,25 @@ export class UserDashboard {
   }
 
   getDashboardTemplateMeta(templateId = this.selectedTemplateId) {
-    return DASHBOARD_TEMPLATE_OPTIONS.find(t => t.id === templateId) || DASHBOARD_TEMPLATE_OPTIONS[0];
+    const targetId = templateId === 'normal-line' ? 'subtitle' : templateId;
+    return DASHBOARD_TEMPLATE_OPTIONS.find(t => t.id === targetId) || DASHBOARD_TEMPLATE_OPTIONS[0];
   }
 
   getBaseFontSet(fontSetId = this.selectedBaseFontSet) {
     return BASE_FONT_SETS[fontSetId] || BASE_FONT_SETS.basic;
   }
 
-  getTemplateConfig(templateId = this.selectedTemplateId, fontSetId = this.selectedBaseFontSet) {
-    const fontSet = this.getBaseFontSet(fontSetId);
+  getTemplateConfig(templateId = this.selectedTemplateId, fontSetId = null) {
+    const targetId = templateId === 'normal-line' ? 'subtitle' : templateId;
+    const tpl = this.getDashboardTemplateMeta(targetId);
+    const resolvedFontSetId = fontSetId || tpl?.fontSetId || (targetId.endsWith('-fancy') ? 'fancy' : 'basic');
+    const fontSet = this.getBaseFontSet(resolvedFontSetId);
     const [normalFont, prominentFont, accentFont] = fontSet.fonts;
-    const isRealEstate = templateId === 'real-estate';
+    const isRealEstate = tpl?.baseType === 'real-estate' || targetId.startsWith('real-estate');
     return {
       ...DEFAULT_LANDSCAPE_CONFIG,
-      templateId,
+      templateId: targetId,
+      fontSetId: resolvedFontSetId,
       normalFontFamily: normalFont,
       prominentFontFamily: prominentFont,
       accentFontFamily: accentFont,
@@ -157,8 +184,8 @@ export class UserDashboard {
       prominentOutlineColor: 'transparent',
       prominentOutlineWidth: 0,
       shadowBlur: isRealEstate ? 10 : 0,
-      animation: isRealEstate ? 'anim-fade' : 'anim-fade',
-      uppercase: false,
+      animation: 'anim-fade',
+      uppercase: true,
       karaokeHighlightColor: '#FF5533',
       enableLastWordColor: true,
       lastWordColor: '#FF5533',
@@ -168,6 +195,10 @@ export class UserDashboard {
   }
 
   syncTemplateConfig() {
+    const tpl = this.getDashboardTemplateMeta(this.selectedTemplateId);
+    if (tpl?.fontSetId) {
+      this.selectedBaseFontSet = tpl.fontSetId;
+    }
     this.activeConfig = this.getTemplateConfig(this.selectedTemplateId, this.selectedBaseFontSet);
     if (this.toolStudio) this.toolStudio.setActiveConfig(this.activeConfig);
     this.lastRenderedSentenceKey = null;
@@ -181,8 +212,10 @@ export class UserDashboard {
   }
 
   styleCaptionSentencesForActiveTemplate(sentences = []) {
-    const cfg = this.getTemplateConfig(this.selectedTemplateId, this.selectedBaseFontSet);
-    const isRealEstate = this.selectedTemplateId === 'real-estate';
+    const tpl = this.getDashboardTemplateMeta(this.selectedTemplateId);
+    const fontSetId = tpl?.fontSetId || (this.selectedTemplateId.endsWith('-fancy') ? 'fancy' : 'basic');
+    const cfg = this.getTemplateConfig(this.selectedTemplateId, fontSetId);
+    const isRealEstate = tpl?.baseType === 'real-estate' || this.selectedTemplateId.startsWith('real-estate');
     return (sentences || []).map((sentence, index) => {
       const text = String(sentence.text || '').trim();
       const tokens = text.split(/\s+/).filter(Boolean);
@@ -210,7 +243,7 @@ export class UserDashboard {
         fontSize: isRealEstate ? 50 : 30,
         boxWidth: isRealEstate ? 92 : 74,
         templateMode: this.selectedTemplateId,
-        baseFontSet: this.selectedBaseFontSet,
+        baseFontSet: fontSetId,
         italic: false,
         words: sourceWords
       };
@@ -813,7 +846,6 @@ export class UserDashboard {
     wrap.className = 'dashboard-page-container';
 
     const activeTpl = this.getDashboardTemplateMeta();
-    const activeFontSet = this.getBaseFontSet();
 
     wrap.innerHTML = `
       <header class="dashboard-top-bar dashboard-top-bar-aligned">
@@ -829,50 +861,29 @@ export class UserDashboard {
       </header>
 
       <div class="dashboard-content-scroll">
-       
-
-        <div class="template-fontset-panel">
-          <div>
-            <h3>Base Font Set</h3>
-            <p>${activeFontSet.label}</p>
-          </div>
-          <div class="template-fontset-row" id="template-fontset-row">
-            ${Object.values(BASE_FONT_SETS).map(set => `
-              <button class="template-fontset-option ${this.selectedBaseFontSet === set.id ? 'selected' : ''}" data-font-set="${set.id}" type="button">
-                <span class="fontset-radio-dot"></span>
-                <span>
-                  <strong>${set.name}</strong>
-                  <small>${set.label}</small>
-                </span>
-              </button>
-            `).join('')}
-          </div>
-        </div>
-
         <div class="simple-template-grid" id="simple-template-grid"></div>
       </div>
 
       <footer class="dashboard-bottom-dock">
-        <span>⚡ Zen Caption AI Studio &bull; 2 fixed caption presets</span>
-        <span>Subtitle &bull; Real Estate &bull; No stroke by default</span>
+        <span>⚡ Zen Caption AI Studio &bull; 4 Studio Caption Presets</span>
+        <span>Subtitle &bull; Subtitle Fancy &bull; Real Estate &bull; Real Estate Fancy &bull; No stroke by default</span>
       </footer>
     `;
 
     parent.appendChild(wrap);
     wrap.querySelector('#btn-templates-apply-shortcut')?.addEventListener('click', () => this.switchTab('apply'));
-    wrap.querySelectorAll('[data-font-set]').forEach(btn => btn.addEventListener('click', () => this.selectBaseFontSet(btn.dataset.fontSet)));
     const grid = wrap.querySelector('#simple-template-grid');
     DASHBOARD_TEMPLATE_OPTIONS.forEach(tpl => grid.appendChild(this.renderTemplateOptionCard(tpl)));
   }
 
   renderTemplateOptionCard(tpl) {
     const isSelected = this.selectedTemplateId === tpl.id;
-    const fontSet = this.getBaseFontSet();
+    const fontSet = this.getBaseFontSet(tpl.fontSetId);
     const [normalFont, prominentFont, accentFont] = fontSet.fonts;
     const normalFamily = this.getFontFamily(normalFont);
     const prominentFamily = this.getFontFamily(prominentFont);
     const accentFamily = this.getFontFamily(accentFont);
-    const isRealEstate = tpl.id === 'real-estate';
+    const isRealEstate = tpl.baseType === 'real-estate' || tpl.id.startsWith('real-estate');
     const card = document.createElement('article');
     card.className = `simple-template-card ${isSelected ? 'selected' : ''}`;
     card.dataset.tplId = tpl.id;
@@ -881,7 +892,7 @@ export class UserDashboard {
     card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
     card.innerHTML = `
       <div class="template-image-preview ${isRealEstate ? 'real-estate-preview' : 'normal-preview'}">
-        <img src="/preview-img.jpg" alt="${tpl.name} preview" loading="lazy">
+        <img src="/preview-img.jpg?v=20260929_fresh3" alt="${tpl.name} preview" loading="lazy">
         <div class="template-preview-vignette"></div>
         ${isRealEstate ? `
           <div class="template-preview-overlay template-preview-real-top" style="font-family: ${accentFamily}; font-style: normal !important; color: #ffffff;">
@@ -914,14 +925,19 @@ export class UserDashboard {
   }
 
   selectTemplate(tplId) {
-    if (!DASHBOARD_TEMPLATE_OPTIONS.some(t => t.id === tplId)) return;
-    this.selectedTemplateId = tplId;
+    const targetId = tplId === 'normal-line' ? 'subtitle' : tplId;
+    if (!DASHBOARD_TEMPLATE_OPTIONS.some(t => t.id === targetId)) return;
+    this.selectedTemplateId = targetId;
+    const tpl = this.getDashboardTemplateMeta(targetId);
+    if (tpl?.fontSetId) {
+      this.selectedBaseFontSet = tpl.fontSetId;
+    }
     this.syncTemplateConfig();
     soundFx.playTemplateSelect();
     if (this.sourceCaptionSentences?.length) {
       captionEngine.setSentences(this.styleCaptionSentencesForActiveTemplate(this.sourceCaptionSentences));
     }
-    this.showToast(`Selected "${this.getDashboardTemplateMeta().name}" template.`, 'info');
+    this.showToast(`Selected "${tpl.name}" template.`, 'info');
     if (this.activeTab === 'templates') this.renderTemplatesTab(this.container.querySelector('#user-workspace-content'));
     this.updateCaptionOverlay();
   }
@@ -2371,7 +2387,7 @@ export class UserDashboard {
     let chunkOffset = 0;
 
     const isPortrait = this.currentMode === 'portrait';
-    const isRealEstate = this.selectedTemplateId === 'real-estate' || currentSentence.templateMode === 'real-estate' || !!currentSentence.realEstateLayout;
+    const isRealEstate = this.selectedTemplateId?.startsWith('real-estate') || currentSentence.templateMode?.startsWith('real-estate') || !!currentSentence.realEstateLayout;
     const defaultBaseFontSize = isPortrait ? 25 : ((cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28);
     const customSentenceSize = (currentSentence.fontSize !== undefined && currentSentence.fontSize !== null && currentSentence.fontSize > 0)
       ? Number(currentSentence.fontSize)
@@ -2440,7 +2456,7 @@ export class UserDashboard {
 
       let color = isProminent ? prominentColor : defaultTextColor;
       if (isRealEstate) {
-        color = isTopWord ? '#FFFFFF' : prominentColor;
+        color = isTopWord ? '#FFFFFF' : (localIdx === displayWords.length - 1 ? prominentColor : '#FFFFFF');
       } else if (isLastWord && hasLastWordColor) {
         color = lastWordColor;
       }
@@ -2931,7 +2947,7 @@ export class UserDashboard {
           const fontId = opt.getAttribute('data-font');
           s.fontFamily = fontId;
           const chosenFont = FONTS.find(f => f.id === fontId);
-          const isRealEstateMode = this.selectedTemplateId === 'real-estate' || s.templateMode === 'real-estate' || !!s.realEstateLayout;
+          const isRealEstateMode = this.selectedTemplateId?.startsWith('real-estate') || s.templateMode?.startsWith('real-estate') || !!s.realEstateLayout;
           if (isRealEstateMode) {
             s.italic = false;
           } else if (chosenFont?.defaultItalic !== undefined) {
@@ -4204,8 +4220,145 @@ export class UserDashboard {
     });
 
     wrap.querySelector('#btn-quota-upgrade')?.addEventListener('click', () => {
-      this.navigate('pricing');
+      this.openUpgradeRequestModal();
     });
+  }
+
+  getNextUpgradablePlan() {
+    const plans = [
+      {
+        id: 'free',
+        name: 'Free Starter',
+        price: '$0',
+        billing: 'forever',
+        description: 'Perfect for casual creators testing viral video subtitles.'
+      },
+      {
+        id: 'creator-pro',
+        name: 'Creator Pro',
+        price: '$19',
+        billing: 'mo',
+        description: 'For YouTubers, TikTokers & agencies seeking maximum watch time and 50 daily captions.'
+      },
+      {
+        id: 'agency-elite',
+        name: 'Agency Elite',
+        price: '$49',
+        billing: 'mo',
+        description: 'Enterprise speed, dedicated AI concurrency, higher quotas & priority cloud sync.'
+      }
+    ];
+
+    const currentPlanName = (this.quotaInfo?.planName || '').toLowerCase();
+    if (currentPlanName.includes('agency')) {
+      return plans[2];
+    } else if (currentPlanName.includes('creator') || currentPlanName.includes('pro')) {
+      return plans[2]; // Next is Agency Elite
+    } else {
+      return plans[1]; // If on free / guest, next higher plan is Creator Pro ($19)
+    }
+  }
+
+  openUpgradeRequestModal() {
+    const targetPlan = this.getNextUpgradablePlan();
+    let modal = document.getElementById('dashboard-purchase-modal-backdrop');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.className = 'saas-modal-backdrop';
+      modal.id = 'dashboard-purchase-modal-backdrop';
+      document.body.appendChild(modal);
+    }
+
+    const user = api.user;
+    const userName = user?.name || '';
+    const userEmail = user?.email || '';
+
+    modal.innerHTML = `
+      <div class="saas-modal-dialog">
+        <div class="saas-modal-header">
+          <h3 class="saas-modal-title">Upgrade Plan Request</h3>
+          <button type="button" class="saas-modal-close" id="btn-close-quota-upgrade">&times;</button>
+        </div>
+
+        <div class="card" style="margin-bottom: 20px; background: #fafbfe; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <strong style="font-size: 18px; color: #000000;">${targetPlan.name}</strong>
+              <div style="font-size: 13px; color: #64748b; margin-top: 4px;">${targetPlan.description}</div>
+            </div>
+            <div style="font-size: 24px; font-weight: 900; color: #0a0a0e; white-space: nowrap;">${targetPlan.price} / ${targetPlan.billing}</div>
+          </div>
+        </div>
+
+        <form id="form-quota-upgrade-request">
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" for="quota-upgrade-name" style="font-size: 13px; font-weight: 700; display: block; margin-bottom: 6px;">Full Name</label>
+            <input type="text" class="form-control" id="quota-upgrade-name" required placeholder="Your full name" value="${userName}">
+          </div>
+
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" for="quota-upgrade-email" style="font-size: 13px; font-weight: 700; display: block; margin-bottom: 6px;">Email Address</label>
+            <input type="email" class="form-control" id="quota-upgrade-email" required placeholder="you@example.com" value="${userEmail}">
+          </div>
+
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" for="quota-upgrade-phone" style="font-size: 13px; font-weight: 700; display: block; margin-bottom: 6px;">Phone / WhatsApp (Optional)</label>
+            <input type="tel" class="form-control" id="quota-upgrade-phone" placeholder="+1 (555) 000-0000">
+          </div>
+
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label" for="quota-upgrade-notes" style="font-size: 13px; font-weight: 700; display: block; margin-bottom: 6px;">Custom Notes / Needs (Optional)</label>
+            <textarea class="form-control" id="quota-upgrade-notes" rows="3" placeholder="Tell us about your team, volume or desired features..."></textarea>
+          </div>
+
+          <div class="saas-modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+            <button type="button" class="btn btn-outline" id="btn-cancel-quota-upgrade">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-quota-upgrade">Submit Upgrade Request</button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    const closeModal = () => {
+      modal.classList.remove('open');
+    };
+
+    modal.querySelector('#btn-close-quota-upgrade')?.addEventListener('click', closeModal);
+    modal.querySelector('#btn-cancel-quota-upgrade')?.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    modal.querySelector('#form-quota-upgrade-request')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = modal.querySelector('#btn-submit-quota-upgrade');
+      if (submitBtn) submitBtn.disabled = true;
+
+      const name = modal.querySelector('#quota-upgrade-name')?.value;
+      const email = modal.querySelector('#quota-upgrade-email')?.value;
+      const phone = modal.querySelector('#quota-upgrade-phone')?.value;
+      const notes = modal.querySelector('#quota-upgrade-notes')?.value;
+
+      try {
+        await api.submitPurchase({
+          planId: targetPlan.id,
+          planName: targetPlan.name,
+          name,
+          email,
+          phone,
+          notes
+        });
+        soundFx.playSaveSuccess();
+        this.showToast('Upgrade request submitted! Our team will contact you shortly.', 'success');
+        closeModal();
+      } catch (err) {
+        this.showToast('Failed to submit upgrade request: ' + (err.message || 'Error'), 'error');
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    });
+
+    requestAnimationFrame(() => modal.classList.add('open'));
   }
 
   sleep(ms) {

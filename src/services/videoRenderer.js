@@ -339,7 +339,7 @@ export class VideoRenderer {
     }
 
     const isPortrait = canvasHeight > canvasWidth;
-    const isRealEstate = (config.templateId === 'real-estate' || sentence.templateMode === 'real-estate' || !!sentence.realEstateLayout);
+    const isRealEstate = (config.templateId === 'real-estate' || config.templateId === 'real-estate-fancy' || String(config.templateId).startsWith('real-estate') || sentence.templateMode === 'real-estate' || sentence.templateMode === 'real-estate-fancy' || String(sentence.templateMode).startsWith('real-estate') || !!sentence.realEstateLayout);
     const customSentenceSize = (sentence.fontSize !== undefined && sentence.fontSize !== null && sentence.fontSize > 0)
       ? Number(sentence.fontSize)
       : null;
@@ -400,7 +400,7 @@ export class VideoRenderer {
 
       let color = isProminent ? prominentColor : defaultTextColor;
       if (isRealEstate) {
-        color = isTopWord ? '#FFFFFF' : prominentColor;
+        color = isTopWord ? '#FFFFFF' : (localIdx === words.length - 1 ? prominentColor : '#FFFFFF');
       } else if (isLastWord && hasLastWordColor) {
         color = lastWordColor;
       }
