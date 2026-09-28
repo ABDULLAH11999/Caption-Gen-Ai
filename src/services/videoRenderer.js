@@ -386,16 +386,13 @@ export class VideoRenderer {
       const isTopWord = isRealEstate && localIdx === 0;
       const currentFontSize = isRealEstate ? (isTopWord ? realEstateTopSize : realEstateBodySize) : baseFontSize;
 
-      let font = segmentFontFamily || (isProminent ? prominentFontFamily : normalFontFamily);
+      let font = normalFontFamily;
       if (isRealEstate) {
         font = isTopWord
           ? this.getFontFamily(config.accentFontFamily || config.prominentFontFamily)
           : (localIdx === words.length - 1 ? prominentFontFamily : normalFontFamily);
-      } else if (isLastWord && hasLastWordColor) {
-        font = segmentFontFamily || prominentFontFamily;
-      }
-      if (isSpeaking && !isRealEstate) {
-        font = segmentFontFamily || prominentFontFamily;
+      } else {
+        font = (isProminent || isSpeaking) ? prominentFontFamily : (segmentFontFamily || normalFontFamily);
       }
 
       let color = isProminent ? prominentColor : defaultTextColor;

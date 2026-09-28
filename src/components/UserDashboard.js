@@ -249,7 +249,13 @@ export class UserDashboard {
       };
 
       if (!isRealEstate) {
-        return { ...base, posX: 6, posY: 50 };
+        // Subtitle & Subtitle Fancy: default to Top Left (14%, 10%) matching preview
+        return {
+          ...base,
+          posX: 14,
+          posY: 10,
+          boxWidth: 78
+        };
       }
 
       return {
@@ -934,11 +940,19 @@ export class UserDashboard {
     }
     this.syncTemplateConfig();
     soundFx.playTemplateSelect();
-    if (this.sourceCaptionSentences?.length) {
+
+    const currentSentences = captionEngine.sentences?.length ? captionEngine.sentences : (this.sourceCaptionSentences?.length ? this.sourceCaptionSentences : []);
+    if (currentSentences?.length) {
+      this.sourceCaptionSentences = this.cloneSourceSentences(currentSentences);
       captionEngine.setSentences(this.styleCaptionSentencesForActiveTemplate(this.sourceCaptionSentences));
     }
+
     this.showToast(`Selected "${tpl.name}" template.`, 'info');
-    if (this.activeTab === 'templates') this.renderTemplatesTab(this.container.querySelector('#user-workspace-content'));
+    if (this.activeTab === 'templates') {
+      this.renderTemplatesTab(this.container.querySelector('#user-workspace-content'));
+    } else if (this.activeTab === 'apply') {
+      this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
+    }
     this.updateCaptionOverlay();
   }
 
@@ -1322,8 +1336,8 @@ export class UserDashboard {
     }
 
     // WORKSPACE VIEW (Video Player + Live Overlay + Transcript Sidebar)
-    const activeTemplate = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
-    const activeTemplateName = activeTemplate?.name || 'Default Style';
+    const activeTemplate = this.getDashboardTemplateMeta(this.selectedTemplateId);
+    const activeTemplateName = activeTemplate?.name || 'Subtitle';
     wrap.innerHTML = `
       <div class="workspace-studio-layout">
         
@@ -1806,7 +1820,8 @@ export class UserDashboard {
       await this.sleep(200);
 
       if (transcribeResult && transcribeResult.sentences && transcribeResult.sentences.length > 0) {
-        captionEngine.setSentences(transcribeResult.sentences);
+        this.sourceCaptionSentences = this.cloneSourceSentences(transcribeResult.sentences);
+        captionEngine.setSentences(this.styleCaptionSentencesForActiveTemplate(this.sourceCaptionSentences));
         this.isNonEnglishVideo = !!(transcribeResult.hasUrduOrHindi || speechTranscriber.isUrduOrHindiTranscript(transcribeResult.sentences));
       } else {
         captionEngine.setSentences([]);
@@ -2444,15 +2459,14 @@ export class UserDashboard {
       const isTopWord = isRealEstate && localIdx === 0;
       const currentFontSize = isRealEstate ? (isTopWord ? realEstateTopSize : realEstateBodySize) : baseFontSize;
 
-      let font = segmentFontFamily || (isProminent ? prominentFontFamily : normalFontFamily);
+      let font = normalFontFamily;
       if (isRealEstate) {
         font = isTopWord
           ? this.getFontFamily(cfg.accentFontFamily || cfg.prominentFontFamily)
           : (localIdx === displayWords.length - 1 ? prominentFontFamily : normalFontFamily);
-      } else if (isLastWord && hasLastWordColor) {
-        font = segmentFontFamily || prominentFontFamily;
+      } else {
+        font = (isProminent || isSpeaking) ? prominentFontFamily : (segmentFontFamily || normalFontFamily);
       }
-      if (isSpeaking && !isRealEstate) font = segmentFontFamily || prominentFontFamily;
 
       let color = isProminent ? prominentColor : defaultTextColor;
       if (isRealEstate) {
