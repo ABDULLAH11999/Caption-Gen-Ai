@@ -131,6 +131,7 @@ export async function initDb() {
       plan_id VARCHAR(50),
       plan_name VARCHAR(100),
       price NUMERIC(10,2),
+      notes TEXT,
       status VARCHAR(50) DEFAULT 'pending',
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
@@ -265,6 +266,9 @@ export async function initDb() {
       );
     }
   }
+
+  // Lightweight schema migrations for existing deployments
+  await query('ALTER TABLE purchases ADD COLUMN IF NOT EXISTS notes TEXT');
 
   // Seed default admin user
   const adminCheck = await query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");

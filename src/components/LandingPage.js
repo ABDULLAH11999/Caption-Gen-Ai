@@ -639,7 +639,7 @@ export class LandingPage {
         btn_action: 'start'
       },
       {
-        id: 'creator',
+        id: 'creator-pro',
         name: 'Creator Pro',
         price: '$19',
         billing: 'per month',
@@ -657,7 +657,7 @@ export class LandingPage {
         btn_action: 'request'
       },
       {
-        id: 'agency',
+        id: 'agency-elite',
         name: 'Agency Elite',
         price: '$49',
         billing: 'per month',
@@ -948,8 +948,8 @@ export class LandingPage {
       const notes = this.container.querySelector('#purchase-notes')?.value;
 
       try {
-        await api.submitPurchaseRequest({
-          planId: this.selectedPlanForPurchase?.id || 'creator',
+        await api.submitPurchase({
+          planId: this.selectedPlanForPurchase?.id || 'creator-pro',
           planName: this.selectedPlanForPurchase?.name || 'Creator Pro',
           name,
           email,

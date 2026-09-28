@@ -586,39 +586,53 @@ apiRouter.post('/public/contact', publicFormLimiter.middleware(), async (req, re
 
 // Purchase Request Submission (Throttled to protect Gmail SMTP Quota)
 apiRouter.post('/public/purchase', publicFormLimiter.middleware(), async (req, res) => {
-  const name = req.body.name || req.body.user_name;
-  const email = req.body.email || req.body.user_email;
-  const phone = req.body.phone || req.body.user_phone;
-  const planId = req.body.planId || req.body.plan_id;
+  const name = String(req.body.name || req.body.user_name || '').trim();
+  const email = String(req.body.email || req.body.user_email || '').trim().toLowerCase();
+  const phone = String(req.body.phone || req.body.user_phone || '').trim();
+  const notes = String(req.body.notes || req.body.message || '').trim();
+  const requestedPlanId = String(req.body.planId || req.body.plan_id || '').trim();
+  const planAliases = {
+    creator: 'creator-pro',
+    agency: 'agency-elite'
+  };
+  const planId = planAliases[requestedPlanId] || requestedPlanId;
 
   if (!name || !email || !planId) {
     return res.status(400).json({ error: 'Name, email, and plan are required.' });
   }
 
   const planRes = await query('SELECT name, price, billing_cycle FROM plans WHERE id = $1', [planId]);
-  const plan = planRes.rows[0] || { name: 'Creator Plan', price: 19, billing_cycle: 'month' };
+  const fallbackPrice = Number.parseFloat(String(req.body.price || '0').replace(/[^0-9.]/g, '')) || 0;
+  const plan = planRes.rows[0] || {
+    name: req.body.planName || req.body.plan_name || 'Requested Plan',
+    price: fallbackPrice,
+    billing_cycle: req.body.billing || req.body.billing_cycle || 'month'
+  };
 
   const userId = req.user ? req.user.user_id : null;
 
   const insRes = await query(
-    `INSERT INTO purchases (user_id, name, email, phone, plan_id, plan_name, price, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending') RETURNING id`,
-    [userId, name, email.toLowerCase().trim(), phone || null, planId, plan.name, plan.price]
+    `INSERT INTO purchases (user_id, name, email, phone, plan_id, plan_name, price, notes, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending') RETURNING id`,
+    [userId, name, email, phone || null, planId, plan.name, plan.price, notes || null]
   );
 
-  // Send automated confirmation email to user
-  const emailHtml = generatePurchaseConfirmationEmailHtml({
-    name,
-    planName: plan.name,
-    price: plan.price,
-    billingCycle: plan.billing_cycle
-  });
+  try {
+    const emailHtml = generatePurchaseConfirmationEmailHtml({
+      name,
+      planName: plan.name,
+      price: plan.price,
+      billingCycle: plan.billing_cycle
+    });
 
-  await sendEmail({
-    to: email,
-    subject: `Order Confirmation: ${plan.name} Request Received`,
-    html: emailHtml
-  });
+    await sendEmail({
+      to: email,
+      subject: `Order Confirmation: ${plan.name} Request Received`,
+      html: emailHtml
+    });
+  } catch (emailErr) {
+    console.warn('[Purchase] Confirmation email failed after request was saved:', emailErr.message);
+  }
 
   res.json({
     success: true,

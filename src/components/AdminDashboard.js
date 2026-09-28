@@ -33,6 +33,16 @@ export class AdminDashboard {
     }
   }
 
+  escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    }[char]));
+  }
+
   render(parentElement) {
     this.container = document.createElement('div');
     this.container.className = 'admin-layout';
@@ -865,24 +875,26 @@ export class AdminDashboard {
                 <th>Phone</th>
                 <th>Plan Requested</th>
                 <th>Price</th>
+                <th>Notes</th>
                 <th>Date</th>
                 <th>Status</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              ${this.purchases.length === 0 ? `<tr><td colspan="7" style="text-align:center; padding:40px; color:#94a3b8;">No purchase orders yet.</td></tr>` : ''}
+              ${this.purchases.length === 0 ? `<tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">No purchase orders yet.</td></tr>` : ''}
               ${this.purchases.map(p => `
                 <tr>
                   <td>
-                    <strong>${p.name}</strong>
-                    <div style="font-size: 12px; color: #64748b;">${p.email}</div>
+                    <strong>${this.escapeHtml(p.name)}</strong>
+                    <div style="font-size: 12px; color: #64748b;">${this.escapeHtml(p.email)}</div>
                   </td>
-                  <td>${p.phone || '<span style="color:#94a3b8;">Not provided</span>'}</td>
-                  <td><span class="badge badge-coral">${p.plan_name || p.plan_id}</span></td>
-                  <td><strong>$${p.price}</strong></td>
+                  <td>${p.phone ? this.escapeHtml(p.phone) : '<span style="color:#94a3b8;">Not provided</span>'}</td>
+                  <td><span class="badge badge-coral">${this.escapeHtml(p.plan_name || p.plan_id)}</span></td>
+                  <td><strong>$${this.escapeHtml(p.price)}</strong></td>
+                  <td>${p.notes ? `<span style="display:block; max-width:240px; white-space:normal; color:#475569;">${this.escapeHtml(p.notes)}</span>` : '<span style="color:#94a3b8;">No notes</span>'}</td>
                   <td>${new Date(p.created_at).toLocaleDateString()}</td>
-                  <td><span class="badge ${p.status === 'approved' ? 'badge-success' : 'badge-warning'}">${p.status}</span></td>
+                  <td><span class="badge ${p.status === 'approved' ? 'badge-success' : 'badge-warning'}">${this.escapeHtml(p.status)}</span></td>
                   <td>
                     ${p.status === 'pending' ? `
                       <button class="btn btn-outline btn-sm btn-approve-purchase" data-id="${p.id}" style="color:var(--success); border-color:var(--success-border);">Approve</button>
