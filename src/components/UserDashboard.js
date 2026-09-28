@@ -4146,10 +4146,6 @@ export class UserDashboard {
             <span class="style-preset-label">Plan:</span>
             <strong>${planName}</strong>
           </div>
-          <button class="btn btn-primary btn-sm" id="btn-quota-create-shortcut" style="padding: 7px 16px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-            <span>Create Video</span>
-          </button>
         </div>
       </header>
 
