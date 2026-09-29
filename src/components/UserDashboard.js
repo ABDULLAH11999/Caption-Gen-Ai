@@ -236,17 +236,21 @@ export class UserDashboard {
         end,
         startTime: start,
         endTime: end,
-        strokeEnabled: false,
-        strokeColor: 'transparent',
-        textColor: '#FFFFFF',
-        prominentColor: cfg.prominentColor,
-        fontFamily: cfg.normalFontFamily,
-        animation: cfg.animation,
-        fontSize: isRealEstate ? 50 : 30,
-        boxWidth: isRealEstate ? 92 : 74,
+        strokeEnabled: sentence.strokeEnabled !== undefined ? sentence.strokeEnabled : false,
+        strokeColor: sentence.strokeColor !== undefined ? sentence.strokeColor : 'transparent',
+        textColor: sentence.textColor !== undefined ? sentence.textColor : '#FFFFFF',
+        prominentColor: sentence.prominentColor !== undefined ? sentence.prominentColor : cfg.prominentColor,
+        fontFamily: sentence.fontFamily || cfg.normalFontFamily,
+        animation: sentence.animation || cfg.animation,
+        fontSize: sentence.fontSize !== undefined ? sentence.fontSize : (isRealEstate ? 36 : 30),
+        boxWidth: sentence.boxWidth !== undefined ? sentence.boxWidth : (isRealEstate ? 90 : 74),
         templateMode: this.selectedTemplateId,
         baseFontSet: fontSetId,
-        italic: false,
+        italic: sentence.italic !== undefined ? !!sentence.italic : false,
+        bold: sentence.bold !== undefined ? !!sentence.bold : undefined,
+        underline: sentence.underline !== undefined ? !!sentence.underline : false,
+        glowColor: sentence.glowColor !== undefined ? sentence.glowColor : undefined,
+        savedGlowColor: sentence.savedGlowColor !== undefined ? sentence.savedGlowColor : undefined,
         words: sourceWords
       };
 
@@ -254,28 +258,30 @@ export class UserDashboard {
         // Subtitle & Subtitle Fancy: default to Top Left (14%, 10%) matching preview
         return {
           ...base,
-          posX: 14,
-          posY: 10,
-          boxWidth: 78
+          posX: sentence.posX !== undefined ? sentence.posX : 14,
+          posY: sentence.posY !== undefined ? sentence.posY : 10,
+          hasCustomPos: !!sentence.hasCustomPos,
+          boxWidth: sentence.boxWidth !== undefined ? sentence.boxWidth : 78
         };
       }
 
       return {
         ...base,
-        posX: 6,
-        posY: 48,
-        topWordPosX: 6,
-        topWordPosY: 10,
-        boxWidth: 90,
+        posX: sentence.posX !== undefined ? sentence.posX : 6,
+        posY: sentence.posY !== undefined ? sentence.posY : 48,
+        topWordPosX: sentence.topWordPosX !== undefined ? sentence.topWordPosX : 50,
+        topWordPosY: sentence.topWordPosY !== undefined ? sentence.topWordPosY : 10,
+        hasCustomPos: !!sentence.hasCustomPos,
+        hasCustomTopPos: !!sentence.hasCustomTopPos,
+        boxWidth: sentence.boxWidth !== undefined ? sentence.boxWidth : 90,
         realEstateLayout: true,
         templateMode: this.selectedTemplateId || 'real-estate',
-        fontSize: 36,
-        italic: false,
+        fontSize: sentence.fontSize !== undefined ? sentence.fontSize : 36,
         topWord: sourceWords[0]?.word || '',
         bodyWords: sourceWords.slice(1).map(word => word.word),
         words: sourceWords.map((word, wordIndex) => ({
           ...word,
-          italic: false,
+          italic: sentence.italic !== undefined ? !!sentence.italic : false,
           isTopWord: wordIndex === 0,
           isProminent: wordIndex === sourceWords.length - 1
         }))
@@ -2534,7 +2540,7 @@ export class UserDashboard {
         token.charAt(0).toUpperCase() + token.slice(1)
       ));
     };
-    const forceItalic = isRealEstate ? false : (currentSentence.italic !== undefined ? !!currentSentence.italic : !!segmentFontMeta?.defaultItalic);
+    const forceItalic = currentSentence.italic !== undefined ? !!currentSentence.italic : !!segmentFontMeta?.defaultItalic;
     const forceBold = currentSentence.bold !== undefined ? !!currentSentence.bold : !!segmentFontMeta?.defaultBold;
     const forceUnderline = !!currentSentence.underline;
     const defaultTextColor = currentSentence.textColor || cfg.textColor || '#FFFFFF';
@@ -2577,36 +2583,43 @@ export class UserDashboard {
         </span>
         <button type="button" class="caption-toolbar-btn btn-follow-all" id="btn-follow-all-segments" title="Apply this style, color, size, animation, and position to ALL segments"><span>Apply to All</span></button>
         <button type="button" class="caption-toolbar-btn btn-break-words" id="btn-break-segment-words" title="Break this caption line into one segment per word"><span>Break into words</span></button>
-        <button type="button" class="caption-toolbar-btn btn-reset-pos" id="btn-reset-segment-pos" title="Reset this segment to default middle-left"><span>Reset</span></button>
+        <button type="button" class="caption-toolbar-btn btn-reset-pos" id="btn-reset-segment-pos" title="Reset this segment to default"><span>Reset</span></button>
       </div>
     ` : '';
 
     // ========================================================================
-    // REAL ESTATE FANCY / REAL ESTATE MODE: One word Top-Left, Other words Middle-Left
+    // REAL ESTATE FANCY / REAL ESTATE MODE: One word Top-Center, Other words Middle-Left
     // ========================================================================
     if (isRealEstate && displayWords.length > 0) {
-      const topRawX = currentSentence.topWordPosX !== undefined ? Number(currentSentence.topWordPosX) : 6;
+      const topRawX = currentSentence.topWordPosX !== undefined ? Number(currentSentence.topWordPosX) : 50;
       const topRawY = currentSentence.topWordPosY !== undefined ? Number(currentSentence.topWordPosY) : 10;
-      const topPosX = Math.max(2, Math.min(88, Number.isFinite(topRawX) ? topRawX : 6));
+      const topPosX = Math.max(2, Math.min(88, Number.isFinite(topRawX) ? topRawX : 50));
       const topPosY = Math.max(2, Math.min(92, Number.isFinite(topRawY) ? topRawY : 10));
+      const hasCustomTopPos = !!currentSentence.hasCustomTopPos;
+      const topTransform = hasCustomTopPos ? 'translate(0, 0)' : 'translate(-50%, 0)';
+      const topTextAlign = hasCustomTopPos ? 'left' : 'center';
+      const topJustify = hasCustomTopPos ? 'flex-start' : 'center';
+      const topMaxWidth = Math.max(10, hasCustomTopPos ? (96 - topPosX) : 94);
 
       const bodyRawX = currentSentence.posX !== undefined ? Number(currentSentence.posX) : 6;
       const bodyRawY = currentSentence.posY !== undefined ? Number(currentSentence.posY) : 48;
       const bodyPosX = Math.max(2, Math.min(88, Number.isFinite(bodyRawX) ? bodyRawX : 6));
       const bodyPosY = Math.max(2, Math.min(92, Number.isFinite(bodyRawY) ? bodyRawY : 48));
+      const hasCustomBodyPos = !!currentSentence.hasCustomPos;
+      const bodyTransform = hasCustomBodyPos ? 'translate(0, 0)' : 'translate(0, -50%)';
 
       const topWord = displayWords[0];
       const isTopSpeaking = speakingWordIdx === chunkOffset;
       const topFont = this.getFontFamily(cfg.accentFontFamily || cfg.prominentFontFamily);
-      const topFitSize = checkWordFitSize(topWord.word, realEstateTopSize, topPosX);
+      const topFitSize = checkWordFitSize(topWord.word, realEstateTopSize, hasCustomTopPos ? topPosX : 2);
 
       const topWordHtml = `
         <span class="caption-word-token ${isTopSpeaking ? 'speaking current' : ''} real-estate-top-token" style="
           display:inline-block!important;vertical-align:baseline!important;margin:1px 0!important;padding:0 2px!important;box-sizing:border-box!important;
-          font-family:${topFont}!important;color:#FFFFFF!important;font-size:${topFitSize}px!important;font-weight:900;font-style:normal;text-decoration:none;
+          font-family:${topFont}!important;color:${defaultTextColor}!important;font-size:${topFitSize}px!important;font-weight:${forceBold ? 900 : 800};font-style:${forceItalic ? 'italic' : 'normal'}!important;text-decoration:${forceUnderline ? 'underline' : 'none'};
           opacity:1!important;visibility:visible!important;line-height:1.06;letter-spacing:.2px;${glowStyles}
           -webkit-text-stroke:${strokeWidth}px ${strokeColor};paint-order:stroke fill;-webkit-paint-order:stroke fill;
-          transform:scale(1)!important;transform-origin:left center!important;z-index:5!important;
+          transform:scale(1)!important;transform-origin:center center!important;z-index:5!important;
           white-space:nowrap!important;max-width:100%!important;
         ">${this.escapeHtml(formatCaptionWord(topWord.word))}</span>
       `;
@@ -2618,12 +2631,12 @@ export class UserDashboard {
           const isSpeaking = globalIdx === speakingWordIdx;
           const isLastWord = localIdx === bodyWords.length - 1;
           const font = isLastWord ? prominentFontFamily : normalFontFamily;
-          const color = isLastWord ? prominentColor : '#FFFFFF';
+          const color = isLastWord ? prominentColor : defaultTextColor;
           const bodyFitSize = checkWordFitSize(w.word, realEstateBodySize, bodyPosX);
           return `
             <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''}" style="
               display:inline-block!important;vertical-align:baseline!important;margin:1px 3px!important;padding:0 1px!important;box-sizing:border-box!important;
-              font-family:${font}!important;color:${color}!important;font-size:${bodyFitSize}px!important;font-weight:900;font-style:normal;text-decoration:none;
+              font-family:${font}!important;color:${color}!important;font-size:${bodyFitSize}px!important;font-weight:${forceBold ? 900 : (isSpeaking ? 900 : 800)};font-style:${forceItalic ? 'italic' : 'normal'}!important;text-decoration:${forceUnderline ? 'underline' : 'none'};
               opacity:1!important;visibility:visible!important;line-height:1.08;letter-spacing:.2px;${glowStyles}
               -webkit-text-stroke:${strokeWidth}px ${strokeColor};paint-order:stroke fill;-webkit-paint-order:stroke fill;
               transform:scale(1)!important;transform-origin:left center!important;z-index:${isSpeaking ? 5 : 1}!important;
@@ -2634,15 +2647,14 @@ export class UserDashboard {
 
         const customWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : 'auto';
         const bodyMaxWidth = Math.max(10, 96 - bodyPosX);
-        const topMaxWidth = Math.max(10, 96 - topPosX);
 
         return `
-          <div class="caption-segment-anchor caption-real-estate-top-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="top" data-segment-key="seg_top_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${topPosY}%;left:${topPosX}%;transform:translate(0, 0);width:auto;max-width:${topMaxWidth}%;text-align:left;z-index:${anchorZIndex};">
-            <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:flex-start;align-items:baseline;width:100%;max-width:100%;text-transform:none;line-height:1.05;transform-origin:left top;will-change:transform,opacity;">
+          <div class="caption-segment-anchor caption-real-estate-top-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="top" data-segment-key="seg_top_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${topPosY}%;left:${topPosX}%;transform:${topTransform};width:auto;max-width:${topMaxWidth}%;text-align:${topTextAlign};z-index:${anchorZIndex};">
+            <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${topJustify};align-items:baseline;width:100%;max-width:100%;text-transform:none;line-height:1.05;transform-origin:center top;will-change:transform,opacity;">
               ${topWordHtml}
             </div>
           </div>
-          <div class="caption-segment-anchor caption-real-estate-body-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="body" data-segment-key="seg_body_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${bodyPosY}%;left:${bodyPosX}%;transform:translate(0, -50%);width:${customWidth};max-width:${bodyMaxWidth}%;text-align:left;z-index:${anchorZIndex};">
+          <div class="caption-segment-anchor caption-real-estate-body-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="body" data-segment-key="seg_body_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${bodyPosY}%;left:${bodyPosX}%;transform:${bodyTransform};width:${customWidth};max-width:${bodyMaxWidth}%;text-align:left;z-index:${anchorZIndex};">
             ${toolbarHtml}
             <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:flex-start;align-items:baseline;gap:2px 5px;width:100%;max-width:100%;text-transform:none;line-height:1.05;transform-origin:left center;will-change:transform,opacity;">
               ${bodyWordsHtml}
@@ -2654,11 +2666,10 @@ export class UserDashboard {
       }
 
       // Single word Real Estate
-      const topMaxWidth = Math.max(10, 96 - topPosX);
       return `
-        <div class="caption-segment-anchor caption-real-estate-top-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="top" data-segment-key="seg_top_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${topPosY}%;left:${topPosX}%;transform:translate(0, 0);width:auto;max-width:${topMaxWidth}%;text-align:left;z-index:${anchorZIndex};">
+        <div class="caption-segment-anchor caption-real-estate-top-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="top" data-segment-key="seg_top_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${topPosY}%;left:${topPosX}%;transform:${topTransform};width:auto;max-width:${topMaxWidth}%;text-align:${topTextAlign};z-index:${anchorZIndex};">
           ${toolbarHtml}
-          <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:flex-start;align-items:baseline;width:100%;max-width:100%;text-transform:none;line-height:1.05;transform-origin:left top;will-change:transform,opacity;">
+          <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${topJustify};align-items:baseline;width:100%;max-width:100%;text-transform:none;line-height:1.05;transform-origin:center top;will-change:transform,opacity;">
             ${topWordHtml}
           </div>
           <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines"><div class="resize-grip-line"></div></div>
@@ -2671,9 +2682,9 @@ export class UserDashboard {
     // STANDARD / VIRAL PRESETS (Hormozi, Dev, Subtitle, MrBeast, etc.)
     // ========================================================================
     const defaultPosMeta = CAPTION_POSITIONS.find(p => p.id === 'middle-left') || CAPTION_POSITIONS[3];
-    const hasCustomPos = currentSentence.posX !== undefined && currentSentence.posY !== undefined;
-    const rawX = hasCustomPos ? Number(currentSentence.posX) : Number(String(defaultPosMeta.x || '6').replace('%', ''));
-    const rawY = hasCustomPos ? Number(currentSentence.posY) : Number(String(defaultPosMeta.y || '50').replace('%', ''));
+    const hasCustomPos = !!currentSentence.hasCustomPos;
+    const rawX = hasCustomPos ? Number(currentSentence.posX) : (currentSentence.posX !== undefined ? Number(currentSentence.posX) : Number(String(defaultPosMeta.x || '6').replace('%', '')));
+    const rawY = hasCustomPos ? Number(currentSentence.posY) : (currentSentence.posY !== undefined ? Number(currentSentence.posY) : Number(String(defaultPosMeta.y || '50').replace('%', '')));
     const baseX = Math.max(2, Math.min(88, Number.isFinite(rawX) ? rawX : 6));
     const baseY = Math.max(2, Math.min(92, Number.isFinite(rawY) ? rawY : 50));
     const posX = `${baseX}%`;
@@ -2794,7 +2805,7 @@ export class UserDashboard {
       });
     }).join('');
 
-    const renderKey = activeMatches.map(m => `${m.sentence.id || m.index}:${m.sentence.posX ?? ''}:${m.sentence.posY ?? ''}:${m.sentence.topWordPosX ?? ''}:${m.sentence.topWordPosY ?? ''}:${m.sentence.boxWidth ?? ''}:${m.sentence.fontSize ?? ''}:${m.sentence.behind ? '1' : '0'}`).join('|');
+    const renderKey = activeMatches.map(m => `${m.sentence.id || m.index}:${m.sentence.posX ?? ''}:${m.sentence.posY ?? ''}:${m.sentence.topWordPosX ?? ''}:${m.sentence.topWordPosY ?? ''}:${m.sentence.boxWidth ?? ''}:${m.sentence.fontSize ?? ''}:${m.sentence.behind ? '1' : '0'}:${m.sentence.textColor ?? ''}:${m.sentence.prominentColor ?? ''}:${m.sentence.italic ? '1' : '0'}:${m.sentence.bold ? '1' : '0'}:${m.sentence.underline ? '1' : '0'}:${m.sentence.fontFamily ?? ''}:${m.sentence.glowColor ?? ''}:${m.sentence.strokeColor ?? ''}:${m.sentence.strokeEnabled !== false ? '1' : '0'}:${m.sentence.animation ?? ''}:${m.sentence.hasCustomPos ? '1' : '0'}:${m.sentence.hasCustomTopPos ? '1' : '0'}`).join('|');
 
     if (this.lastRenderedSentenceKey !== renderKey || (behindOverlay && behindOverlay.innerHTML.trim() === '' && behindHtml) || (frontOverlay && frontOverlay.innerHTML.trim() === '' && frontHtml)) {
       if (behindOverlay) behindOverlay.innerHTML = behindHtml;
@@ -2869,7 +2880,7 @@ export class UserDashboard {
       const curUnderline = !!s.underline;
       const curStrokeColor = s.strokeColor || cfg.prominentOutlineColor || '#000000';
       const hasGlow = s.glowColor && s.glowColor !== 'transparent' && s.glowColor !== '';
-      const curGlowColor = hasGlow ? s.glowColor : '#ff2079';
+      const curGlowColor = s.savedGlowColor || (hasGlow ? s.glowColor : (cfg.glowColor || '#FFE600'));
       const curAnim = s.animation || cfg.animation || 'anim-auto';
       const curAnimMeta = CAPTION_ANIMATIONS.find(a => a.id === curAnim) || CAPTION_ANIMATIONS[0];
 
@@ -3158,10 +3169,7 @@ export class UserDashboard {
           const fontId = opt.getAttribute('data-font');
           s.fontFamily = fontId;
           const chosenFont = FONTS.find(f => f.id === fontId);
-          const isRealEstateMode = this.selectedTemplateId?.startsWith('real-estate') || s.templateMode?.startsWith('real-estate') || !!s.realEstateLayout;
-          if (isRealEstateMode) {
-            s.italic = false;
-          } else if (chosenFont?.defaultItalic !== undefined) {
+          if (s.italic === undefined && chosenFont?.defaultItalic !== undefined) {
             s.italic = !!chosenFont.defaultItalic;
           }
           if (chosenFont?.defaultBold !== undefined) s.bold = !!chosenFont.defaultBold;
@@ -3171,7 +3179,7 @@ export class UserDashboard {
           if (labelSpan && chosenFont) {
             labelSpan.textContent = chosenFont.name;
             labelSpan.style.fontFamily = chosenFont.family;
-            labelSpan.style.fontStyle = chosenFont.defaultItalic ? 'italic' : 'normal';
+            labelSpan.style.fontStyle = (s.italic !== undefined ? s.italic : chosenFont.defaultItalic) ? 'italic' : 'normal';
             labelSpan.style.fontWeight = chosenFont.defaultBold ? '900' : '700';
           }
           fontMenu.querySelectorAll('.seg-font-option').forEach(o => {
@@ -3218,20 +3226,24 @@ export class UserDashboard {
       // 4. Text Color Picker
       const textColorPicker = item.querySelector('.seg-text-color-picker');
       const textSwatch = item.querySelector(`#text-swatch-${idx}`);
-      textColorPicker?.addEventListener('input', (e) => {
+      const onTextColor = (e) => {
         s.textColor = e.target.value;
         if (textSwatch) textSwatch.style.backgroundColor = e.target.value;
         syncActiveSegment();
-      });
+      };
+      textColorPicker?.addEventListener('input', onTextColor);
+      textColorPicker?.addEventListener('change', onTextColor);
 
       // 4b. Prominent Word Color Picker (Highlighted hero keyword)
       const prominentColorPicker = item.querySelector('.seg-prominent-color-picker');
       const prominentSwatch = item.querySelector(`#prominent-swatch-${idx}`);
-      prominentColorPicker?.addEventListener('input', (e) => {
+      const onProminentColor = (e) => {
         s.prominentColor = e.target.value;
         if (prominentSwatch) prominentSwatch.style.backgroundColor = e.target.value;
         syncActiveSegment();
-      });
+      };
+      prominentColorPicker?.addEventListener('input', onProminentColor);
+      prominentColorPicker?.addEventListener('change', onProminentColor);
 
       // 5. Stroke Controls
       const chkStroke = item.querySelector('.chk-seg-stroke');
@@ -3247,11 +3259,13 @@ export class UserDashboard {
         syncActiveSegment();
       });
 
-      strokeColorPicker?.addEventListener('input', (e) => {
+      const onStrokeColor = (e) => {
         s.strokeColor = e.target.value;
         if (strokeSwatch) strokeSwatch.style.backgroundColor = e.target.value;
         syncActiveSegment();
-      });
+      };
+      strokeColorPicker?.addEventListener('input', onStrokeColor);
+      strokeColorPicker?.addEventListener('change', onStrokeColor);
 
       // 6. Glow Controls (Image 3 Style)
       const chkGlow = item.querySelector('.chk-seg-glow');
@@ -3259,45 +3273,63 @@ export class UserDashboard {
       const glowSwatch = item.querySelector(`#glow-swatch-${idx}`);
       const glowWrap = glowColorPicker?.closest('.color-swatch-wrap');
       const clearGlowBtn = item.querySelector('.btn-clear-glow-x');
+      const glowCell = chkGlow?.closest('.seg-effect-cell');
+
+      const updateGlowDomState = (isActive) => {
+        if (glowCell) glowCell.classList.toggle('glow-active', isActive);
+        if (chkGlow) chkGlow.checked = isActive;
+        if (glowColorPicker) {
+          glowColorPicker.disabled = !isActive;
+          glowColorPicker.value = s.savedGlowColor || (cfg.glowColor || '#FFE600');
+        }
+        if (glowWrap) glowWrap.classList.toggle('is-disabled', !isActive);
+        if (glowSwatch) {
+          const displayColor = s.savedGlowColor || (cfg.glowColor || '#FFE600');
+          glowSwatch.style.backgroundColor = isActive ? displayColor : '#cbd5e1';
+          glowSwatch.style.boxShadow = isActive ? `0 0 8px ${displayColor}` : 'none';
+        }
+        if (clearGlowBtn) {
+          clearGlowBtn.style.display = isActive ? 'inline-flex' : 'none';
+        }
+      };
 
       chkGlow?.addEventListener('change', (e) => {
         if (e.target.checked) {
-          s.glowColor = glowColorPicker ? glowColorPicker.value : '#ff2079';
-          if (glowColorPicker) glowColorPicker.disabled = false;
-          if (glowWrap) glowWrap.classList.remove('is-disabled');
-          if (glowSwatch) {
-            glowSwatch.style.backgroundColor = s.glowColor;
-            glowSwatch.style.boxShadow = `0 0 8px ${s.glowColor}`;
-          }
+          s.glowColor = s.savedGlowColor || (glowColorPicker ? glowColorPicker.value : (cfg.glowColor || '#FFE600'));
+          s.savedGlowColor = s.glowColor;
+          updateGlowDomState(true);
         } else {
-          s.glowColor = 'transparent';
-          if (glowColorPicker) glowColorPicker.disabled = true;
-          if (glowWrap) glowWrap.classList.add('is-disabled');
-          if (glowSwatch) {
-            glowSwatch.style.backgroundColor = '#cbd5e1';
-            glowSwatch.style.boxShadow = 'none';
+          if (s.glowColor && s.glowColor !== 'transparent') {
+            s.savedGlowColor = s.glowColor;
           }
+          s.glowColor = 'transparent';
+          updateGlowDomState(false);
         }
         soundFx.playKeyBeep(s.glowColor !== 'transparent' ? 740 : 400);
         syncActiveSegment();
-        this.renderMiniSegmentsList();
       });
 
-      glowColorPicker?.addEventListener('input', (e) => {
+      const onGlowColor = (e) => {
         s.glowColor = e.target.value;
+        s.savedGlowColor = e.target.value;
         if (glowSwatch) {
           glowSwatch.style.backgroundColor = e.target.value;
           glowSwatch.style.boxShadow = `0 0 8px ${e.target.value}`;
         }
         syncActiveSegment();
-      });
+      };
+      glowColorPicker?.addEventListener('input', onGlowColor);
+      glowColorPicker?.addEventListener('change', onGlowColor);
 
       clearGlowBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (s.glowColor && s.glowColor !== 'transparent') {
+          s.savedGlowColor = s.glowColor;
+        }
         s.glowColor = 'transparent';
+        updateGlowDomState(false);
         soundFx.playKeyBeep(420);
         syncActiveSegment();
-        this.renderMiniSegmentsList();
       });
 
       // 7. Animation Dropdown Controls
@@ -3557,8 +3589,13 @@ export class UserDashboard {
 
       if (!currentSentence) return;
 
-      const targetPosX = currentSentence.posX !== undefined ? currentSentence.posX : 6;
-      const targetPosY = currentSentence.posY !== undefined ? currentSentence.posY : 50;
+      const isRealEstateMode = this.selectedTemplateId?.startsWith('real-estate') || currentSentence.templateMode?.startsWith('real-estate') || !!currentSentence.realEstateLayout;
+      const targetPosX = currentSentence.posX !== undefined ? currentSentence.posX : (isRealEstateMode ? 6 : 14);
+      const targetPosY = currentSentence.posY !== undefined ? currentSentence.posY : (isRealEstateMode ? 48 : 10);
+      const targetTopWordPosX = currentSentence.topWordPosX !== undefined ? currentSentence.topWordPosX : 50;
+      const targetTopWordPosY = currentSentence.topWordPosY !== undefined ? currentSentence.topWordPosY : 10;
+      const targetHasCustomPos = !!currentSentence.hasCustomPos;
+      const targetHasCustomTopPos = !!currentSentence.hasCustomTopPos;
       const targetBoxWidth = currentSentence.boxWidth || null;
       const targetFontSize = currentSentence.fontSize !== undefined ? currentSentence.fontSize : (this.currentMode === 'portrait' ? 25 : 28);
       const targetFontFamily = currentSentence.fontFamily;
@@ -3571,11 +3608,16 @@ export class UserDashboard {
       const targetStrokeEnabled = currentSentence.strokeEnabled;
       const targetStrokeColor = currentSentence.strokeColor;
       const targetGlowColor = currentSentence.glowColor;
+      const targetSavedGlowColor = currentSentence.savedGlowColor;
       const targetAnimation = currentSentence.animation;
 
       sentences.forEach(s => {
         s.posX = targetPosX;
         s.posY = targetPosY;
+        s.topWordPosX = targetTopWordPosX;
+        s.topWordPosY = targetTopWordPosY;
+        s.hasCustomPos = targetHasCustomPos;
+        s.hasCustomTopPos = targetHasCustomTopPos;
         s.boxWidth = targetBoxWidth;
         s.fontSize = targetFontSize;
         if (targetFontFamily !== undefined) s.fontFamily = targetFontFamily;
@@ -3587,6 +3629,7 @@ export class UserDashboard {
         if (targetStrokeEnabled !== undefined) s.strokeEnabled = targetStrokeEnabled;
         if (targetStrokeColor !== undefined) s.strokeColor = targetStrokeColor;
         if (targetGlowColor !== undefined) s.glowColor = targetGlowColor;
+        if (targetSavedGlowColor !== undefined) s.savedGlowColor = targetSavedGlowColor;
         if (targetAnimation !== undefined) s.animation = targetAnimation;
       });
 
@@ -3697,11 +3740,13 @@ export class UserDashboard {
           if (isTopAnchor) {
             activeSentence.topWordPosX = Math.max(2, Math.min(88, xPct));
             activeSentence.topWordPosY = Math.max(2, Math.min(92, yPct));
+            activeSentence.hasCustomTopPos = true;
             activeAnchor.style.left = `${activeSentence.topWordPosX}%`;
             activeAnchor.style.top = `${activeSentence.topWordPosY}%`;
           } else {
             activeSentence.posX = Math.max(2, Math.min(88, xPct));
             activeSentence.posY = Math.max(2, Math.min(92, yPct));
+            activeSentence.hasCustomPos = true;
             activeAnchor.style.left = `${activeSentence.posX}%`;
             activeAnchor.style.top = `${activeSentence.posY}%`;
           }
@@ -3737,6 +3782,10 @@ export class UserDashboard {
           if (activeAnchor) {
             activeAnchor.classList.remove('is-dragging');
             activeAnchor.classList.remove('is-resizing');
+          }
+          this.lastRenderedSentenceKey = null;
+          if (activeSentence) {
+            this.updateCaptionOverlay(activeSentence);
           }
           this.renderMiniSegmentsList();
           isDragging = false;
@@ -3784,10 +3833,13 @@ export class UserDashboard {
         const currentSentence = sentences[currentIdx] || sentences[0];
 
         if (currentSentence) {
-          currentSentence.posX = 6;
-          currentSentence.posY = 48;
-          currentSentence.topWordPosX = 6;
+          const isRealEstateMode = this.selectedTemplateId?.startsWith('real-estate') || currentSentence.templateMode?.startsWith('real-estate') || !!currentSentence.realEstateLayout;
+          currentSentence.posX = isRealEstateMode ? 6 : 14;
+          currentSentence.posY = isRealEstateMode ? 48 : 10;
+          currentSentence.topWordPosX = 50;
           currentSentence.topWordPosY = 10;
+          currentSentence.hasCustomPos = false;
+          currentSentence.hasCustomTopPos = false;
           currentSentence.boxWidth = null;
           soundFx.playKeyBeep(450);
           this.showToast('Position reset to default.', 'info');

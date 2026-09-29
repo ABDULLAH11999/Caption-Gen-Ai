@@ -359,7 +359,7 @@ export class VideoRenderer {
       segmentFontMeta?.id === 'Italiana' ||
       /emily|bodoni/i.test(segmentFontMeta?.name || '')
     );
-    const forceItalic = isRealEstate ? false : (sentence.italic !== undefined ? !!sentence.italic : !!segmentFontMeta?.defaultItalic);
+    const forceItalic = sentence.italic !== undefined ? !!sentence.italic : (isRealEstate ? false : !!segmentFontMeta?.defaultItalic);
     const forceBold = sentence.bold !== undefined ? !!sentence.bold : !!segmentFontMeta?.defaultBold;
     const forceUnderline = !!sentence.underline;
 
@@ -397,7 +397,7 @@ export class VideoRenderer {
 
       let color = isProminent ? prominentColor : defaultTextColor;
       if (isRealEstate) {
-        color = isTopWord ? '#FFFFFF' : (localIdx === words.length - 1 ? prominentColor : '#FFFFFF');
+        color = isTopWord ? (sentence.textColor || '#FFFFFF') : (localIdx === words.length - 1 ? prominentColor : (sentence.textColor || '#FFFFFF'));
       } else if (isLastWord && hasLastWordColor) {
         color = lastWordColor;
       }
@@ -579,11 +579,12 @@ export class VideoRenderer {
     // ========================================================================
     if (isRealEstate && styledWords.length > 0) {
       const topWord = styledWords[0];
-      const topRawX = sentence.topWordPosX !== undefined ? Number(sentence.topWordPosX) : 6;
+      const topRawX = sentence.topWordPosX !== undefined ? Number(sentence.topWordPosX) : 50;
       const topRawY = sentence.topWordPosY !== undefined ? Number(sentence.topWordPosY) : 10;
       const topPosX = (canvasWidth * Math.max(2, Math.min(88, topRawX))) / 100;
       const topPosY = (canvasHeight * Math.max(2, Math.min(92, topRawY))) / 100;
-      const maxTopWidth = Math.max(20, canvasWidth - topPosX - (canvasWidth * 0.04));
+      const isTopCentered = topRawX === 50 && !sentence.hasCustomTopPos;
+      const maxTopWidth = isTopCentered ? Math.max(20, canvasWidth * 0.92) : Math.max(20, canvasWidth - topPosX - (canvasWidth * 0.04));
 
       // Fit guarantee for top word
       ctx.font = `${topWord.fontStyle} ${topWord.fontWeight} ${topWord.fontSize}px ${topWord.font}`;
@@ -598,7 +599,7 @@ export class VideoRenderer {
       topWord.rawWidth = topW;
 
       const topLines = [{ words: [topWord], width: topW }];
-      drawLineBlock(topLines, topPosX, topPosY, realEstateTopSize * 1.1, 'left');
+      drawLineBlock(topLines, topPosX, topPosY, realEstateTopSize * 1.1, isTopCentered ? 'center' : 'left');
 
       if (styledWords.length >= 2) {
         const bodyWords = styledWords.slice(1);

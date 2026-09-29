@@ -348,6 +348,7 @@ export class CaptionEngine {
         const cText = chunkWords.map(w => w.word).join(' ');
 
         result.push({
+          ...s,
           id: `${s.id || 'seg'}_sub_${result.length + 1}`,
           language: s.language || 'en',
           start: parseFloat(cStart.toFixed(2)),
@@ -358,6 +359,10 @@ export class CaptionEngine {
           words: chunkWords,
           posX: s.posX !== undefined ? s.posX : (s.x !== undefined ? s.x : 6),
           posY: s.posY !== undefined ? s.posY : (s.y !== undefined ? s.y : 50),
+          topWordPosX: s.topWordPosX !== undefined ? s.topWordPosX : undefined,
+          topWordPosY: s.topWordPosY !== undefined ? s.topWordPosY : undefined,
+          hasCustomPos: !!s.hasCustomPos,
+          hasCustomTopPos: !!s.hasCustomTopPos,
           boxWidth: s.boxWidth || s.width || null,
           behind: !!s.behind,
           fontSize: s.fontSize,
@@ -370,7 +375,10 @@ export class CaptionEngine {
           strokeEnabled: s.strokeEnabled,
           strokeColor: s.strokeColor,
           glowColor: s.glowColor,
-          animation: s.animation
+          savedGlowColor: s.savedGlowColor,
+          animation: s.animation,
+          realEstateLayout: s.realEstateLayout,
+          templateMode: s.templateMode
         });
       }
     });
@@ -414,6 +422,10 @@ export class CaptionEngine {
         words,
         posX: s.posX !== undefined ? s.posX : (s.x !== undefined ? s.x : 6),
         posY: s.posY !== undefined ? s.posY : (s.y !== undefined ? s.y : 50),
+        topWordPosX: s.topWordPosX !== undefined ? s.topWordPosX : undefined,
+        topWordPosY: s.topWordPosY !== undefined ? s.topWordPosY : undefined,
+        hasCustomPos: !!s.hasCustomPos,
+        hasCustomTopPos: !!s.hasCustomTopPos,
         boxWidth: s.boxWidth || s.width || null,
         behind: !!s.behind,
         fontSize: s.fontSize,
@@ -426,7 +438,10 @@ export class CaptionEngine {
         strokeEnabled: s.strokeEnabled,
         strokeColor: s.strokeColor,
         glowColor: s.glowColor,
-        animation: s.animation
+        savedGlowColor: s.savedGlowColor,
+        animation: s.animation,
+        realEstateLayout: s.realEstateLayout,
+        templateMode: s.templateMode
       };
     });
 
@@ -469,6 +484,10 @@ export class CaptionEngine {
         words,
         posX: s.posX !== undefined ? s.posX : (s.x !== undefined ? s.x : 6),
         posY: s.posY !== undefined ? s.posY : (s.y !== undefined ? s.y : 50),
+        topWordPosX: s.topWordPosX !== undefined ? s.topWordPosX : undefined,
+        topWordPosY: s.topWordPosY !== undefined ? s.topWordPosY : undefined,
+        hasCustomPos: !!s.hasCustomPos,
+        hasCustomTopPos: !!s.hasCustomTopPos,
         boxWidth: s.boxWidth || s.width || null,
         behind: !!s.behind,
         fontSize: s.fontSize,
@@ -481,7 +500,10 @@ export class CaptionEngine {
         strokeEnabled: s.strokeEnabled,
         strokeColor: s.strokeColor,
         glowColor: s.glowColor,
-        animation: s.animation
+        savedGlowColor: s.savedGlowColor,
+        animation: s.animation,
+        realEstateLayout: s.realEstateLayout,
+        templateMode: s.templateMode
       };
     }).sort((a, b) => a.start - b.start);
   }

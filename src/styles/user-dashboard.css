@@ -545,15 +545,15 @@ body.app-shell-locked {
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.95);
 }
 
-/* Real Estate Preview: Top Left Word */
+/* Real Estate Preview: Top Center Word */
 .template-preview-real-top {
   top: 14px;
-  left: 12px;
+  left: 50%;
   right: auto;
   width: auto;
-  max-width: 86%;
-  transform: none;
-  text-align: left;
+  max-width: 90%;
+  transform: translateX(-50%);
+  text-align: center;
   font-size: 26px;
   font-style: normal !important;
   font-weight: 900;
