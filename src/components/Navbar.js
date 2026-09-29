@@ -218,6 +218,7 @@ export class Navbar {
     const toggle = this.container?.querySelector('#btn-mobile-menu');
     dropdown?.classList.remove('open');
     toggle?.classList.remove('active');
+    this.container?.classList.remove('mobile-open');
   }
 
   bindEvents() {
@@ -249,9 +250,17 @@ export class Navbar {
 
     const toggle = this.container.querySelector('#btn-mobile-menu');
     const dropdown = this.container.querySelector('#mobile-nav-dropdown');
-    toggle?.addEventListener('click', () => {
+    toggle?.addEventListener('click', (e) => {
+      e.stopPropagation();
       const isOpen = dropdown?.classList.toggle('open');
       toggle.classList.toggle('active', isOpen);
+      this.container.classList.toggle('mobile-open', isOpen);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (this.container && !this.container.contains(e.target)) {
+        this.closeMobileMenu();
+      }
     });
   }
 
