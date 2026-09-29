@@ -833,7 +833,10 @@
   height: 100%;
   padding: 0;
   border: 0;
-  background: transparent;
+  background-color: #000000;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   color: #ffffff;
   cursor: pointer;
   display: flex;
@@ -854,7 +857,7 @@
   display: block;
   object-fit: cover;
   object-position: center;
-  background: #000000;
+  background: transparent;
 }
 
 .compare-video-overlay {
@@ -1868,7 +1871,9 @@
     border-radius: 14px;
   }
   .compare-video-button {
-    background: transparent;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
   }
   .compare-demo-video {
     width: 100%;

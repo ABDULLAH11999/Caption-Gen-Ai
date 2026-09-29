@@ -830,7 +830,7 @@ export class VideoRenderer {
       // Audio Graph Setup
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') {
-        try { await audioCtx.resume(); } catch (e) {}
+        try { audioCtx.resume().catch(() => {}); } catch (e) {}
       }
       const dest = audioCtx.createMediaStreamDestination();
       try {

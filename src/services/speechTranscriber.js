@@ -88,30 +88,33 @@ class SpeechTranscriberService {
    * Safari/iOS hardened: longer timeouts, OfflineAudioContext resampling,
    * chunked arrayBuffer read with progress so UI never appears frozen.
    */
-  async extractAudioData(fileBlob, onProgress = () => {}) {
-    const duration = await this.getVideoDurationFromBlob(fileBlob);
+  async extractAudioData(fileBlob, onProgress = () => {}, knownDuration = null) {
+    const duration = knownDuration || await this.getVideoDurationFromBlob(fileBlob);
     const targetSampleRate = 16000;
-    onProgress({ status: 'extracting', message: 'Decoding audio track…', percent: 22 });
+    onProgress({ status: 'extracting', message: 'Reading audio data…', percent: 22 });
 
     // iOS/Safari/Mac H.264/HEVC/MOV can take 45-75 s to decode large files
     const decodeTimeoutMs = (this._isIOS || this._isSafari || this._isMac) ? 90000 : 35000;
     let audioCtx = null;
 
     try {
+      const arrayBuffer = await this._readBlobWithProgress(fileBlob, (pct) => {
+        onProgress({ status: 'extracting', message: 'Reading audio data…', percent: Math.round(22 + pct * 5) });
+      });
+
+      onProgress({ status: 'extracting', message: 'Decoding audio track…', percent: 28 });
+
       const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtxClass) throw new Error('AudioContext not supported');
 
       audioCtx = new AudioCtxClass();
+      // CRITICAL iOS SAFARI FIX:
+      // In Apple WebKit, awaiting audioCtx.resume() when not directly inside a synchronous user gesture
+      // returns a Promise that NEVER resolves or rejects, causing a permanent deadlock at 22%.
+      // decodeAudioData() works completely while AudioContext is suspended.
       if (audioCtx.state === 'suspended') {
-        await audioCtx.resume().catch(() => {});
+        try { audioCtx.resume().catch(() => {}); } catch (_) {}
       }
-
-      onProgress({ status: 'extracting', message: 'Reading audio data…', percent: 24 });
-      const arrayBuffer = await this._readBlobWithProgress(fileBlob, (pct) => {
-        onProgress({ status: 'extracting', message: 'Reading audio data…', percent: Math.round(24 + pct * 4) });
-      });
-
-      onProgress({ status: 'extracting', message: 'Decoding audio track…', percent: 28 });
 
       // Always pass a slice of arrayBuffer so the original arrayBuffer is preserved for fallbacks!
       const bufferCopy = arrayBuffer.slice(0);
@@ -135,7 +138,7 @@ class SpeechTranscriberService {
             (err) => done(null, err)
           );
           if (maybePromise && typeof maybePromise.then === 'function') {
-            maybePromise.then((buf) => done(buf, null), (err) => done(null, err));
+            maybePromise.then((buf) => done(buf, null)).catch((err) => done(null, err));
           }
         } catch (e) {
           done(null, e);
@@ -718,7 +721,7 @@ class SpeechTranscriberService {
         // We set video.muted = false, but ensure silentGain is 0 so speakers are completely silent!
         video.muted = false;
         video.volume = 1;
-        video.playbackRate = 2.0;
+        video.playbackRate = this._isIOS ? 1.0 : 2.0;
 
         const tryPlay = () => {
           const p = video.play();
@@ -1023,7 +1026,7 @@ class SpeechTranscriberService {
     onProgress({ status: 'extracting', message: 'Decoding audio tracks...', percent: 20 });
 
     const duration = await this.getVideoDurationFromBlob(fileBlob);
-    let { rawPcm } = await this.extractAudioData(fileBlob, onProgress);
+    let { rawPcm } = await this.extractAudioData(fileBlob, onProgress, duration);
 
     if (rawPcm && rawPcm.length > 0) {
       const speechSegments = this.detectSpeechSegments(rawPcm, 16000);

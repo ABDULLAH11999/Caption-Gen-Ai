@@ -123,8 +123,8 @@ export class LandingPage {
 
               <!-- Dummy Media Frame -->
               <div class="compare-screen-frame">
-                <button type="button" class="compare-video-button" aria-label="Play raw footage before video">
-                  <video class="compare-demo-video" src="/RawVideo.webm?v=20260929_23" preload="auto" muted loop playsinline></video>
+                <button type="button" class="compare-video-button" aria-label="Play raw footage before video" style="background-image: url('/raw-poster.jpg');">
+                  <video class="compare-demo-video" src="/RawVideo.webm?v=20260929_24#t=0.001" poster="/raw-poster.jpg" preload="metadata" muted loop playsinline webkit-playsinline></video>
                   <span class="compare-video-overlay">
                     <span class="compare-video-play-icon"></span>
                   </span>
@@ -157,8 +157,8 @@ export class LandingPage {
 
               <!-- Dummy Media Frame with Live Kinetic Overlay -->
               <div class="compare-screen-frame">
-                <button type="button" class="compare-video-button" aria-label="Play Zen Captions AI after video">
-                  <video class="compare-demo-video" src="/ZenCaptioned.webm?v=20260929_23" preload="auto" muted loop playsinline></video>
+                <button type="button" class="compare-video-button" aria-label="Play Zen Captions AI after video" style="background-image: url('/captioned-poster.jpg');">
+                  <video class="compare-demo-video" src="/ZenCaptioned.webm?v=20260929_24#t=0.001" poster="/captioned-poster.jpg" preload="metadata" muted loop playsinline webkit-playsinline></video>
                   <span class="compare-video-overlay">
                     <span class="compare-video-play-icon"></span>
                   </span>
@@ -943,14 +943,6 @@ export class LandingPage {
     this.container.querySelectorAll('.compare-video-button').forEach(button => {
       const video = button.querySelector('.compare-demo-video');
       if (!video) return;
-      const previewTime = 2.5;
-      let previewFrameReady = false;
-
-      const loadPreviewFrame = () => {
-        if (previewFrameReady || !Number.isFinite(video.duration) || video.duration <= 0) return;
-        previewFrameReady = true;
-        video.currentTime = Math.min(previewTime, Math.max(0, video.duration - 0.1));
-      };
 
       const playVideo = () => {
         video.muted = true;
@@ -965,7 +957,6 @@ export class LandingPage {
         button.classList.remove('is-playing');
       };
 
-      video.addEventListener('loadedmetadata', loadPreviewFrame, { once: true });
       video.addEventListener('play', () => button.classList.add('is-playing'));
       video.addEventListener('pause', () => {
         if (!button.classList.contains('is-click-playing')) {
@@ -998,8 +989,6 @@ export class LandingPage {
           pauseVideo(false);
         }
       });
-
-      if (video.readyState >= 1) loadPreviewFrame();
     });
 
     // 4. Architecture Step Items Interactive Switching
