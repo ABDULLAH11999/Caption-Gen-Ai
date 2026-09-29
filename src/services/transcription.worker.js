@@ -72,11 +72,11 @@ function scoreTranscriptCandidate(result, language = null, hintType = 'auto') {
   const hasSouthAsianScript = /[\u0600-\u06FF\u0900-\u097F]/.test(text);
   const hasRomanSouthAsian = /\b(kya|kyun|kaise|kese|aap|tum|hum|hai|hain|nahi|haan|acha|bhai|dost|raha|rahi|rahe|kar|karo|aur|bhi|main|mera|meri|apka|shukriya|assalam|namaste)\b/i.test(text);
   const hasCommonEnglish = /\b(the|and|you|to|of|this|that|with|for|have|will|not|switch|come)\b/i.test(text);
-  const irrelevantEnglishLoop = /\b(come to you|switch to this|you will not have to|we all have|grand theft|caption generation studio)\b/i.test(lower);
+  const irrelevantEnglishLoop = /\b(come to you|switch to this|you will not have to|we all have|grand theft|caption generation studio|thanks?\s+for\s+watching|thank\s+you\s+for\s+watching|please\s+like\s+and\s+subscribe)\b/i.test(lower);
 
   let score = words.length + Math.min(12, uniqueRatio * 12);
   if (Array.isArray(result?.chunks) && result.chunks.length > 0) score += Math.min(10, result.chunks.length);
-  if (irrelevantEnglishLoop) score -= 45;
+  if (irrelevantEnglishLoop) score -= 90;
   if (isRepetitive) score -= 12;
 
   if (hintType === 'south_asian') {
@@ -119,11 +119,24 @@ function isCompleteEnoughTranscript(result, duration = 0) {
   return words.length >= 10;
 }
 
-function isLikelyFillerHallucination(text) {
+function isLikelyFillerHallucination(text, duration = 0) {
   const clean = (text || '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
   if (!clean) return true;
+
+  // Reject classic Whisper silence hallucinations
+  if (/^(thanks?\s+for\s+watching|thank\s+you\s+for\s+watching|thanks?\s+for\s+watching\s+this\s+video|thank\s+you\s+for\s+watching\s+this\s+video|please\s+like\s+and\s+subscribe|like\s+and\s+subscribe|subscribe\s+to\s+my\s+channel|subtitles?\s+by|thank\s+you\s+very\s+much|see\s+you\s+next\s+time|bye\s+bye)\b/i.test(clean)) {
+    return true;
+  }
+
   const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
   const uniqueWords = new Set(words);
+
+  // For videos longer than 3s, if the entire transcript is just 1-3 closing words like "thanks for watching"
+  if (duration > 3 && words.length <= 4 && /\b(watching|subscribe|thanks|thank)\b/i.test(clean)) {
+    return true;
+  }
+
   if (words.length >= 3 && uniqueWords.size <= 2) return true;
   if (/\b(sir\s+){2,}sir\b/i.test(words.join(' '))) return true;
   if (/\b(hay\s+sakta|sakta\s+hay)(\s+(hay|sakta)){2,}\b/i.test(words.join(' '))) return true;
@@ -136,7 +149,7 @@ function isAcceptableSouthAsianTranscript(result, score, duration = 0) {
   const hasSouthAsianScript = /[\u0600-\u06FF\u0900-\u097F]/.test(text);
   const hasRomanSouthAsian = /\b(kya|kyun|kaise|kese|kaisa|kaisi|aap|ap|tum|hum|hai|hain|nahi|haan|acha|bhai|dost|raha|rahi|rahe|kar|karo|aur|bhi|main|mera|meri|apka|shukriya|assalam|namaste|theek)\b/i.test(text);
   const words = text.trim().split(/\s+/).filter(Boolean);
-  if (isLikelyFillerHallucination(text)) return false;
+  if (isLikelyFillerHallucination(text, duration)) return false;
   // For small videos (duration <= 15s), any detected words are acceptable
   if (!duration || duration <= 15) {
     return words.length >= 1;
@@ -145,14 +158,19 @@ function isAcceptableSouthAsianTranscript(result, score, duration = 0) {
   return words.length >= 2;
 }
 
-function isLikelyWeakEnglishHallucination(result) {
+function isLikelyWeakEnglishHallucination(result, duration = 0) {
   const text = (result?.text || '').replace(/\s+/g, ' ').trim().toLowerCase();
   if (!text) return false;
   if (/[\u0600-\u06FF\u0900-\u097F]/.test(text)) return false;
 
+  // Immediately reject Whisper silence/closing hallucinations
+  if (/\b(thanks?\s+for\s+watching|thank\s+you\s+for\s+watching|please\s+like\s+and\s+subscribe|subscribe\s+to\s+my\s+channel|subtitles?\s+by)\b/i.test(text)) {
+    return true;
+  }
+
   const words = text.split(/\s+/).filter(Boolean);
   const uniqueRatio = new Set(words).size / Math.max(1, words.length);
-  const knownWeakLoop = /\b(come to you|switch to this|you will not have to|we all have|grand theft|caption generation studio)\b/i.test(text);
+  const knownWeakLoop = /\b(come to you|switch to this|you will not have to|we all have|grand theft|caption generation studio|thanks?\s+for\s+watching|thank\s+you\s+for\s+watching)\b/i.test(text);
   const repeatedShortEnglish = words.length >= 8 && (uniqueRatio < 0.55 || isRepetitiveTranscriptText(text));
   const tinyChunkCoverage = Array.isArray(result?.chunks) && result.chunks.length <= 1 && words.length >= 10;
 
@@ -184,7 +202,7 @@ function normalizePcmForWhisper(rawPcm) {
   return normalized;
 }
 
-function buildTranscriptionAttempts(fileName = '') {
+function buildTranscriptionAttempts(fileName = '', duration = 0) {
   const hintType = getLanguageHintType(fileName);
   const displayLanguage = getLanguageDisplayName(null, hintType);
   const attempts = [];
@@ -193,18 +211,21 @@ function buildTranscriptionAttempts(fileName = '') {
     const key = `${timestampMode}:${language || 'auto'}`;
     if (seen.has(key)) return;
     seen.add(key);
+    const attemptOptions = {
+      return_timestamps: timestampMode,
+      task: 'transcribe',
+      ...(language ? { language } : {})
+    };
+    if (duration > 30) {
+      attemptOptions.chunk_length_s = 30;
+      attemptOptions.stride_length_s = 5;
+    }
     attempts.push({
       message: `${labelPrefix} — ${displayLanguage}...`,
       language,
       displayLanguage,
       percent: Math.min(91, basePercent + attempts.length),
-      options: {
-        return_timestamps: timestampMode,
-        chunk_length_s: 30,
-        stride_length_s: 5,
-        task: 'transcribe',
-        ...(language ? { language } : {})
-      }
+      options: attemptOptions
     });
   };
 
@@ -231,7 +252,8 @@ function buildTranscriptionAttempts(fileName = '') {
 
 async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
   const pcm = normalizePcmForWhisper(rawPcm);
-  const attempts = buildTranscriptionAttempts(fileName);
+  const duration = options.duration || 0;
+  const attempts = buildTranscriptionAttempts(fileName, duration);
   const hintType = getLanguageHintType(fileName);
 
   let lastError = null;
@@ -256,33 +278,33 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
         const words = text.split(/\s+/).filter(Boolean);
 
         // Discard obvious filler loops or hallucinations
-        if (!isLikelyFillerHallucination(text)) {
+        if (!isLikelyFillerHallucination(text, duration) && !isLikelyWeakEnglishHallucination(result, duration)) {
           const score = scoreTranscriptCandidate(result, attempt.language, hintType);
           if (!bestCandidate || score > bestCandidate.score) {
             result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
             bestCandidate = { result, score };
           }
 
-          if (hintType === 'south_asian' && words.length >= 2 && !isLikelyWeakEnglishHallucination(result)) {
+          if (hintType === 'south_asian' && words.length >= 2) {
             result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
-            result.lowConfidence = !isAcceptableSouthAsianTranscript(result, score, options.duration || 0);
+            result.lowConfidence = !isAcceptableSouthAsianTranscript(result, score, duration);
             return result;
           }
 
           // If South Asian hint matches acceptable transcript, return immediately
-          if (hintType === 'south_asian' && isAcceptableSouthAsianTranscript(result, score, options.duration || 0)) {
+          if (hintType === 'south_asian' && isAcceptableSouthAsianTranscript(result, score, duration)) {
             result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
             return result;
           }
 
           // If English hint matches complete transcript, return immediately
-          if (hintType === 'english' && isCompleteEnoughTranscript(result, options.duration || 0)) {
+          if (hintType === 'english' && isCompleteEnoughTranscript(result, duration)) {
             result.detectedLanguage = 'English';
             return result;
           }
 
-          // In auto mode: if we got a solid transcript of 2+ words and not weak English hallucination, return immediately
-          if (hintType === 'auto' && words.length >= 2 && !isLikelyWeakEnglishHallucination(result)) {
+          // In auto mode: if we got a solid transcript of 2+ words and complete enough transcript, return immediately
+          if (hintType === 'auto' && words.length >= 2 && isCompleteEnoughTranscript(result, duration)) {
             result.detectedLanguage = getLanguageDisplayName(attempt.language, hintType);
             return result;
           }
