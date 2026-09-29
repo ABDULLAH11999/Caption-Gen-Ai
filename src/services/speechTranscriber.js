@@ -156,12 +156,14 @@ class SpeechTranscriberService {
 
       onProgress({ status: 'extracting', message: 'Resampling audio to 16 kHz…', percent: 36 });
 
-      // On Safari/iOS, skip OfflineAudioContext (which throws NotSupportedError on sample rates < 44100)
-      // and use ultra-fast linear interpolation directly
-      const rawPcm = (this._isIOS || this._isSafari)
-        ? this.resamplePcm(monoData, decodedBuffer.sampleRate, targetSampleRate)
-        : await this._resampleWithOfflineCtx(monoData, decodedBuffer.sampleRate, targetSampleRate)
-            .catch(() => this.resamplePcm(monoData, decodedBuffer.sampleRate, targetSampleRate));
+      // Hardware OfflineAudioContext applies sinc anti-aliasing filter. Try it first everywhere!
+      // If it throws on legacy WebKit, fall back to our anti-aliased resamplePcm.
+      let rawPcm = null;
+      try {
+        rawPcm = await this._resampleWithOfflineCtx(monoData, decodedBuffer.sampleRate, targetSampleRate);
+      } catch (offErr) {
+        rawPcm = this.resamplePcm(monoData, decodedBuffer.sampleRate, targetSampleRate);
+      }
 
       if (!this.hasMeaningfulAudio(rawPcm)) throw new Error('Decoded audio track was silent');
 
@@ -242,6 +244,23 @@ class SpeechTranscriberService {
     const ratio = sourceSampleRate / targetSampleRate;
     const outputLength = Math.max(1, Math.round(input.length / ratio));
     const output = new Float32Array(outputLength);
+
+    // Anti-aliasing window averaging when downsampling (ratio > 1) to eliminate high-frequency hash
+    if (ratio > 1) {
+      const windowSize = Math.max(1, Math.floor(ratio));
+      for (let i = 0; i < outputLength; i++) {
+        const startIdx = Math.floor(i * ratio);
+        const endIdx = Math.min(input.length, startIdx + windowSize);
+        let sum = 0;
+        let count = 0;
+        for (let j = startIdx; j < endIdx; j++) {
+          sum += input[j];
+          count++;
+        }
+        output[i] = count > 0 ? sum / count : input[startIdx];
+      }
+      return output;
+    }
 
     for (let i = 0; i < outputLength; i++) {
       const srcPos = i * ratio;
@@ -334,7 +353,7 @@ class SpeechTranscriberService {
       this.getDominantNgramRatio(words, 3) > 0.28;
   }
 
-  isLikelyFillerHallucination(text) {
+  isLikelyFillerHallucination(text, duration = 0) {
     const clean = (text || '')
       .toLowerCase()
       .replace(/[^\p{L}\p{N}\s]/gu, ' ')
@@ -342,10 +361,20 @@ class SpeechTranscriberService {
       .trim();
     if (!clean) return true;
 
+    // Reject classic Whisper silence hallucinations
+    if (/^(thanks?\s+for\s+watching|thank\s+you\s+for\s+watching|thanks?\s+for\s+watching\s+this\s+video|thank\s+you\s+for\s+watching\s+this\s+video|please\s+like\s+and\s+subscribe|like\s+and\s+subscribe|subscribe\s+to\s+my\s+channel|subtitles?\s+by|thank\s+you\s+very\s+much|see\s+you\s+next\s+time|bye\s+bye)\b/i.test(clean)) {
+      return true;
+    }
+
     const words = clean.split(/\s+/).filter(Boolean);
     if (words.length === 0) return true;
     const uniqueWords = new Set(words);
     const joined = words.join(' ');
+
+    // For videos longer than 3s, if the entire transcript is just 1-3 closing words like "thanks for watching"
+    if (duration > 3 && words.length <= 4 && /\b(watching|subscribe|thanks|thank)\b/i.test(clean)) {
+      return true;
+    }
 
     if (words.length >= 3 && uniqueWords.size <= 2) return true;
     if (/\b(sir\s+){2,}sir\b/i.test(joined)) return true;
@@ -464,21 +493,26 @@ class SpeechTranscriberService {
     return words.length >= 2;
   }
 
-  isLikelyWeakEnglishHallucination(result) {
+  isLikelyWeakEnglishHallucination(result, duration = 0) {
     const text = (result?.text || '').replace(/\s+/g, ' ').trim().toLowerCase();
     if (!text) return false;
     if (/[\u0600-\u06FF\u0900-\u097F]/.test(text)) return false;
 
+    // Immediately reject Whisper silence/closing hallucinations
+    if (/\b(thanks?\s+for\s+watching|thank\s+you\s+for\s+watching|please\s+like\s+and\s+subscribe|subscribe\s+to\s+my\s+channel|subtitles?\s+by)\b/i.test(text)) {
+      return true;
+    }
+
     const words = text.split(/\s+/).filter(Boolean);
     const uniqueRatio = new Set(words).size / Math.max(1, words.length);
-    const knownWeakLoop = /\b(come to you|switch to this|you will not have to|we all have|grand theft|caption generation studio)\b/i.test(text);
+    const knownWeakLoop = /\b(come to you|switch to this|you will not have to|we all have|grand theft|caption generation studio|thanks?\s+for\s+watching|thank\s+you\s+for\s+watching)\b/i.test(text);
     const repeatedShortEnglish = words.length >= 8 && (uniqueRatio < 0.55 || this.isRepetitiveTranscriptText(text));
     const tinyChunkCoverage = Array.isArray(result?.chunks) && result.chunks.length <= 1 && words.length >= 10;
 
     return knownWeakLoop || (repeatedShortEnglish && tinyChunkCoverage);
   }
 
-  buildWhisperAttempts(fileBlob = null) {
+  buildWhisperAttempts(fileBlob = null, duration = 0) {
     const hintType = this.getLanguageHintType(fileBlob);
     const displayLanguage = this.getLanguageDisplayName(null, hintType);
     const attempts = [];
@@ -487,18 +521,23 @@ class SpeechTranscriberService {
       const key = `${timestampMode}:${language || 'auto'}`;
       if (seen.has(key)) return;
       seen.add(key);
+      const attemptOptions = {
+        return_timestamps: timestampMode,
+        task: 'transcribe',
+        ...(language ? { language } : {})
+      };
+      // Only enable 30-second chunking for long videos (> 30s).
+      // Omitting chunk_length_s on short videos prevents zero-padding silence that causes hallucinations.
+      if (duration > 30) {
+        attemptOptions.chunk_length_s = 30;
+        attemptOptions.stride_length_s = 5;
+      }
       attempts.push({
         label: `${labelPrefix} — ${displayLanguage}...`,
         language,
         displayLanguage,
         percent: Math.min(91, basePercent + attempts.length),
-        options: {
-          return_timestamps: timestampMode,
-          chunk_length_s: 30,
-          stride_length_s: 5,
-          task: 'transcribe',
-          ...(language ? { language } : {})
-        }
+        options: attemptOptions
       });
     };
 
@@ -523,7 +562,7 @@ class SpeechTranscriberService {
   }
 
   async runWhisperAttempts(transcriber, rawPcm, duration, onProgress = () => {}, fileBlob = null) {
-    const attempts = this.buildWhisperAttempts(fileBlob);
+    const attempts = this.buildWhisperAttempts(fileBlob, duration);
     const hintType = this.getLanguageHintType(fileBlob);
 
     let lastError = null;
@@ -539,24 +578,18 @@ class SpeechTranscriberService {
         if (this.hasTranscriptText(result)) {
           const text = (result.text || '').trim();
           const words = text.split(/\s+/).filter(Boolean);
-          const isFiller = this.isLikelyFillerHallucination(text);
-          const isWeakEnglish = this.isLikelyWeakEnglishHallucination(result);
-          const isKnownEnglishLoop = /\b(come to you|switch to this|you will not have to|we all have|grand theft|caption generation studio)\b/i.test(text);
+          const isFiller = this.isLikelyFillerHallucination(text, duration);
+          const isWeakEnglish = this.isLikelyWeakEnglishHallucination(result, duration);
+          const isKnownEnglishLoop = /\b(come to you|switch to this|you will not have to|we all have|grand theft|caption generation studio|thanks?\s+for\s+watching|thank\s+you\s+for\s+watching|please\s+like\s+and\s+subscribe)\b/i.test(text);
           const score = this.scoreTranscriptCandidate(result, attempt.language, hintType);
 
-          if ((!isFiller || hintType === 'south_asian') && !(hintType === 'south_asian' && isWeakEnglish && isKnownEnglishLoop)) {
+          if (!isFiller && !isWeakEnglish && !isKnownEnglishLoop) {
             if (!bestCandidate || score > bestCandidate.score) {
               result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
-              result.lowConfidence = !!isFiller;
               bestCandidate = { result, score };
             }
 
-            if (hintType === 'south_asian' && words.length >= 2 && !isKnownEnglishLoop) {
-              result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
-              result.lowConfidence = !!isFiller || !this.isAcceptableSouthAsianTranscript(result, score, duration);
-              return result;
-            }
-            if (hintType === 'south_asian' && !isFiller && this.isAcceptableSouthAsianTranscript(result, score, duration)) {
+            if (hintType === 'south_asian' && words.length >= 2) {
               result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
               return result;
             }
@@ -564,7 +597,7 @@ class SpeechTranscriberService {
               result.detectedLanguage = 'English';
               return result;
             }
-            if (hintType === 'auto' && words.length >= 2 && !this.isLikelyWeakEnglishHallucination(result)) {
+            if (hintType === 'auto' && words.length >= 2 && this.isCompleteEnoughTranscript(result, duration)) {
               result.detectedLanguage = this.getLanguageDisplayName(attempt.language, hintType);
               return result;
             }
@@ -1390,6 +1423,10 @@ class SpeechTranscriberService {
    */
   formatWhisperResultToSentences(whisperResult, totalDuration, speechSegments) {
     const rawText = this.normalizeTranscriptText(whisperResult?.text || '');
+    if (this.isLikelyFillerHallucination(rawText, totalDuration)) {
+      console.warn('[speechTranscriber] Rejecting hallucinated closing phrase in format:', rawText);
+      return [];
+    }
     const words = this.extractWhisperWords(whisperResult);
 
     // 1. Check whether Whisper returned real word-level timestamps
