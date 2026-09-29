@@ -924,11 +924,11 @@ export class UserDashboard {
         <h3 class="template-item-name ${isSelected ? 'active' : ''}">${tpl.name}</h3>
       </div>
     `;
-    card.addEventListener('click', () => this.selectTemplate(tpl.id));
+    card.addEventListener('click', () => this.selectTemplate(tpl.id, false));
     card.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        this.selectTemplate(tpl.id);
+        this.selectTemplate(tpl.id, false);
       }
     });
     return card;
@@ -957,12 +957,18 @@ export class UserDashboard {
     this.rotoscopingLoopRunning = false;
     this.isPlaying = false;
     this.isProcessing = false;
+    this.processingProgress = 20;
+    this.processingStatus = 'Initializing...';
     this.processingCancelled = false;
     this.segments = [];
     this.sourceCaptionSentences = [];
     captionEngine.setSentences([]);
     this.expandedSegments = new Set([0]);
     this.lastRenderedSentenceKey = null;
+    this.isNonEnglishVideo = false;
+    this.isTranslating = false;
+    const fileInput = this.container?.querySelector('#user-file-input');
+    if (fileInput) fileInput.value = '';
     if (typeof selfieSegmenterService?.resetCache === 'function') {
       selfieSegmenterService.resetCache();
     } else if (typeof selfieSegmenterService?.clearExportCutoutCache === 'function') {
@@ -970,7 +976,7 @@ export class UserDashboard {
     }
   }
 
-  selectTemplate(tplId, promptUpload = true) {
+  selectTemplate(tplId, promptUpload = false) {
     const targetId = tplId === 'normal-line' ? 'subtitle' : tplId;
     if (!DASHBOARD_TEMPLATE_OPTIONS.some(t => t.id === targetId)) return;
     this.selectedTemplateId = targetId;
@@ -981,8 +987,14 @@ export class UserDashboard {
     this.syncTemplateConfig();
     soundFx.playTemplateSelect();
 
+    // ALWAYS ensure the state of apply caption is cleared when a template is selected
+    this.resetVideoWorkspace();
+
+    try {
+      sessionStorage.setItem('zen_selected_template', targetId);
+    } catch {}
+
     if (promptUpload) {
-      this.resetVideoWorkspace();
       this.showToast(`Selected "${tpl.name}" template. Please upload a video to apply.`, 'info');
       this.switchTab('apply');
       const fileInput = this.container?.querySelector('#user-file-input');
@@ -996,19 +1008,24 @@ export class UserDashboard {
       return;
     }
 
-    const currentSentences = captionEngine.sentences?.length ? captionEngine.sentences : (this.sourceCaptionSentences?.length ? this.sourceCaptionSentences : []);
-    if (currentSentences?.length) {
-      this.sourceCaptionSentences = this.cloneSourceSentences(currentSentences);
-      captionEngine.setSentences(this.styleCaptionSentencesForActiveTemplate(this.sourceCaptionSentences));
+    // Update active card styling in the template grid in-place without navigating away
+    const grid = this.container?.querySelector('#simple-template-grid');
+    if (grid) {
+      grid.querySelectorAll('.simple-template-card').forEach(card => {
+        const isCurrent = card.dataset.tplId === targetId;
+        card.classList.toggle('selected', isCurrent);
+        card.setAttribute('aria-pressed', isCurrent ? 'true' : 'false');
+        card.querySelector('.template-item-name')?.classList.toggle('active', isCurrent);
+      });
+    }
+
+    // Update the apply shortcut button in the header
+    const shortcutBtn = this.container?.querySelector('#btn-templates-apply-shortcut span');
+    if (shortcutBtn) {
+      shortcutBtn.textContent = `⚡ Apply "${tpl.name}" to Video →`;
     }
 
     this.showToast(`Selected "${tpl.name}" template.`, 'info');
-    if (this.activeTab === 'templates') {
-      this.renderTemplatesTab(this.container.querySelector('#user-workspace-content'));
-    } else if (this.activeTab === 'apply') {
-      this.renderApplyCaptionsTab(this.container.querySelector('#user-workspace-content'));
-    }
-    this.updateCaptionOverlay();
   }
 
   selectBaseFontSet(fontSetId) {

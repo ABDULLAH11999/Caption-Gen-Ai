@@ -580,12 +580,16 @@ export class LandingPage {
       }
     ];
 
+    const activeSelectedId = this.selectedTemplateId || sessionStorage.getItem('zen_selected_template') || 'subtitle';
+
     studioTemplates.forEach(tmpl => {
+      const isSelected = tmpl.id === activeSelectedId;
       const card = document.createElement('article');
-      card.className = 'simple-template-card';
+      card.className = `simple-template-card ${isSelected ? 'selected' : ''}`;
       card.dataset.tplId = tmpl.id;
       card.setAttribute('role', 'button');
       card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
       card.innerHTML = `
         <div class="template-image-preview ${tmpl.isRealEstate ? 'real-estate-preview' : 'normal-preview'}">
           <img src="/preview-img.jpg?v=20260929_fresh3" alt="${tmpl.name} preview" loading="lazy">
@@ -607,11 +611,23 @@ export class LandingPage {
           `}
         </div>
         <div class="template-name-row">
-          <h3 class="template-item-name">${tmpl.name}</h3>
+          <h3 class="template-item-name ${isSelected ? 'active' : ''}">${tmpl.name}</h3>
         </div>
       `;
       const selectTpl = () => {
-        this.onNavigate('app', { templateId: tmpl.id });
+        fullGrid.querySelectorAll('.simple-template-card').forEach(c => {
+          const isThis = c.dataset.tplId === tmpl.id;
+          c.classList.toggle('selected', isThis);
+          c.setAttribute('aria-pressed', isThis ? 'true' : 'false');
+          c.querySelector('.template-item-name')?.classList.toggle('active', isThis);
+        });
+        this.selectedTemplateId = tmpl.id;
+        try {
+          sessionStorage.setItem('zen_selected_template', tmpl.id);
+          sessionStorage.removeItem('zen_active_video_state');
+          sessionStorage.removeItem('zen_workspace_sentences');
+        } catch {}
+        this.showToast(`Selected "${tmpl.name}" template.`, 'info');
       };
       card.addEventListener('click', selectTpl);
       card.addEventListener('keydown', (e) => {
@@ -832,7 +848,8 @@ export class LandingPage {
   bindEvents() {
     // 1. Direct Studio Navigation Buttons
     this.container.querySelector('#btn-hero-launch-direct')?.addEventListener('click', () => {
-      this.onNavigate('app');
+      const templateId = this.selectedTemplateId || sessionStorage.getItem('zen_selected_template') || 'subtitle';
+      this.onNavigate('app', { templateId });
     });
 
     // 2. Upload Box with Outline Around '+' and Direct Studio Progress Handoff
@@ -849,7 +866,8 @@ export class LandingPage {
       }
       this.showToast(`Loading "${file.name}" into Caption Studio...`, 'info');
       // Pass the file directly to the app route to start progress automatically!
-      this.onNavigate('app', { file });
+      const templateId = this.selectedTemplateId || sessionStorage.getItem('zen_selected_template') || 'subtitle';
+      this.onNavigate('app', { file, templateId });
     };
 
     plusBox?.addEventListener('click', (e) => {
