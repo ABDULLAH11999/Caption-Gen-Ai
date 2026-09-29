@@ -6,6 +6,17 @@ import { geminiTranslationService } from './geminiTranslationService.js';
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
+// Resolve safe same-origin local wasm directory with CDN fallback
+const resolveWasmPath = () => {
+  if (typeof window !== 'undefined' && window.location) {
+    return `${window.location.origin}/wasm/`;
+  }
+  if (typeof location !== 'undefined' && location.origin) {
+    return `${location.origin}/wasm/`;
+  }
+  return 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/';
+};
+
 // Safe ONNX WASM single-thread configuration for Safari, iOS, Android, and macOS
 if (!env.backends) env.backends = {};
 if (!env.backends.onnx) env.backends.onnx = {};
@@ -13,7 +24,7 @@ if (!env.backends.onnx.wasm) env.backends.onnx.wasm = {};
 env.backends.onnx.wasm.numThreads = 1;
 env.backends.onnx.wasm.simd = true;
 env.backends.onnx.wasm.proxy = false;
-env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/';
+env.backends.onnx.wasm.wasmPaths = resolveWasmPath();
 
 class SpeechTranscriberService {
   constructor() {
@@ -22,13 +33,22 @@ class SpeechTranscriberService {
     this.modelId = 'Xenova/whisper-tiny';
     this.nonEnglishModelId = 'Xenova/whisper-base';
     this.currentPipelineModelId = null;
-    // Detect Safari / iOS once at construction time
-    this._isSafari = typeof navigator !== 'undefined' &&
-      /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    this._isIOS = typeof navigator !== 'undefined' &&
-      /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    this._isMobile = typeof navigator !== 'undefined' &&
-      /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent);
+    // Comprehensive, bulletproof device and browser engine detection
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const platform = typeof navigator !== 'undefined' ? (navigator.platform || '') : '';
+    const maxTouchPoints = typeof navigator !== 'undefined' ? (navigator.maxTouchPoints || 0) : 0;
+
+    // Bulletproof iOS / iPadOS detection (iPadOS 13+ presents as MacIntel with touch points)
+    this._isIOS = /iPhone|iPad|iPod/i.test(ua) || (platform === 'MacIntel' && maxTouchPoints > 1);
+    
+    // Bulletproof macOS detection (desktops & laptops)
+    this._isMac = (/Macintosh|MacIntel|MacPPC|Mac68K/i.test(platform) || /Mac OS X/i.test(ua)) && !this._isIOS;
+
+    // Safari detection (WebKit without Chrome/Edge/Firefox)
+    this._isSafari = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(ua);
+    
+    // Mobile / Tablet detection
+    this._isMobile = this._isIOS || /Android|Mobile|Silk/i.test(ua);
   }
 
   withTimeout(promise, ms, message) {
@@ -41,25 +61,26 @@ class SpeechTranscriberService {
   }
 
   getModelTimeoutMs() {
-    // iOS / Safari needs much longer — model download + WASM init is slower
+    // iOS / Safari / Mac needs longer — model download + WASM init
     if (this._isIOS) return 360000;   // 6 min
-    if (this._isSafari) return 300000; // 5 min
+    if (this._isSafari || this._isMac) return 300000; // 5 min
     if (this._isMobile) return 240000; // 4 min
     return 180000; // 3 min desktop
   }
 
   getInferenceTimeoutMs(duration) {
-    // iOS single-threaded WASM is ~4-6× slower than desktop Chrome
-    const multiplier = this._isIOS ? 12000 : this._isSafari ? 9000 : 6000;
-    const base = this._isIOS ? 360000 : this._isSafari ? 300000 : this._isMobile ? 240000 : 180000;
+    // Single-threaded WASM is ~4-6x slower on mobile/Apple Silicon sandboxes
+    const multiplier = this._isIOS ? 12000 : (this._isSafari || this._isMac) ? 9000 : 6000;
+    const base = this._isIOS ? 360000 : (this._isSafari || this._isMac) ? 300000 : this._isMobile ? 240000 : 180000;
     return Math.min(900000, Math.max(base, Math.ceil((duration || 30) * multiplier)));
   }
 
   shouldUseWorkerTranscription() {
     if (typeof Worker === 'undefined') return false;
-    // Safari/iOS can instantiate module workers but still fail ONNX WASM loading
-    // inside that worker. Main-thread fallback is slower but more reliable there.
-    return !(this._isIOS || this._isSafari);
+    // On iOS (iPhone/iPad) and Safari (macOS/iOS), Web Workers frequently fail loading ONNX WASM or hit strict thread/memory sandbox limits.
+    // Running on main thread with non-blocking timeouts is far more reliable on Apple WebKit devices.
+    if (this._isIOS || this._isSafari) return false;
+    return true;
   }
 
   /**
@@ -72,24 +93,19 @@ class SpeechTranscriberService {
     const targetSampleRate = 16000;
     onProgress({ status: 'extracting', message: 'Decoding audio track…', percent: 22 });
 
-    // iOS/Safari H.264 .mov can take 30-60 s to decode on older devices
-    const decodeTimeoutMs = this._isIOS ? 75000 : this._isSafari ? 45000 : 20000;
+    // iOS/Safari/Mac H.264/HEVC/MOV can take 45-75 s to decode large files
+    const decodeTimeoutMs = (this._isIOS || this._isSafari || this._isMac) ? 90000 : 35000;
     let audioCtx = null;
 
     try {
       const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtxClass) throw new Error('AudioContext not supported');
 
-      // iOS: AudioContext must be created (and stays suspended) until a user
-      // gesture happens. We only call resume(); we do NOT await it here because
-      // we just need the context for decodeAudioData, which works while suspended.
       audioCtx = new AudioCtxClass();
       if (audioCtx.state === 'suspended') {
-        audioCtx.resume().catch(() => {}); // fire-and-forget; safe on iOS
+        await audioCtx.resume().catch(() => {});
       }
 
-      // Read file as ArrayBuffer with a keepalive progress tick so the UI
-      // doesn't appear frozen on large files on slow iOS devices.
       onProgress({ status: 'extracting', message: 'Reading audio data…', percent: 24 });
       const arrayBuffer = await this._readBlobWithProgress(fileBlob, (pct) => {
         onProgress({ status: 'extracting', message: 'Reading audio data…', percent: Math.round(24 + pct * 4) });
@@ -97,8 +113,8 @@ class SpeechTranscriberService {
 
       onProgress({ status: 'extracting', message: 'Decoding audio track…', percent: 28 });
 
-      // decodeAudioData: use Promise API when available (Safari 14.1+), else
-      // callback API. Both paths share the same timeout guard.
+      // Always pass a slice of arrayBuffer so the original arrayBuffer is preserved for fallbacks!
+      const bufferCopy = arrayBuffer.slice(0);
       const decodedBuffer = await new Promise((resolve, reject) => {
         let settled = false;
         const timer = setTimeout(() => {
@@ -113,10 +129,9 @@ class SpeechTranscriberService {
         };
 
         try {
-          // Modern Promise API (Safari 14.1+, Chrome, Firefox)
           const maybePromise = audioCtx.decodeAudioData(
-            arrayBuffer,
-            (buf) => done(buf, null),   // legacy callback — still fires on all browsers
+            bufferCopy,
+            (buf) => done(buf, null),
             (err) => done(null, err)
           );
           if (maybePromise && typeof maybePromise.then === 'function') {
@@ -138,10 +153,12 @@ class SpeechTranscriberService {
 
       onProgress({ status: 'extracting', message: 'Resampling audio to 16 kHz…', percent: 36 });
 
-      // Prefer OfflineAudioContext resampling (hardware-accelerated on iOS/Mac)
-      // over the JS linear-interpolation loop for large buffers.
-      const rawPcm = await this._resampleWithOfflineCtx(monoData, decodedBuffer.sampleRate, targetSampleRate)
-        .catch(() => this.resamplePcm(monoData, decodedBuffer.sampleRate, targetSampleRate));
+      // On Safari/iOS, skip OfflineAudioContext (which throws NotSupportedError on sample rates < 44100)
+      // and use ultra-fast linear interpolation directly
+      const rawPcm = (this._isIOS || this._isSafari)
+        ? this.resamplePcm(monoData, decodedBuffer.sampleRate, targetSampleRate)
+        : await this._resampleWithOfflineCtx(monoData, decodedBuffer.sampleRate, targetSampleRate)
+            .catch(() => this.resamplePcm(monoData, decodedBuffer.sampleRate, targetSampleRate));
 
       if (!this.hasMeaningfulAudio(rawPcm)) throw new Error('Decoded audio track was silent');
 
@@ -697,15 +714,21 @@ class SpeechTranscriberService {
         video.addEventListener('error', onError, { once: true });
 
         video.currentTime = 0;
-        // Keep muted=true: iOS allows autoplay when muted; ScriptProcessor still
-        // receives the audio data even when muted.
-        video.muted = true;
+        // On Safari / WebKit: video.muted = true zeroes createMediaElementSource!
+        // We set video.muted = false, but ensure silentGain is 0 so speakers are completely silent!
+        video.muted = false;
         video.volume = 1;
+        video.playbackRate = 2.0;
 
         const tryPlay = () => {
           const p = video.play();
           if (p && typeof p.catch === 'function') {
-            p.catch((playErr) => done(false, playErr || new Error('Video play() blocked')));
+            p.catch((playErr) => {
+              // If unmuted playback was blocked by browser policy, retry with muted
+              console.warn('[speechTranscriber] Unmuted play blocked, retrying with muted:', playErr?.message);
+              video.muted = true;
+              video.play().catch(mutedErr => done(false, mutedErr || new Error('Video play() blocked')));
+            });
           }
         };
 
@@ -714,8 +737,10 @@ class SpeechTranscriberService {
       });
 
       const captured = this.mergeAudioChunks(chunks, totalLength);
-      const rawPcm = await this._resampleWithOfflineCtx(captured, audioCtx.sampleRate, 16000)
-        .catch(() => this.resamplePcm(captured, audioCtx.sampleRate, 16000));
+      const rawPcm = (this._isIOS || this._isSafari)
+        ? this.resamplePcm(captured, audioCtx.sampleRate, 16000)
+        : await this._resampleWithOfflineCtx(captured, audioCtx.sampleRate, 16000)
+            .catch(() => this.resamplePcm(captured, audioCtx.sampleRate, 16000));
 
       if (!this.hasMeaningfulAudio(rawPcm)) throw new Error('Captured audio was silent');
 
@@ -935,19 +960,34 @@ class SpeechTranscriberService {
         this.pipelinePromise = null;
       }
       if (!this.pipelinePromise) {
-        this.pipelinePromise = pipeline('automatic-speech-recognition', modelId, {
-          quantized: true,
-          progress_callback: (prog) => {
-            const progress = Number(prog?.progress ?? 0);
-            if (Number.isFinite(progress) && progress > 0) {
-              onProgress({
-                status: 'loading_model',
-                message: `Loading Whisper model (${Math.round(progress)}%)...`,
-                percent: Math.min(75, 45 + Math.round(progress * 0.3))
-              });
-            }
+        const createPipeline = (isSimd = true) => {
+          if (env.backends?.onnx?.wasm) {
+            env.backends.onnx.wasm.simd = isSimd;
           }
-        });
+          return pipeline('automatic-speech-recognition', modelId, {
+            quantized: true,
+            progress_callback: (prog) => {
+              const progress = Number(prog?.progress ?? 0);
+              if (Number.isFinite(progress) && progress > 0) {
+                onProgress({
+                  status: 'loading_model',
+                  message: `Loading speech model (${Math.round(progress)}%)...`,
+                  percent: Math.min(75, 45 + Math.round(progress * 0.3))
+                });
+              }
+            }
+          });
+        };
+
+        this.pipelinePromise = (async () => {
+          try {
+            return await createPipeline(true);
+          } catch (simdErr) {
+            console.warn('[speechTranscriber] SIMD initialization failed, retrying with standard WASM for Mac/iOS:', simdErr.message);
+            onProgress({ status: 'loading_model', message: 'Configuring standard speech model...', percent: 47 });
+            return await createPipeline(false);
+          }
+        })();
       }
 
       this.pipeline = await this.withTimeout(
@@ -1105,13 +1145,11 @@ class SpeechTranscriberService {
         if (!this.pipeline) this.pipelinePromise = null;
         console.warn('[speechTranscriber] Whisper inference failed:', err.message);
         const message = err.message || 'Whisper transcription failed';
-        throw new Error(message.startsWith('Transcript missing dependency:')
-          ? message
-          : `Transcript missing dependency: ${message}`);
+        throw new Error(message);
       }
     }
 
-    throw new Error('Transcript missing dependency: browser audio decoding returned no readable audio track.');
+    throw new Error('No readable audio track could be extracted from this video. Please check the video format or upload a standard MP4/MOV with audible speech.');
   }
 
   /**

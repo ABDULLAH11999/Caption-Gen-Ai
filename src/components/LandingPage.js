@@ -494,6 +494,36 @@ export class LandingPage {
           </form>
         </div>
       </div>
+
+      <!-- PURCHASE SUCCESS CONFIRMATION MODAL -->
+      <div class="saas-modal-backdrop" id="purchase-success-modal-backdrop">
+        <div class="saas-modal-dialog" style="max-width: 480px; text-align: center; padding: 36px 28px;">
+          <div style="width: 64px; height: 64px; margin: 0 auto 20px auto; border-radius: 50%; background: #ecfdf5; border: 2px solid #a7f3d0; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2);">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+
+          <h3 style="font-size: 24px; font-weight: 800; color: #0c0c0e; margin: 0 0 10px 0; letter-spacing: -0.5px;">
+            Request Sent Successfully!
+          </h3>
+
+          <p id="purchase-success-detail-text" style="font-size: 15px; color: #4b5563; line-height: 1.6; margin: 0 0 20px 0;">
+            Thank you! Your request for purchase plan has been sent.
+          </p>
+
+          <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 14px; padding: 16px; margin-bottom: 24px; text-align: left; display: flex; gap: 14px; align-items: center;">
+            <span style="font-size: 26px;">📬</span>
+            <div style="font-size: 13px; color: #9a3412; line-height: 1.55;">
+              <strong>Team SLA:</strong> Our team will contact you shortly <strong>within 24 hours via email</strong>. We have also sent a confirmation email to your inbox.
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-black btn-block btn-lg" id="btn-close-purchase-success" style="width: 100%; justify-content: center;">
+            Awesome, Got It!
+          </button>
+        </div>
+      </div>
     `;
 
     parentElement.appendChild(this.container);
@@ -987,32 +1017,64 @@ export class LandingPage {
 
     closeBtn?.addEventListener('click', closeModal);
     cancelBtn?.addEventListener('click', closeModal);
-    modal?.addEventListener('click', (e) => {
-      if (e.target === modal) closeModal();
+    const successModal = this.container.querySelector('#purchase-success-modal-backdrop');
+    const closeSuccessBtn = this.container.querySelector('#btn-close-purchase-success');
+
+    const closeSuccess = () => {
+      successModal?.classList.remove('open');
+    };
+
+    closeSuccessBtn?.addEventListener('click', closeSuccess);
+    successModal?.addEventListener('click', (e) => {
+      if (e.target === successModal) closeSuccess();
     });
 
     purchaseForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const name = this.container.querySelector('#purchase-name')?.value;
-      const email = this.container.querySelector('#purchase-email')?.value;
-      const phone = this.container.querySelector('#purchase-phone')?.value;
-      const notes = this.container.querySelector('#purchase-notes')?.value;
+      const name = this.container.querySelector('#purchase-name')?.value?.trim();
+      const email = this.container.querySelector('#purchase-email')?.value?.trim();
+      const phone = this.container.querySelector('#purchase-phone')?.value?.trim();
+      const notes = this.container.querySelector('#purchase-notes')?.value?.trim();
+      const submitBtn = this.container.querySelector('#btn-submit-purchase');
+      const planName = this.selectedPlanForPurchase?.name || 'Creator Pro';
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>Sending Request...</span>';
+      }
 
       try {
         await api.submitPurchase({
           planId: this.selectedPlanForPurchase?.id || 'creator-pro',
-          planName: this.selectedPlanForPurchase?.name || 'Creator Pro',
+          planName,
           name,
           email,
           phone,
           notes
         });
-        this.showToast('Purchase request received! Our team will contact you shortly.', 'success');
         closeModal();
+        purchaseForm.reset();
+        this.openPurchaseSuccessModal({ name, email, planName });
       } catch (err) {
         this.showToast('Failed to submit purchase request: ' + err.message, 'error');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<span>Submit Request</span>';
+        }
       }
     });
+  }
+
+  openPurchaseSuccessModal({ name, email, planName }) {
+    const successModal = this.container.querySelector('#purchase-success-modal-backdrop');
+    const detailText = this.container.querySelector('#purchase-success-detail-text');
+    if (detailText) {
+      detailText.innerHTML = `Thank you, <strong>${name || 'Creator'}</strong>! Your request for the <strong>${planName}</strong> plan has been sent.`;
+    }
+    if (successModal) {
+      successModal.classList.add('open');
+    }
   }
 
   openPurchaseModal(plan) {
@@ -1029,3 +1091,4 @@ export class LandingPage {
     if (modal) modal.classList.add('open');
   }
 }
+

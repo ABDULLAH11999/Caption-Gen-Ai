@@ -4,8 +4,15 @@ import { query, hashPassword } from './db.js';
 import { 
   sendEmail, 
   generateOtpEmailHtml, 
+  generateWelcomeEmailHtml,
   generatePurchaseConfirmationEmailHtml, 
-  generateContactReplyEmailHtml 
+  generateAdminPurchaseNotificationEmailHtml,
+  generateContactConfirmationEmailHtml,
+  generateAdminContactNotificationEmailHtml,
+  generateContactReplyEmailHtml,
+  generateTestEmailHtml,
+  getBusinessEmail,
+  getResendFromAddress
 } from './emailService.js';
 import { resolveCountry, detectDevice } from './geoService.js';
 import { createDatabaseBackupZip, getBackupFileName } from './dbBackup.js';
@@ -480,6 +487,22 @@ apiRouter.post('/auth/verify-otp', otpVerifyLimiter.middleware(), async (req, re
     [token, newUser.id, expiresAt]
   );
 
+  // Send branded Welcome Email to newly verified creator
+  try {
+    const welcomeHtml = generateWelcomeEmailHtml({
+      name: newUser.name || name,
+      username: newUser.username || cleanUsername,
+      email: newUser.email || cleanEmail
+    });
+    sendEmail({
+      to: cleanEmail,
+      subject: `Welcome to Zen Caption AI Studio! 🎬`,
+      html: welcomeHtml
+    }).catch(err => console.warn('[Auth] Welcome email async dispatch failed:', err.message));
+  } catch (welcomeErr) {
+    console.warn('[Auth] Error generating welcome email:', welcomeErr.message);
+  }
+
   res.json({
     success: true,
     user: newUser,
@@ -576,12 +599,57 @@ apiRouter.post('/public/contact', publicFormLimiter.middleware(), async (req, re
     return res.status(400).json({ error: 'Name, email, and message are required.' });
   }
 
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanName = String(name).trim();
+  const cleanSubject = String(subject || 'General Inquiry').trim();
+  const cleanMessage = String(message).trim();
+
   const insRes = await query(
     'INSERT INTO contacts (name, email, subject, message) VALUES ($1, $2, $3, $4) RETURNING id',
-    [name, email.toLowerCase().trim(), subject || 'Inquiry', message]
+    [cleanName, cleanEmail, cleanSubject, cleanMessage]
   );
 
-  res.json({ success: true, message: 'Your message has been sent successfully!', contactId: insRes.rows[0]?.id });
+  const contactId = insRes.rows[0]?.id;
+  const businessEmail = getBusinessEmail();
+
+  // 1. Notify business email
+  try {
+    const adminEmailHtml = generateAdminContactNotificationEmailHtml({
+      id: contactId,
+      name: cleanName,
+      email: cleanEmail,
+      subject: cleanSubject,
+      message: cleanMessage
+    });
+    sendEmail({
+      to: businessEmail,
+      subject: `📬 New Contact Inquiry: ${cleanSubject} from ${cleanName}`,
+      html: adminEmailHtml
+    }).catch(err => console.warn('[Contact] Business notification failed:', err.message));
+  } catch (adminErr) {
+    console.warn('[Contact] Error preparing business notification:', adminErr.message);
+  }
+
+  // 2. Auto-confirm to user (assures response in 24 hours)
+  try {
+    const userEmailHtml = generateContactConfirmationEmailHtml({
+      name: cleanName,
+      subject: cleanSubject
+    });
+    sendEmail({
+      to: cleanEmail,
+      subject: `We Received Your Message: ${cleanSubject}`,
+      html: userEmailHtml
+    }).catch(err => console.warn('[Contact] User confirmation failed:', err.message));
+  } catch (userErr) {
+    console.warn('[Contact] Error preparing user confirmation email:', userErr.message);
+  }
+
+  res.json({
+    success: true,
+    message: 'Your message has been sent successfully! Our team will contact you shortly within 24 hours via email.',
+    contactId
+  });
 });
 
 // Purchase Request Submission (Throttled to protect Gmail SMTP Quota)
@@ -617,8 +685,12 @@ apiRouter.post('/public/purchase', publicFormLimiter.middleware(), async (req, r
     [userId, name, email, phone || null, planId, plan.name, plan.price, notes || null]
   );
 
+  const purchaseId = insRes.rows[0]?.id;
+  const businessEmail = getBusinessEmail();
+
+  // 1. Send customer confirmation (explicitly states team will contact shortly in 24 hours via email)
   try {
-    const emailHtml = generatePurchaseConfirmationEmailHtml({
+    const userEmailHtml = generatePurchaseConfirmationEmailHtml({
       name,
       planName: plan.name,
       price: plan.price,
@@ -628,16 +700,38 @@ apiRouter.post('/public/purchase', publicFormLimiter.middleware(), async (req, r
     await sendEmail({
       to: email,
       subject: `Order Confirmation: ${plan.name} Request Received`,
-      html: emailHtml
+      html: userEmailHtml
     });
   } catch (emailErr) {
     console.warn('[Purchase] Confirmation email failed after request was saved:', emailErr.message);
   }
 
+  // 2. Notify business email
+  try {
+    const adminEmailHtml = generateAdminPurchaseNotificationEmailHtml({
+      id: purchaseId,
+      name,
+      email,
+      phone,
+      planName: plan.name,
+      price: plan.price,
+      billingCycle: plan.billing_cycle,
+      notes
+    });
+
+    sendEmail({
+      to: businessEmail,
+      subject: `⚡ New Purchase Request: ${plan.name} from ${name}`,
+      html: adminEmailHtml
+    }).catch(err => console.warn('[Purchase] Business notification email failed:', err.message));
+  } catch (bizErr) {
+    console.warn('[Purchase] Error preparing business notification:', bizErr.message);
+  }
+
   res.json({
     success: true,
-    purchaseId: insRes.rows[0]?.id,
-    message: `Purchase request for ${plan.name} submitted! Check your email for confirmation.`
+    purchaseId,
+    message: `Your request for purchase plan has been sent! Our team will contact you shortly in 24 hours via email.`
   });
 });
 
@@ -1187,6 +1281,33 @@ apiRouter.put('/admin/settings', requireAdmin, async (req, res) => {
     );
   }
   res.json({ success: true, message: 'Settings saved successfully!' });
+});
+
+// Admin Email Diagnostics & Test Dispatch
+apiRouter.get('/admin/email-status', requireAdmin, async (req, res) => {
+  res.json({
+    sender: getResendFromAddress(),
+    businessEmail: getBusinessEmail(),
+    resendConfigured: !!process.env.RESEND_API_KEY
+  });
+});
+
+apiRouter.post('/admin/send-test-email', requireAdmin, async (req, res) => {
+  try {
+    const targetEmail = (req.body.to || getBusinessEmail()).trim();
+    const html = generateTestEmailHtml({
+      recipient: targetEmail,
+      timestamp: new Date().toUTCString()
+    });
+    const result = await sendEmail({
+      to: targetEmail,
+      subject: 'Zen Caption AI - System Email Health & Resend Verification',
+      html
+    });
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 apiRouter.get('/admin/database/export', requireAdmin, async (req, res) => {

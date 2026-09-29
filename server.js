@@ -136,13 +136,18 @@ app.get(['/apple-touch-icon.png', '/apple-touch-icon-precomposed.png'], (req, re
 app.use(express.static(DIST_DIR, {
   maxAge: '1d',
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.html') || filePath.includes('sw.js')) {
+    if (filePath.endsWith('.wasm')) {
+      res.setHeader('Content-Type', 'application/wasm');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (filePath.endsWith('.html') || filePath.includes('sw.js')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     } else if (filePath.includes('/assets/')) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     }
   }
 }));
+
 
 // SPA Fallback for all other HTML routes
 app.use((req, res) => {

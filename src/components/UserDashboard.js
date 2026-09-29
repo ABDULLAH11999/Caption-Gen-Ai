@@ -1628,7 +1628,16 @@ export class UserDashboard {
     modal.id = 'transcript-error-popup';
     modal.className = 'transcript-error-backdrop';
     const isHindiUrduGeminiError = /Hindi\/Urdu|Gemini/i.test(message || '');
-    const title = titleOverride || (isHindiUrduGeminiError ? 'Hindi/Urdu Transcription Setup Needed' : 'Transcript Missing Dependency');
+    const isNoSpeech = /no speech|no real caption|did not return|no audible/i.test(message || '');
+    let defaultTitle = 'Transcription Notice';
+    if (isHindiUrduGeminiError) {
+      defaultTitle = 'Hindi/Urdu Transcription Setup Needed';
+    } else if (isNoSpeech) {
+      defaultTitle = 'No Speech Detected';
+    } else if (/audio|decod/i.test(message || '')) {
+      defaultTitle = 'Audio Processing Issue';
+    }
+    const title = titleOverride || defaultTitle;
     modal.innerHTML = `
       <div class="transcript-error-card" role="alertdialog" aria-modal="true" aria-labelledby="transcript-error-title">
           <button type="button" class="transcript-error-close" id="btn-transcript-error-close" aria-label="Close">×</button>
@@ -1878,7 +1887,7 @@ export class UserDashboard {
         this.isNonEnglishVideo = !!(transcribeResult.hasUrduOrHindi || speechTranscriber.isUrduOrHindiTranscript(transcribeResult.sentences));
       } else {
         captionEngine.setSentences([]);
-        const message = 'Transcript missing dependency: Whisper did not return any real caption segments.';
+        const message = 'No audible speech or clear dialogue detected in this video. Please upload a video with clear spoken audio or type captions manually.';
         throw new Error(message);
       }
 
@@ -4420,8 +4429,8 @@ export class UserDashboard {
           notes
         });
         soundFx.playSaveSuccess();
-        this.showToast('Upgrade request submitted! Our team will contact you shortly.', 'success');
         closeModal();
+        this.openPurchaseSuccessModal({ name, email, planName: targetPlan.name });
       } catch (err) {
         this.showToast('Failed to submit upgrade request: ' + (err.message || 'Error'), 'error');
       } finally {
@@ -4431,6 +4440,51 @@ export class UserDashboard {
 
     requestAnimationFrame(() => modal.classList.add('open'));
   }
+
+  openPurchaseSuccessModal({ name, email, planName }) {
+    let modal = document.getElementById('dashboard-purchase-success-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.className = 'saas-modal-backdrop';
+      modal.id = 'dashboard-purchase-success-modal';
+      document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+      <div class="saas-modal-dialog" style="max-width: 480px; text-align: center; padding: 36px 28px;">
+        <div style="width: 64px; height: 64px; margin: 0 auto 20px auto; border-radius: 50%; background: #ecfdf5; border: 2px solid #a7f3d0; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+
+        <h3 style="font-size: 24px; font-weight: 800; color: #0c0c0e; margin: 0 0 10px 0; letter-spacing: -0.5px;">
+          Upgrade Request Submitted!
+        </h3>
+
+        <p style="font-size: 15px; color: #4b5563; line-height: 1.6; margin: 0 0 20px 0;">
+          Thank you, <strong>${name || 'Creator'}</strong>! Your request for the <strong>${planName}</strong> plan has been sent.
+        </p>
+
+        <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 14px; padding: 16px; margin-bottom: 24px; text-align: left; display: flex; gap: 14px; align-items: center;">
+          <span style="font-size: 26px;">📬</span>
+          <div style="font-size: 13px; color: #9a3412; line-height: 1.55;">
+            <strong>Team SLA:</strong> Our team will contact you shortly <strong>within 24 hours via email</strong> at <strong>${email}</strong>. A confirmation has also been sent to your inbox.
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-block btn-lg" id="btn-close-dashboard-success" style="width: 100%; justify-content: center;">
+          Got It, Thank You!
+        </button>
+      </div>
+    `;
+
+    const close = () => modal.classList.remove('open');
+    modal.querySelector('#btn-close-dashboard-success')?.addEventListener('click', close);
+    modal.onclick = (e) => { if (e.target === modal) close(); };
+    requestAnimationFrame(() => modal.classList.add('open'));
+  }
+
 
   sleep(ms) {
     return new Promise(r => setTimeout(r, ms));

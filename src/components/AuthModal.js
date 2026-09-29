@@ -308,19 +308,34 @@ export class AuthModal {
       try {
         const res = await api.signup({ name, username, email, password });
         this.signupData = { name, username, email, password };
-        const subheading = this.container.querySelector('#otp-subheading');
-        if (subheading) {
-          subheading.textContent = res.emailDelivered
-            ? `We sent a 6-digit security code to ${email}`
-            : `Email delivery failed, so we filled the backup code for you.`;
-        }
         this.switchView('otp');
-        if (res && res.devCode) {
-          const otpInput = this.container.querySelector('#otp-code-input');
-          if (otpInput) otpInput.value = res.devCode;
-          this.showToast(`Email failed, backup code filled automatically.`, 'info');
+        const subheading = this.container.querySelector('#otp-subheading');
+        const otpInput = this.container.querySelector('#otp-code-input');
+
+        if (res && res.emailDelivered && !res.devCode) {
+          // Email sent correctly: DO NOT autofill. Clear the field and ask user to check their email.
+          if (otpInput) {
+            otpInput.value = '';
+            otpInput.placeholder = '000000';
+            setTimeout(() => otpInput.focus(), 100);
+          }
+          if (subheading) {
+            subheading.textContent = `We sent a 6-digit verification code to ${email}. Check your inbox or spam folder.`;
+          }
+          this.showToast(`Verification code sent to ${email}! Please check your inbox.`, 'success');
+        } else if (res && res.devCode) {
+          // Email delivery failed: Autofill the backup code so user is not blocked.
+          if (otpInput) {
+            otpInput.value = res.devCode;
+            setTimeout(() => otpInput.focus(), 100);
+          }
+          if (subheading) {
+            subheading.textContent = `Email delivery was unavailable, so your backup verification code has been auto-filled below.`;
+          }
+          this.showToast('Email delivery failed. Backup code auto-filled for you.', 'info');
         } else {
-          this.showToast('Verification code sent to your email!', 'info');
+          if (otpInput) otpInput.value = '';
+          this.showToast('Please check your email for the verification code.', 'info');
         }
       } catch (err) {
         errorBox.textContent = err.message;
@@ -342,12 +357,33 @@ export class AuthModal {
           method: 'POST',
           body: { email: this.signupData.email, name: this.signupData.name }
         });
-        if (res && res.devCode) {
-          const otpInput = this.container.querySelector('#otp-code-input');
-          if (otpInput) otpInput.value = res.devCode;
-          this.showToast('Email failed, new backup code filled automatically.', 'info');
+        const subheading = this.container.querySelector('#otp-subheading');
+        const otpInput = this.container.querySelector('#otp-code-input');
+
+        if (res && res.emailDelivered && !res.devCode) {
+          // Email sent successfully: Clear field, do NOT autofill.
+          if (otpInput) {
+            otpInput.value = '';
+            otpInput.placeholder = '000000';
+            setTimeout(() => otpInput.focus(), 100);
+          }
+          if (subheading) {
+            subheading.textContent = `A new verification code has been sent to ${this.signupData.email}. Check your inbox.`;
+          }
+          this.showToast('New verification code sent to your email!', 'success');
+        } else if (res && res.devCode) {
+          // Email failed: Autofill backup code.
+          if (otpInput) {
+            otpInput.value = res.devCode;
+            setTimeout(() => otpInput.focus(), 100);
+          }
+          if (subheading) {
+            subheading.textContent = `Email delivery was unavailable, so your backup code was auto-filled below.`;
+          }
+          this.showToast('Email delivery failed. New backup code auto-filled.', 'info');
         } else {
-          this.showToast('New verification code sent to your email!', 'info');
+          if (otpInput) otpInput.value = '';
+          this.showToast('Check your email for the new verification code.', 'info');
         }
       } catch (err) {
         this.showToast(err.message, 'error');

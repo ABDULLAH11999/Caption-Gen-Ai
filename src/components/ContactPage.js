@@ -64,8 +64,8 @@ export class ContactPage {
 
       try {
         await api.submitContact({ name, email, subject, message });
-        this.showToast('Your message has been sent! Our team will reply shortly.', 'success');
         form.reset();
+        this.openContactSuccessModal({ name, email });
       } catch (err) {
         this.showToast(err.message, 'error');
       } finally {
@@ -76,4 +76,49 @@ export class ContactPage {
 
     return this.container;
   }
+
+  openContactSuccessModal({ name, email }) {
+    let modal = document.getElementById('contact-success-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.className = 'saas-modal-backdrop';
+      modal.id = 'contact-success-modal';
+      document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+      <div class="saas-modal-dialog" style="max-width: 480px; text-align: center; padding: 36px 28px;">
+        <div style="width: 64px; height: 64px; margin: 0 auto 20px auto; border-radius: 50%; background: #ecfdf5; border: 2px solid #a7f3d0; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+
+        <h3 style="font-size: 24px; font-weight: 800; color: #0c0c0e; margin: 0 0 10px 0; letter-spacing: -0.5px;">
+          Message Sent Successfully!
+        </h3>
+
+        <p style="font-size: 15px; color: #4b5563; line-height: 1.6; margin: 0 0 20px 0;">
+          Thank you, <strong>${name || 'there'}</strong>! We have received your inquiry.
+        </p>
+
+        <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 14px; padding: 16px; margin-bottom: 24px; text-align: left; display: flex; gap: 14px; align-items: center;">
+          <span style="font-size: 26px;">📬</span>
+          <div style="font-size: 13px; color: #9a3412; line-height: 1.55;">
+            <strong>Support SLA:</strong> Our team will review your message and contact you <strong>within 24 hours via email</strong> at <strong>${email}</strong>.
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-block btn-lg" id="btn-close-contact-success" style="width: 100%; justify-content: center;">
+          Done
+        </button>
+      </div>
+    `;
+
+    const close = () => modal.classList.remove('open');
+    modal.querySelector('#btn-close-contact-success')?.addEventListener('click', close);
+    modal.onclick = (e) => { if (e.target === modal) close(); };
+    requestAnimationFrame(() => modal.classList.add('open'));
+  }
 }
+

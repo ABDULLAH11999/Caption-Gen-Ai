@@ -4,13 +4,20 @@ import { pipeline, env } from '@xenova/transformers';
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
+const resolveWasmPath = () => {
+  if (typeof location !== 'undefined' && location.origin) {
+    return `${location.origin}/wasm/`;
+  }
+  return 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/';
+};
+
 if (!env.backends) env.backends = {};
 if (!env.backends.onnx) env.backends.onnx = {};
 if (!env.backends.onnx.wasm) env.backends.onnx.wasm = {};
 env.backends.onnx.wasm.numThreads = 1;
 env.backends.onnx.wasm.simd = true;
 env.backends.onnx.wasm.proxy = false;
-env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/';
+env.backends.onnx.wasm.wasmPaths = resolveWasmPath();
 
 let transcriberPipeline = null;
 let currentModelId = 'Xenova/whisper-tiny';
@@ -310,20 +317,32 @@ self.addEventListener('message', async (e) => {
           percent: 45
         });
 
-        transcriberPipeline = await pipeline('automatic-speech-recognition', targetModel, {
-          quantized: true,
-          progress_callback: (prog) => {
-            const progress = Number(prog?.progress ?? 0);
-            if (Number.isFinite(progress) && progress > 0) {
-              self.postMessage({
-                type: 'progress',
-                status: 'loading_model',
-                message: `Loading Whisper model (${Math.round(progress)}%)...`,
-                percent: Math.min(75, 45 + Math.round(progress * 0.3))
-              });
-            }
+        const createPipeline = (isSimd = true) => {
+          if (env.backends?.onnx?.wasm) {
+            env.backends.onnx.wasm.simd = isSimd;
           }
-        });
+          return pipeline('automatic-speech-recognition', targetModel, {
+            quantized: true,
+            progress_callback: (prog) => {
+              const progress = Number(prog?.progress ?? 0);
+              if (Number.isFinite(progress) && progress > 0) {
+                self.postMessage({
+                  type: 'progress',
+                  status: 'loading_model',
+                  message: `Loading Whisper model (${Math.round(progress)}%)...`,
+                  percent: Math.min(75, 45 + Math.round(progress * 0.3))
+                });
+              }
+            }
+          });
+        };
+
+        try {
+          transcriberPipeline = await createPipeline(true);
+        } catch (simdErr) {
+          console.warn('[transcription.worker] SIMD failed in worker, retrying standard WASM:', simdErr.message);
+          transcriberPipeline = await createPipeline(false);
+        }
         currentModelId = targetModel;
       }
 
