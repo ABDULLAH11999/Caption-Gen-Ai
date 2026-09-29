@@ -263,11 +263,13 @@ export class UserDashboard {
       return {
         ...base,
         posX: 6,
-        posY: 50,
-        boxWidth: 92,
+        posY: 48,
+        topWordPosX: 6,
+        topWordPosY: 10,
+        boxWidth: 90,
         realEstateLayout: true,
-        templateMode: 'real-estate',
-        fontSize: 50,
+        templateMode: this.selectedTemplateId || 'real-estate',
+        fontSize: 36,
         italic: false,
         topWord: sourceWords[0]?.word || '',
         bodyWords: sourceWords.slice(1).map(word => word.word),
@@ -275,8 +277,7 @@ export class UserDashboard {
           ...word,
           italic: false,
           isTopWord: wordIndex === 0,
-          isProminent: wordIndex === sourceWords.length - 1,
-          fontSize: wordIndex === 0 ? 70 : 50
+          isProminent: wordIndex === sourceWords.length - 1
         }))
       };
     });
@@ -2237,13 +2238,15 @@ export class UserDashboard {
     const widthPx = Math.round(renderW);
     const heightPx = Math.round(renderH);
 
+    this.videoDisplayBounds = { width: widthPx, height: heightPx, left: leftPx, top: topPx };
+
     overlays.forEach(overlay => {
       overlay.style.position = 'absolute';
       overlay.style.left = `${leftPx}px`;
       overlay.style.top = `${topPx}px`;
       overlay.style.width = `${widthPx}px`;
       overlay.style.height = `${heightPx}px`;
-      overlay.style.overflow = 'visible';
+      overlay.style.overflow = 'hidden';
     });
 
     if (cutoutCanvas) {
@@ -2489,15 +2492,28 @@ export class UserDashboard {
     let displayWords = words;
     let chunkOffset = 0;
 
-    const isPortrait = this.currentMode === 'portrait';
+    const isPortrait = this.currentMode === 'portrait' || (this.videoElement && this.videoElement.videoHeight > this.videoElement.videoWidth);
     const isRealEstate = this.selectedTemplateId?.startsWith('real-estate') || currentSentence.templateMode?.startsWith('real-estate') || !!currentSentence.realEstateLayout;
+    
+    const videoDisplayW = this.videoDisplayBounds?.width || (this.videoElement?.clientWidth || (isPortrait ? 360 : 640));
+    const refW = isPortrait ? 360 : 640;
+    const previewScale = Math.max(0.65, Math.min(2.0, videoDisplayW / refW));
+
     const defaultBaseFontSize = isPortrait ? 25 : ((cfg.fontSize && Number(cfg.fontSize) <= 30) ? Number(cfg.fontSize) : 28);
     const customSentenceSize = (currentSentence.fontSize !== undefined && currentSentence.fontSize !== null && currentSentence.fontSize > 0)
       ? Number(currentSentence.fontSize)
       : null;
-    const baseFontSize = customSentenceSize || defaultBaseFontSize;
-    const realEstateTopSize = customSentenceSize ? Math.round(customSentenceSize * (70 / 50)) : 70;
-    const realEstateBodySize = customSentenceSize || 50;
+    const baseFontSize = customSentenceSize || Math.round(defaultBaseFontSize * previewScale);
+    const realEstateTopSize = customSentenceSize ? Math.round(customSentenceSize * (52 / 36)) : Math.round(46 * previewScale);
+    const realEstateBodySize = customSentenceSize || Math.round(34 * previewScale);
+
+    // Guaranteed aspect ratio fit: dynamically clamp font size if a word would overflow video width
+    const checkWordFitSize = (wordStr, targetFontSize, targetLeftPct) => {
+      const availPx = Math.max(60, videoDisplayW * ((96 - targetLeftPct) / 100));
+      const cleanLen = Math.max(1, String(wordStr || '').replace(/[.,!?:;"'()]/g, '').length);
+      const maxFit = Math.floor(availPx / (cleanLen * 0.62));
+      return Math.min(targetFontSize, Math.max(14, maxFit));
+    };
 
     const normalFontFamily = this.getFontFamily(cfg.normalFontFamily || 'Inter');
     const prominentFontFamily = this.getFontFamily(cfg.prominentFontFamily || 'Syne');
@@ -2533,62 +2549,12 @@ export class UserDashboard {
       ? `text-shadow: 0 0 6px ${glowColor}, 0 0 16px ${glowColor}, 0 0 28px ${glowColor} !important; filter: drop-shadow(0 0 8px ${glowColor}) !important;`
       : 'text-shadow: none !important; filter: none !important;';
 
-    const wordsHtml = displayWords.map((w, localIdx) => {
-      const globalIdx = chunkOffset + localIdx;
-      const cleanWord = (w.word || '').replace(/[.,!?:;"'()]/g, '');
-      const isHeroKeyword = autoTypographyEngine.brandRegex.test(cleanWord) ||
-                            autoTypographyEngine.monthsDatesRegex.test(cleanWord) ||
-                            autoTypographyEngine.placesRegex.test(cleanWord) ||
-                            autoTypographyEngine.impactWordsRegex.test(cleanWord);
-      const isSpeaking = globalIdx === speakingWordIdx;
-      const isLastWord = globalIdx === words.length - 1;
-      const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && globalIdx === 1);
-
-      const isTopWord = isRealEstate && localIdx === 0;
-      const currentFontSize = isRealEstate ? (isTopWord ? realEstateTopSize : realEstateBodySize) : baseFontSize;
-
-      let font = normalFontFamily;
-      if (isRealEstate) {
-        font = isTopWord
-          ? this.getFontFamily(cfg.accentFontFamily || cfg.prominentFontFamily)
-          : (localIdx === displayWords.length - 1 ? prominentFontFamily : normalFontFamily);
-      } else {
-        font = (isProminent || isSpeaking) ? prominentFontFamily : (segmentFontFamily || normalFontFamily);
-      }
-
-      let color = isProminent ? prominentColor : defaultTextColor;
-      if (isRealEstate) {
-        color = isTopWord ? '#FFFFFF' : (localIdx === displayWords.length - 1 ? prominentColor : '#FFFFFF');
-      } else if (isLastWord && hasLastWordColor) {
-        color = lastWordColor;
-      }
-
-      const fontWeight = forceBold ? 900 : ((isSpeaking && !isRealEstate) ? 900 : (isProminent ? 800 : 700));
-      const fontStyle = forceItalic ? 'italic' : 'normal';
-      const textDecoration = forceUnderline ? 'text-decoration:underline;text-underline-offset:.12em;text-decoration-thickness:.08em;' : 'text-decoration:none;';
-      const strokeWidth = strokeEnabled
-        ? (isProminent ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.5) : (cfg.normalOutlineWidth !== undefined ? cfg.normalOutlineWidth : 1.5))
-        : 0;
-      const strokeColor = strokeEnabled
-        ? (customStrokeColor || (isProminent ? (cfg.prominentOutlineColor || '#000000') : (cfg.normalOutlineColor || '#000000')))
-        : 'transparent';
-
-      // In real estate mode, do not animate words individually 3 times per segment; the segment animation runs once for the segment
-      const wordScale = isRealEstate ? 'scale(1)' : (isSpeaking ? 'scale(1.15)' : 'scale(1)');
-      const wordTransition = isRealEstate ? 'none' : (isSpeaking ? 'transform .22s cubic-bezier(.34,1.56,.64,1), filter .2s ease' : 'transform .18s ease-out');
-      const isBreakAfter = isRealEstate && isTopWord && displayWords.length > 1;
-
-      return `
-        <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''} ${isTopWord ? 'real-estate-top-token' : ''}" style="
-          display:inline-block!important;vertical-align:baseline!important;margin:1px 3px!important;padding:0 1px!important;box-sizing:border-box!important;
-          font-family:${font}!important;color:${color}!important;font-size:${currentFontSize}px!important;font-weight:${fontWeight};font-style:${fontStyle};${textDecoration}
-          opacity:1!important;visibility:visible!important;line-height:1.08;letter-spacing:.2px;${glowStyles}
-          -webkit-text-stroke:${strokeWidth}px ${strokeColor};paint-order:stroke fill;-webkit-paint-order:stroke fill;
-          transform:${wordScale}!important;transform-origin:center bottom!important;z-index:${isSpeaking ? 5 : 1}!important;
-          white-space:nowrap!important;will-change:transform;transition:${wordTransition};
-        ">${this.escapeHtml(formatCaptionWord(w.word))}</span>${isBreakAfter ? '<span style="flex-basis:100%;height:0;margin:0;padding:0;display:block;"></span>' : ''}
-      `;
-    }).join('');
+    const strokeWidth = strokeEnabled
+      ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.0)
+      : 0;
+    const strokeColor = strokeEnabled
+      ? (customStrokeColor || (cfg.prominentOutlineColor || '#000000'))
+      : 'transparent';
 
     const sStart = Number(currentSentence.start ?? currentSentence.startTime ?? 0);
     const sEnd = Number(currentSentence.end ?? currentSentence.endTime ?? (sStart + 2.5));
@@ -2600,6 +2566,110 @@ export class UserDashboard {
     }
     const animMeta = CAPTION_ANIMATIONS.find(a => a.id === resolvedAnimId || a.cssClass === resolvedAnimId);
     const animClass = animMeta ? animMeta.cssClass : (resolvedAnimId.startsWith('anim-') ? resolvedAnimId : 'anim-pop');
+    const isBehind = !!currentSentence.behind;
+    const anchorZIndex = isBehind ? 5 : (20 + anchorIndex);
+
+    const toolbarHtml = showToolbar ? `
+      <div class="caption-drag-toolbar">
+        <span class="caption-toolbar-pill caption-drag-handle" title="Click and drag anywhere on video to position">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="2"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/></svg>
+          <span>Move</span>
+        </span>
+        <button type="button" class="caption-toolbar-btn btn-follow-all" id="btn-follow-all-segments" title="Apply this style, color, size, animation, and position to ALL segments"><span>Apply to All</span></button>
+        <button type="button" class="caption-toolbar-btn btn-break-words" id="btn-break-segment-words" title="Break this caption line into one segment per word"><span>Break into words</span></button>
+        <button type="button" class="caption-toolbar-btn btn-reset-pos" id="btn-reset-segment-pos" title="Reset this segment to default middle-left"><span>Reset</span></button>
+      </div>
+    ` : '';
+
+    // ========================================================================
+    // REAL ESTATE FANCY / REAL ESTATE MODE: One word Top-Left, Other words Middle-Left
+    // ========================================================================
+    if (isRealEstate && displayWords.length > 0) {
+      const topRawX = currentSentence.topWordPosX !== undefined ? Number(currentSentence.topWordPosX) : 6;
+      const topRawY = currentSentence.topWordPosY !== undefined ? Number(currentSentence.topWordPosY) : 10;
+      const topPosX = Math.max(2, Math.min(88, Number.isFinite(topRawX) ? topRawX : 6));
+      const topPosY = Math.max(2, Math.min(92, Number.isFinite(topRawY) ? topRawY : 10));
+
+      const bodyRawX = currentSentence.posX !== undefined ? Number(currentSentence.posX) : 6;
+      const bodyRawY = currentSentence.posY !== undefined ? Number(currentSentence.posY) : 48;
+      const bodyPosX = Math.max(2, Math.min(88, Number.isFinite(bodyRawX) ? bodyRawX : 6));
+      const bodyPosY = Math.max(2, Math.min(92, Number.isFinite(bodyRawY) ? bodyRawY : 48));
+
+      const topWord = displayWords[0];
+      const isTopSpeaking = speakingWordIdx === chunkOffset;
+      const topFont = this.getFontFamily(cfg.accentFontFamily || cfg.prominentFontFamily);
+      const topFitSize = checkWordFitSize(topWord.word, realEstateTopSize, topPosX);
+
+      const topWordHtml = `
+        <span class="caption-word-token ${isTopSpeaking ? 'speaking current' : ''} real-estate-top-token" style="
+          display:inline-block!important;vertical-align:baseline!important;margin:1px 0!important;padding:0 2px!important;box-sizing:border-box!important;
+          font-family:${topFont}!important;color:#FFFFFF!important;font-size:${topFitSize}px!important;font-weight:900;font-style:normal;text-decoration:none;
+          opacity:1!important;visibility:visible!important;line-height:1.06;letter-spacing:.2px;${glowStyles}
+          -webkit-text-stroke:${strokeWidth}px ${strokeColor};paint-order:stroke fill;-webkit-paint-order:stroke fill;
+          transform:scale(1)!important;transform-origin:left center!important;z-index:5!important;
+          white-space:nowrap!important;max-width:100%!important;
+        ">${this.escapeHtml(formatCaptionWord(topWord.word))}</span>
+      `;
+
+      if (displayWords.length >= 2) {
+        const bodyWords = displayWords.slice(1);
+        const bodyWordsHtml = bodyWords.map((w, localIdx) => {
+          const globalIdx = chunkOffset + 1 + localIdx;
+          const isSpeaking = globalIdx === speakingWordIdx;
+          const isLastWord = localIdx === bodyWords.length - 1;
+          const font = isLastWord ? prominentFontFamily : normalFontFamily;
+          const color = isLastWord ? prominentColor : '#FFFFFF';
+          const bodyFitSize = checkWordFitSize(w.word, realEstateBodySize, bodyPosX);
+          return `
+            <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''}" style="
+              display:inline-block!important;vertical-align:baseline!important;margin:1px 3px!important;padding:0 1px!important;box-sizing:border-box!important;
+              font-family:${font}!important;color:${color}!important;font-size:${bodyFitSize}px!important;font-weight:900;font-style:normal;text-decoration:none;
+              opacity:1!important;visibility:visible!important;line-height:1.08;letter-spacing:.2px;${glowStyles}
+              -webkit-text-stroke:${strokeWidth}px ${strokeColor};paint-order:stroke fill;-webkit-paint-order:stroke fill;
+              transform:scale(1)!important;transform-origin:left center!important;z-index:${isSpeaking ? 5 : 1}!important;
+              white-space:nowrap!important;max-width:100%!important;
+            ">${this.escapeHtml(formatCaptionWord(w.word))}</span>
+          `;
+        }).join('');
+
+        const customWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : 'auto';
+        const bodyMaxWidth = Math.max(10, 96 - bodyPosX);
+        const topMaxWidth = Math.max(10, 96 - topPosX);
+
+        return `
+          <div class="caption-segment-anchor caption-real-estate-top-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="top" data-segment-key="seg_top_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${topPosY}%;left:${topPosX}%;transform:translate(0, 0);width:auto;max-width:${topMaxWidth}%;text-align:left;z-index:${anchorZIndex};">
+            <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:flex-start;align-items:baseline;width:100%;max-width:100%;text-transform:none;line-height:1.05;transform-origin:left top;will-change:transform,opacity;">
+              ${topWordHtml}
+            </div>
+          </div>
+          <div class="caption-segment-anchor caption-real-estate-body-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="body" data-segment-key="seg_body_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${bodyPosY}%;left:${bodyPosX}%;transform:translate(0, -50%);width:${customWidth};max-width:${bodyMaxWidth}%;text-align:left;z-index:${anchorZIndex};">
+            ${toolbarHtml}
+            <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:flex-start;align-items:baseline;gap:2px 5px;width:100%;max-width:100%;text-transform:none;line-height:1.05;transform-origin:left center;will-change:transform,opacity;">
+              ${bodyWordsHtml}
+            </div>
+            <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines"><div class="resize-grip-line"></div></div>
+            <div class="caption-resize-handle resize-corner" title="Drag corner to adjust font size and box width"><div class="resize-grip-dot"></div></div>
+          </div>
+        `;
+      }
+
+      // Single word Real Estate
+      const topMaxWidth = Math.max(10, 96 - topPosX);
+      return `
+        <div class="caption-segment-anchor caption-real-estate-top-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="top" data-segment-key="seg_top_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${topPosY}%;left:${topPosX}%;transform:translate(0, 0);width:auto;max-width:${topMaxWidth}%;text-align:left;z-index:${anchorZIndex};">
+          ${toolbarHtml}
+          <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:flex-start;align-items:baseline;width:100%;max-width:100%;text-transform:none;line-height:1.05;transform-origin:left top;will-change:transform,opacity;">
+            ${topWordHtml}
+          </div>
+          <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines"><div class="resize-grip-line"></div></div>
+          <div class="caption-resize-handle resize-corner" title="Drag corner to adjust font size and box width"><div class="resize-grip-dot"></div></div>
+        </div>
+      `;
+    }
+
+    // ========================================================================
+    // STANDARD / VIRAL PRESETS (Hormozi, Dev, Subtitle, MrBeast, etc.)
+    // ========================================================================
     const defaultPosMeta = CAPTION_POSITIONS.find(p => p.id === 'middle-left') || CAPTION_POSITIONS[3];
     const hasCustomPos = currentSentence.posX !== undefined && currentSentence.posY !== undefined;
     const rawX = hasCustomPos ? Number(currentSentence.posX) : Number(String(defaultPosMeta.x || '6').replace('%', ''));
@@ -2612,22 +2682,54 @@ export class UserDashboard {
     const posTransform = hasCustomPos ? 'translate(0, 0)' : (defaultPosMeta.transform || 'translate(0, -50%)');
     const textAlign = defaultPosMeta.align || 'left';
     const justifyAlign = (textAlign === 'left') ? 'flex-start' : (textAlign === 'right' ? 'flex-end' : 'center');
-    const availableWidthPct = hasCustomPos ? Math.max(10, 98 - baseX) : 94;
+    const availableWidthPct = hasCustomPos ? Math.max(10, 96 - baseX) : 94;
     const customWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : 'auto';
     const customMaxWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : `${availableWidthPct}%`;
-    const isBehind = !!currentSentence.behind;
-    const anchorZIndex = isBehind ? 5 : (20 + anchorIndex);
-    const toolbarHtml = showToolbar ? `
-      <div class="caption-drag-toolbar">
-        <span class="caption-toolbar-pill caption-drag-handle" title="Click and drag anywhere on video to position">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="2"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/></svg>
-          <span>Move</span>
-        </span>
-        <button type="button" class="caption-toolbar-btn btn-follow-all" id="btn-follow-all-segments" title="Apply this style, color, size, animation, and position to ALL segments"><span>Apply to All</span></button>
-        <button type="button" class="caption-toolbar-btn btn-break-words" id="btn-break-segment-words" title="Break this caption line into one segment per word"><span>Break into words</span></button>
-        <button type="button" class="caption-toolbar-btn btn-reset-pos" id="btn-reset-segment-pos" title="Reset this segment to default middle-left"><span>Reset</span></button>
-      </div>
-    ` : '';
+
+    const wordsHtml = displayWords.map((w, localIdx) => {
+      const globalIdx = chunkOffset + localIdx;
+      const cleanWord = (w.word || '').replace(/[.,!?:;"'()]/g, '');
+      const isHeroKeyword = autoTypographyEngine.brandRegex.test(cleanWord) ||
+                            autoTypographyEngine.monthsDatesRegex.test(cleanWord) ||
+                            autoTypographyEngine.placesRegex.test(cleanWord) ||
+                            autoTypographyEngine.impactWordsRegex.test(cleanWord);
+      const isSpeaking = globalIdx === speakingWordIdx;
+      const isLastWord = globalIdx === words.length - 1;
+      const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && globalIdx === 1);
+
+      // Fit guarantee for any preset
+      const currentFontSize = checkWordFitSize(w.word, baseFontSize, baseX);
+
+      const font = (isProminent || isSpeaking) ? prominentFontFamily : (segmentFontFamily || normalFontFamily);
+      let color = isProminent ? prominentColor : defaultTextColor;
+      if (isLastWord && hasLastWordColor) {
+        color = lastWordColor;
+      }
+
+      const fontWeight = forceBold ? 900 : (isSpeaking ? 900 : (isProminent ? 800 : 700));
+      const fontStyle = forceItalic ? 'italic' : 'normal';
+      const textDecoration = forceUnderline ? 'text-decoration:underline;text-underline-offset:.12em;text-decoration-thickness:.08em;' : 'text-decoration:none;';
+      const strokeW = strokeEnabled
+        ? (isProminent ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.5) : (cfg.normalOutlineWidth !== undefined ? cfg.normalOutlineWidth : 1.5))
+        : 0;
+      const strokeC = strokeEnabled
+        ? (customStrokeColor || (isProminent ? (cfg.prominentOutlineColor || '#000000') : (cfg.normalOutlineColor || '#000000')))
+        : 'transparent';
+
+      const wordScale = isSpeaking ? 'scale(1.12)' : 'scale(1)';
+      const wordTransition = isSpeaking ? 'transform .22s cubic-bezier(.34,1.56,.64,1), filter .2s ease' : 'transform .18s ease-out';
+
+      return `
+        <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''}" style="
+          display:inline-block!important;vertical-align:baseline!important;margin:1px 3px!important;padding:0 1px!important;box-sizing:border-box!important;
+          font-family:${font}!important;color:${color}!important;font-size:${currentFontSize}px!important;font-weight:${fontWeight};font-style:${fontStyle};${textDecoration}
+          opacity:1!important;visibility:visible!important;line-height:1.08;letter-spacing:.2px;${glowStyles}
+          -webkit-text-stroke:${strokeW}px ${strokeC};paint-order:stroke fill;-webkit-paint-order:stroke fill;
+          transform:${wordScale}!important;transform-origin:center bottom!important;z-index:${isSpeaking ? 5 : 1}!important;
+          white-space:nowrap!important;max-width:100%!important;will-change:transform;transition:${wordTransition};
+        ">${this.escapeHtml(formatCaptionWord(w.word))}</span>
+      `;
+    }).join('');
 
     return `
       <div class="caption-segment-anchor" data-sentence-id="${currentSentence.id || ''}" data-segment-key="seg_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${posY};left:${posX};transform:${posTransform};width:${customWidth};max-width:${customMaxWidth};text-align:${textAlign};z-index:${anchorZIndex};">
@@ -2692,7 +2794,7 @@ export class UserDashboard {
       });
     }).join('');
 
-    const renderKey = activeMatches.map(m => `${m.sentence.id || m.index}:${m.sentence.posX ?? ''}:${m.sentence.posY ?? ''}:${m.sentence.boxWidth ?? ''}:${m.sentence.fontSize ?? ''}:${m.sentence.behind ? '1' : '0'}`).join('|');
+    const renderKey = activeMatches.map(m => `${m.sentence.id || m.index}:${m.sentence.posX ?? ''}:${m.sentence.posY ?? ''}:${m.sentence.topWordPosX ?? ''}:${m.sentence.topWordPosY ?? ''}:${m.sentence.boxWidth ?? ''}:${m.sentence.fontSize ?? ''}:${m.sentence.behind ? '1' : '0'}`).join('|');
 
     if (this.lastRenderedSentenceKey !== renderKey || (behindOverlay && behindOverlay.innerHTML.trim() === '' && behindHtml) || (frontOverlay && frontOverlay.innerHTML.trim() === '' && frontHtml)) {
       if (behindOverlay) behindOverlay.innerHTML = behindHtml;
@@ -2710,14 +2812,21 @@ export class UserDashboard {
       activeMatches.forEach((match) => {
         const targetOverlay = match.sentence.behind ? behindOverlay : frontOverlay;
         if (!targetOverlay) return;
-        const anchor = targetOverlay.querySelector(`.caption-segment-anchor[data-sentence-id="${CSS.escape(String(match.sentence.id || ''))}"]`);
-        if (!anchor) return;
-        anchor.querySelector('.caption-anim-segment-wrapper')?.replaceChildren(
-          ...Array.from(new DOMParser().parseFromString(
+        const anchors = targetOverlay.querySelectorAll(`.caption-segment-anchor[data-sentence-id="${CSS.escape(String(match.sentence.id || ''))}"]`);
+        if (anchors.length > 0) {
+          const freshDoc = new DOMParser().parseFromString(
             this.buildCaptionOverlayHtml(match.sentence, time, sentences, cfg, { showToolbar: !activeId || String(match.sentence.id || '') === String(activeId) }),
             'text/html'
-          ).body.querySelector('.caption-anim-segment-wrapper')?.childNodes || [])
-        );
+          );
+          const freshAnchors = freshDoc.body.querySelectorAll('.caption-segment-anchor');
+          anchors.forEach((anc, i) => {
+            const freshAnc = freshAnchors[i] || freshAnchors[0];
+            const freshWrapper = freshAnc?.querySelector('.caption-anim-segment-wrapper');
+            if (freshWrapper) {
+              anc.querySelector('.caption-anim-segment-wrapper')?.replaceChildren(...Array.from(freshWrapper.childNodes));
+            }
+          });
+        }
       });
     }
 
@@ -3584,11 +3693,18 @@ export class UserDashboard {
           const xPct = Math.round((newLeftPx / currentOverlayRect.width) * 100);
           const yPct = Math.round((newTopPx / currentOverlayRect.height) * 100);
 
-          activeSentence.posX = Math.max(2, Math.min(88, xPct));
-          activeSentence.posY = Math.max(2, Math.min(92, yPct));
-
-          activeAnchor.style.left = `${activeSentence.posX}%`;
-          activeAnchor.style.top = `${activeSentence.posY}%`;
+          const isTopAnchor = activeAnchor.dataset.rePart === 'top';
+          if (isTopAnchor) {
+            activeSentence.topWordPosX = Math.max(2, Math.min(88, xPct));
+            activeSentence.topWordPosY = Math.max(2, Math.min(92, yPct));
+            activeAnchor.style.left = `${activeSentence.topWordPosX}%`;
+            activeAnchor.style.top = `${activeSentence.topWordPosY}%`;
+          } else {
+            activeSentence.posX = Math.max(2, Math.min(88, xPct));
+            activeSentence.posY = Math.max(2, Math.min(92, yPct));
+            activeAnchor.style.left = `${activeSentence.posX}%`;
+            activeAnchor.style.top = `${activeSentence.posY}%`;
+          }
           activeAnchor.style.transform = 'translate(0, 0)';
         } else if (isResizing) {
           const deltaX = moveEvent.clientX - startPointerX;
@@ -3669,10 +3785,12 @@ export class UserDashboard {
 
         if (currentSentence) {
           currentSentence.posX = 6;
-          currentSentence.posY = 50;
+          currentSentence.posY = 48;
+          currentSentence.topWordPosX = 6;
+          currentSentence.topWordPosY = 10;
           currentSentence.boxWidth = null;
           soundFx.playKeyBeep(450);
-          this.showToast('Position reset to default Middle-Left.', 'info');
+          this.showToast('Position reset to default.', 'info');
           this.lastRenderedSentenceKey = null;
           this.updateCaptionOverlay(currentSentence);
           this.renderMiniSegmentsList();

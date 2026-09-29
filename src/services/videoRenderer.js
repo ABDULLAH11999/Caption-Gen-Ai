@@ -345,8 +345,8 @@ export class VideoRenderer {
       : null;
     const previewFontSize = customSentenceSize || (isPortrait ? 25 : ((config.fontSize && Number(config.fontSize) <= 30) ? Number(config.fontSize) : 28));
     const baseFontSize = Math.max(16, Math.round(previewFontSize * scale));
-    const realEstateTopSize = Math.max(16, Math.round((customSentenceSize ? customSentenceSize * (70 / 50) : 70) * scale));
-    const realEstateBodySize = Math.max(16, Math.round((customSentenceSize || 50) * scale));
+    const realEstateTopSize = Math.max(16, Math.round((customSentenceSize ? customSentenceSize * (52 / 36) : 46) * scale));
+    const realEstateBodySize = Math.max(14, Math.round((customSentenceSize || 34) * scale));
 
     const normalFontFamily = this.getFontFamily(config.normalFontFamily || 'Inter');
     const prominentFontFamily = this.getFontFamily(config.prominentFontFamily || 'Syne');
@@ -433,47 +433,6 @@ export class VideoRenderer {
       };
     });
 
-    const defaultPosMeta = CAPTION_POSITIONS.find(p => p.id === 'middle-left') || CAPTION_POSITIONS[3];
-    const hasCustomPos = sentence.posX !== undefined && sentence.posY !== undefined;
-    
-    let posX = hasCustomPos ? (canvasWidth * Number(sentence.posX)) / 100 : (canvasWidth * 0.06);
-    let posY = hasCustomPos ? (canvasHeight * Number(sentence.posY)) / 100 : (canvasHeight * 0.50);
-
-    const textAlign = hasCustomPos ? 'left' : (defaultPosMeta.align || 'left');
-    const segmentBoxWidth = Number(sentence.boxWidth || sentence.width || 0);
-    const availableWidthPct = hasCustomPos ? Math.max(10, 98 - Number(sentence.posX)) : 94;
-    const customMaxWidth = segmentBoxWidth > 0
-      ? (canvasWidth * segmentBoxWidth) / 100 + Math.round(baseFontSize * 0.4)
-      : (canvasWidth * (availableWidthPct / 100));
-
-    const lines = [];
-    let curLine = [];
-    let curLineWidth = 0;
-    const wordGap = Math.max(3, Math.round(baseFontSize * 0.20));
-
-    styledWords.forEach((sw) => {
-      ctx.font = `${sw.fontStyle} ${sw.fontWeight} ${sw.fontSize}px ${sw.font}`;
-      const rawWidth = ctx.measureText(sw.word).width;
-      const wordWidth = rawWidth;
-      const testWidth = curLineWidth + (curLine.length > 0 ? wordGap : 0) + wordWidth;
-
-      if (testWidth > customMaxWidth && curLine.length > 0) {
-        lines.push({ words: curLine, width: curLineWidth });
-        curLine = [{ ...sw, rawWidth, width: wordWidth }];
-        curLineWidth = wordWidth;
-      } else {
-        curLine.push({ ...sw, rawWidth, width: wordWidth });
-        curLineWidth = testWidth;
-      }
-    });
-    if (curLine.length > 0) {
-      lines.push({ words: curLine, width: curLineWidth });
-    }
-
-    const lineHeight = baseFontSize * 1.12;
-    const totalBlockHeight = lines.length * lineHeight;
-    const startBlockY = hasCustomPos ? posY : (posY - totalBlockHeight * 0.5);
-
     let resolvedAnimId = sentence.animation || config.animation || 'anim-auto';
     if (resolvedAnimId === 'anim-auto') {
       const targetIdx = sentences.findIndex(s => s === sentence || (s.id !== undefined && s.id === sentence.id));
@@ -483,139 +442,257 @@ export class VideoRenderer {
     const segStartTime = Number(sentence.start ?? sentence.startTime ?? 0);
     const animElapsed = Math.max(0, curTime - segStartTime);
     const animState = this.getAnimationFrameState(resolvedAnimId, animElapsed, scale);
+    const wordGap = Math.max(3, Math.round(baseFontSize * 0.20));
 
-    const maxLineWidth = Math.max(...lines.map(l => l.width), 10);
-    const blockCenterX = (textAlign === 'center')
-      ? posX
-      : (textAlign === 'right' ? posX - maxLineWidth / 2 : posX + maxLineWidth / 2);
-    const blockCenterY = startBlockY + totalBlockHeight * 0.5;
+    // Helper: draw a block of text lines at a specified position with animations and effects
+    const drawLineBlock = (linesToDraw, startX, startY, blockLineHeight, alignMode = 'left') => {
+      if (!linesToDraw || linesToDraw.length === 0) return;
+      const totalBlockHeight = linesToDraw.length * blockLineHeight;
+      const blockTopY = (alignMode === 'middle') ? (startY - totalBlockHeight * 0.5) : startY;
+      const maxLineWidth = Math.max(...linesToDraw.map(l => l.width), 10);
+      const blockCenterX = (alignMode === 'center')
+        ? startX
+        : (alignMode === 'right' ? startX - maxLineWidth / 2 : startX + maxLineWidth / 2);
+      const blockCenterY = blockTopY + totalBlockHeight * 0.5;
 
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, Math.min(1.0, animState.blockOpacity));
-    ctx.filter = 'none';
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1.0, animState.blockOpacity));
+      ctx.filter = 'none';
 
-    // Apply block entrance animation transform
-    ctx.translate(blockCenterX + animState.blockOffsetX, blockCenterY + animState.blockOffsetY);
-    if (animState.blockRotation) {
-      ctx.rotate((animState.blockRotation * Math.PI) / 180);
-    }
-    if (animState.blockScale !== 1.0) {
-      ctx.scale(animState.blockScale, animState.blockScale);
-    }
-    ctx.translate(-blockCenterX, -blockCenterY);
+      // Apply block entrance animation transform
+      ctx.translate(blockCenterX + animState.blockOffsetX, blockCenterY + animState.blockOffsetY);
+      if (animState.blockRotation) ctx.rotate((animState.blockRotation * Math.PI) / 180);
+      if (animState.blockScale !== 1.0) ctx.scale(animState.blockScale, animState.blockScale);
+      ctx.translate(-blockCenterX, -blockCenterY);
 
-    if (animState.typewriterProgress < 1) {
-      const clipLeft = textAlign === 'center'
-        ? blockCenterX - maxLineWidth / 2
-        : (textAlign === 'right' ? posX - maxLineWidth : posX);
-      ctx.beginPath();
-      ctx.rect(clipLeft - 4 * scale, startBlockY - lineHeight, (maxLineWidth + 8 * scale) * animState.typewriterProgress, totalBlockHeight + lineHeight * 1.4);
-      ctx.clip();
-    }
-
-    lines.forEach((line, lineIdx) => {
-      const lineTop = startBlockY + lineIdx * lineHeight;
-      const lineY = lineTop + lineHeight * 0.5;
-      let startX = posX;
-      if (textAlign === 'center') {
-        startX = posX - line.width / 2;
-      } else if (textAlign === 'right') {
-        startX = posX - line.width;
+      if (animState.typewriterProgress < 1) {
+        const clipLeft = alignMode === 'center'
+          ? blockCenterX - maxLineWidth / 2
+          : (alignMode === 'right' ? startX - maxLineWidth : startX);
+        ctx.beginPath();
+        ctx.rect(clipLeft - 4 * scale, blockTopY - blockLineHeight, (maxLineWidth + 8 * scale) * animState.typewriterProgress, totalBlockHeight + blockLineHeight * 1.4);
+        ctx.clip();
       }
 
-      let curX = startX;
-      line.words.forEach((w) => {
-        ctx.save();
-        const centerX = curX + w.width / 2;
-        const centerY = lineY;
-
-        ctx.translate(centerX, centerY);
-        if (animState.waveRotation) {
-          ctx.rotate((animState.waveRotation * Math.PI) / 180);
-        }
-        if (w.wordScale !== 1.0) {
-          ctx.scale(w.wordScale, w.wordScale);
+      linesToDraw.forEach((line, lineIdx) => {
+        const lineTop = blockTopY + lineIdx * blockLineHeight;
+        const lineY = lineTop + blockLineHeight * 0.5;
+        let lineCurX = startX;
+        if (alignMode === 'center') {
+          lineCurX = startX - line.width / 2;
+        } else if (alignMode === 'right') {
+          lineCurX = startX - line.width;
         }
 
-        ctx.font = `${w.fontStyle} ${w.fontWeight} ${w.fontSize}px ${w.font}`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        const animationGlow = animState.glow > 0 ? animState.glow : 0;
-        if ((hasGlow && glowColor) || animationGlow > 0) {
-          ctx.shadowColor = glowColor || (resolvedAnimId === 'anim-fire-flare' ? '#ff6b00' : '#00F0FF');
-          ctx.shadowBlur = Math.round((hasGlow ? 18 : 24) * scale * Math.max(0.45, animationGlow || 1));
-          ctx.shadowOffsetX = 0;
-          ctx.shadowOffsetY = 0;
-        } else {
-          ctx.shadowColor = 'transparent';
-          ctx.shadowBlur = 0;
-          ctx.shadowOffsetX = 0;
-          ctx.shadowOffsetY = 0;
-        }
-
-        if (resolvedAnimId === 'anim-glitch') {
+        line.words.forEach((w) => {
           ctx.save();
-          ctx.globalAlpha = 0.65;
-          ctx.fillStyle = '#00F0FF';
-          ctx.fillText(w.word, -2 * scale + animState.glitchX, animState.glitchY);
-          ctx.fillStyle = '#FF4DA6';
-          ctx.fillText(w.word, 2 * scale + animState.glitchX, -animState.glitchY);
-          ctx.restore();
-        }
+          const centerX = lineCurX + w.width / 2;
+          const centerY = lineY;
 
-        // Crisp Outline Stroke
-        if (strokeEnabled && w.strokeWidth > 0 && w.strokeColor !== 'transparent') {
-          ctx.lineWidth = w.strokeWidth;
-          ctx.strokeStyle = w.strokeColor;
-          ctx.lineJoin = 'round';
-          ctx.miterLimit = 2;
-          ctx.strokeText(w.word, 0, 0);
-        }
+          ctx.translate(centerX, centerY);
+          if (animState.waveRotation) ctx.rotate((animState.waveRotation * Math.PI) / 180);
+          if (w.wordScale !== 1.0) ctx.scale(w.wordScale, w.wordScale);
 
-        ctx.fillStyle = w.color;
-        ctx.fillText(w.word, 0, 0);
+          ctx.font = `${w.fontStyle} ${w.fontWeight} ${w.fontSize}px ${w.font}`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
 
-        if (w.underline) {
-          const underlineY = Math.round(w.fontSize * 0.38);
-          ctx.save();
-          ctx.shadowColor = 'transparent';
-          ctx.shadowBlur = 0;
-          ctx.strokeStyle = w.color;
-          ctx.lineWidth = Math.max(2 * scale, Math.round(w.fontSize * 0.065));
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          ctx.moveTo(-w.width / 2, underlineY);
-          ctx.lineTo(w.width / 2, underlineY);
-          ctx.stroke();
-          ctx.restore();
-        }
+          const animationGlow = animState.glow > 0 ? animState.glow : 0;
+          if ((hasGlow && glowColor) || animationGlow > 0) {
+            ctx.shadowColor = glowColor || (resolvedAnimId === 'anim-fire-flare' ? '#ff6b00' : '#00F0FF');
+            ctx.shadowBlur = Math.round((hasGlow ? 18 : 24) * scale * Math.max(0.45, animationGlow || 1));
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+          } else {
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+          }
 
-        if (animState.shine > 0) {
-          const shimmerX = Number.isFinite(animState.shimmerX) ? animState.shimmerX : animState.shine;
-          const sweepWidth = Math.max(w.width * 1.8, baseFontSize * 4);
-          const sweepCenter = -w.width + sweepWidth * shimmerX;
-          const gradient = ctx.createLinearGradient(sweepCenter - sweepWidth * 0.35, 0, sweepCenter + sweepWidth * 0.35, 0);
-          const accentA = resolvedAnimId === 'anim-fire-flare' ? '#ff6b00' : '#00F0FF';
-          const accentB = resolvedAnimId === 'anim-liquid-gradient' ? '#FF4DA6' : '#FFFFFF';
-          gradient.addColorStop(0, 'rgba(255,255,255,0)');
-          gradient.addColorStop(0.32, accentA);
-          gradient.addColorStop(0.5, accentB);
-          gradient.addColorStop(0.68, accentA);
-          gradient.addColorStop(1, 'rgba(255,255,255,0)');
-          ctx.save();
-          ctx.globalAlpha = Math.min(0.72, 0.18 + animState.shine * 0.54);
-          ctx.fillStyle = gradient;
+          if (resolvedAnimId === 'anim-glitch') {
+            ctx.save();
+            ctx.globalAlpha = 0.65;
+            ctx.fillStyle = '#00F0FF';
+            ctx.fillText(w.word, -2 * scale + animState.glitchX, animState.glitchY);
+            ctx.fillStyle = '#FF4DA6';
+            ctx.fillText(w.word, 2 * scale + animState.glitchX, -animState.glitchY);
+            ctx.restore();
+          }
+
+          // Crisp Outline Stroke
+          if (strokeEnabled && w.strokeWidth > 0 && w.strokeColor !== 'transparent') {
+            ctx.lineWidth = w.strokeWidth;
+            ctx.strokeStyle = w.strokeColor;
+            ctx.lineJoin = 'round';
+            ctx.miterLimit = 2;
+            ctx.strokeText(w.word, 0, 0);
+          }
+
+          ctx.fillStyle = w.color;
           ctx.fillText(w.word, 0, 0);
+
+          if (w.underline) {
+            const underlineY = Math.round(w.fontSize * 0.38);
+            ctx.save();
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = w.color;
+            ctx.lineWidth = Math.max(2 * scale, Math.round(w.fontSize * 0.065));
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-w.width / 2, underlineY);
+            ctx.lineTo(w.width / 2, underlineY);
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          if (animState.shine > 0) {
+            const shimmerX = Number.isFinite(animState.shimmerX) ? animState.shimmerX : animState.shine;
+            const sweepWidth = Math.max(w.width * 1.8, baseFontSize * 4);
+            const sweepCenter = -w.width + sweepWidth * shimmerX;
+            const gradient = ctx.createLinearGradient(sweepCenter - sweepWidth * 0.35, 0, sweepCenter + sweepWidth * 0.35, 0);
+            const accentA = resolvedAnimId === 'anim-fire-flare' ? '#ff6b00' : '#00F0FF';
+            const accentB = resolvedAnimId === 'anim-liquid-gradient' ? '#FF4DA6' : '#FFFFFF';
+            gradient.addColorStop(0, 'rgba(255,255,255,0)');
+            gradient.addColorStop(0.32, accentA);
+            gradient.addColorStop(0.5, accentB);
+            gradient.addColorStop(0.68, accentA);
+            gradient.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.save();
+            ctx.globalAlpha = Math.min(0.72, 0.18 + animState.shine * 0.54);
+            ctx.fillStyle = gradient;
+            ctx.fillText(w.word, 0, 0);
+            ctx.restore();
+          }
+
           ctx.restore();
+          lineCurX += w.width + wordGap;
+        });
+      });
+
+      ctx.restore();
+    };
+
+    // ========================================================================
+    // REAL ESTATE FANCY / REAL ESTATE: One word Top-Left, Other words Middle-Left
+    // ========================================================================
+    if (isRealEstate && styledWords.length > 0) {
+      const topWord = styledWords[0];
+      const topRawX = sentence.topWordPosX !== undefined ? Number(sentence.topWordPosX) : 6;
+      const topRawY = sentence.topWordPosY !== undefined ? Number(sentence.topWordPosY) : 10;
+      const topPosX = (canvasWidth * Math.max(2, Math.min(88, topRawX))) / 100;
+      const topPosY = (canvasHeight * Math.max(2, Math.min(92, topRawY))) / 100;
+      const maxTopWidth = Math.max(20, canvasWidth - topPosX - (canvasWidth * 0.04));
+
+      // Fit guarantee for top word
+      ctx.font = `${topWord.fontStyle} ${topWord.fontWeight} ${topWord.fontSize}px ${topWord.font}`;
+      let topW = ctx.measureText(topWord.word).width;
+      if (topW > maxTopWidth) {
+        const fitRatio = (maxTopWidth - 8 * scale) / topW;
+        topWord.fontSize = Math.max(14, Math.floor(topWord.fontSize * fitRatio));
+        ctx.font = `${topWord.fontStyle} ${topWord.fontWeight} ${topWord.fontSize}px ${topWord.font}`;
+        topW = ctx.measureText(topWord.word).width;
+      }
+      topWord.width = topW;
+      topWord.rawWidth = topW;
+
+      const topLines = [{ words: [topWord], width: topW }];
+      drawLineBlock(topLines, topPosX, topPosY, realEstateTopSize * 1.1, 'left');
+
+      if (styledWords.length >= 2) {
+        const bodyWords = styledWords.slice(1);
+        const bodyRawX = sentence.posX !== undefined ? Number(sentence.posX) : 6;
+        const bodyRawY = sentence.posY !== undefined ? Number(sentence.posY) : 48;
+        const bodyPosX = (canvasWidth * Math.max(2, Math.min(88, bodyRawX))) / 100;
+        const bodyPosY = (canvasHeight * Math.max(2, Math.min(92, bodyRawY))) / 100;
+        const maxBodyWidth = Math.max(20, canvasWidth - bodyPosX - (canvasWidth * 0.04));
+
+        const bodyLines = [];
+        let curLine = [];
+        let curLineWidth = 0;
+
+        bodyWords.forEach((bw) => {
+          ctx.font = `${bw.fontStyle} ${bw.fontWeight} ${bw.fontSize}px ${bw.font}`;
+          let bwW = ctx.measureText(bw.word).width;
+          if (bwW > maxBodyWidth) {
+            const fitRatio = (maxBodyWidth - 8 * scale) / bwW;
+            bw.fontSize = Math.max(12, Math.floor(bw.fontSize * fitRatio));
+            ctx.font = `${bw.fontStyle} ${bw.fontWeight} ${bw.fontSize}px ${bw.font}`;
+            bwW = ctx.measureText(bw.word).width;
+          }
+          bw.width = bwW;
+          bw.rawWidth = bwW;
+
+          const testWidth = curLineWidth + (curLine.length > 0 ? wordGap : 0) + bwW;
+          if (testWidth > maxBodyWidth && curLine.length > 0) {
+            bodyLines.push({ words: curLine, width: curLineWidth });
+            curLine = [bw];
+            curLineWidth = bwW;
+          } else {
+            curLine.push(bw);
+            curLineWidth = testWidth;
+          }
+        });
+        if (curLine.length > 0) {
+          bodyLines.push({ words: curLine, width: curLineWidth });
         }
 
-        ctx.restore();
-        curX += w.width + wordGap;
-      });
-    });
+        drawLineBlock(bodyLines, bodyPosX, bodyPosY, realEstateBodySize * 1.15, 'middle');
+      }
+      return;
+    }
 
-    ctx.restore();
+    // ========================================================================
+    // STANDARD / VIRAL PRESETS (Hormozi, Dev, Subtitle, MrBeast, etc.)
+    // ========================================================================
+    const defaultPosMeta = CAPTION_POSITIONS.find(p => p.id === 'middle-left') || CAPTION_POSITIONS[3];
+    const hasCustomPos = sentence.posX !== undefined && sentence.posY !== undefined;
+    let posX = hasCustomPos ? (canvasWidth * Number(sentence.posX)) / 100 : (canvasWidth * 0.06);
+    let posY = hasCustomPos ? (canvasHeight * Number(sentence.posY)) / 100 : (canvasHeight * 0.50);
+
+    const textAlign = hasCustomPos ? 'left' : (defaultPosMeta.align || 'left');
+    const segmentBoxWidth = Number(sentence.boxWidth || sentence.width || 0);
+    const availableWidthPct = hasCustomPos ? Math.max(10, 96 - Number(sentence.posX)) : 94;
+    const customMaxWidth = segmentBoxWidth > 0
+      ? (canvasWidth * segmentBoxWidth) / 100 + Math.round(baseFontSize * 0.4)
+      : (canvasWidth * (availableWidthPct / 100));
+
+    const lines = [];
+    let curLine = [];
+    let curLineWidth = 0;
+
+    styledWords.forEach((sw) => {
+      ctx.font = `${sw.fontStyle} ${sw.fontWeight} ${sw.fontSize}px ${sw.font}`;
+      let rawWidth = ctx.measureText(sw.word).width;
+
+      // Fit guarantee for any preset
+      if (rawWidth > customMaxWidth && customMaxWidth > 20) {
+        const fitRatio = (customMaxWidth - 8 * scale) / rawWidth;
+        sw.fontSize = Math.max(12, Math.floor(sw.fontSize * fitRatio));
+        ctx.font = `${sw.fontStyle} ${sw.fontWeight} ${sw.fontSize}px ${sw.font}`;
+        rawWidth = ctx.measureText(sw.word).width;
+      }
+
+      sw.width = rawWidth;
+      sw.rawWidth = rawWidth;
+      const testWidth = curLineWidth + (curLine.length > 0 ? wordGap : 0) + rawWidth;
+
+      if (testWidth > customMaxWidth && curLine.length > 0) {
+        lines.push({ words: curLine, width: curLineWidth });
+        curLine = [sw];
+        curLineWidth = rawWidth;
+      } else {
+        curLine.push(sw);
+        curLineWidth = testWidth;
+      }
+    });
+    if (curLine.length > 0) {
+      lines.push({ words: curLine, width: curLineWidth });
+    }
+
+    const lineHeight = baseFontSize * 1.12;
+    drawLineBlock(lines, posX, posY, lineHeight, hasCustomPos ? 'left' : (textAlign === 'center' ? 'center' : (textAlign === 'right' ? 'right' : 'middle')));
   }
 
   renderFrame(ctx, video, curTimeOrState, config = {}, canvasWidth, canvasHeight, sentencesOverride = null) {
@@ -698,6 +775,11 @@ export class VideoRenderer {
     const behindSentences = matchingSentences.filter(s => s.behind);
     const frontSentences = matchingSentences.filter(s => !s.behind);
 
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, canvasWidth, canvasHeight);
+    ctx.clip();
+
     // Layer 2: Behind Captions
     behindSentences.forEach((s) => {
       this.renderSentence(ctx, s, curTime, config, canvasWidth, canvasHeight, sentences, scale);
@@ -716,6 +798,8 @@ export class VideoRenderer {
     frontSentences.forEach((s) => {
       this.renderSentence(ctx, s, curTime, config, canvasWidth, canvasHeight, sentences, scale);
     });
+
+    ctx.restore();
   }
 
   /**
