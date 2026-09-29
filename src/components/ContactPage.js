@@ -1,10 +1,12 @@
 import { api } from '../services/apiClient.js';
+import { recaptchaService } from '../utils/recaptchaService.js';
 
 export class ContactPage {
   constructor({ onNavigate, showToast }) {
     this.onNavigate = onNavigate;
     this.showToast = showToast || console.log;
     this.container = null;
+    this.recaptchaInstance = null;
   }
 
   render(parentElement) {
@@ -41,6 +43,8 @@ export class ContactPage {
 
           <div id="contact-msg-box" class="auth-error-box" style="display: none;"></div>
 
+          <div id="contact-recaptcha-container"></div>
+
           <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-submit-contact" style="margin-top: 16px;">
             <span>Send Message</span>
           </button>
@@ -51,25 +55,47 @@ export class ContactPage {
     parentElement.appendChild(this.container);
 
     const form = this.container.querySelector('#form-contact');
+    const submitBtn = this.container.querySelector('#btn-submit-contact');
+    const recaptchaContainer = this.container.querySelector('#contact-recaptcha-container');
+
+    recaptchaService.attach({
+      containerEl: recaptchaContainer,
+      submitBtn
+    }).then(inst => {
+      this.recaptchaInstance = inst;
+    });
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = this.container.querySelector('#contact-name').value.trim();
       const email = this.container.querySelector('#contact-email').value.trim();
       const subject = this.container.querySelector('#contact-subject').value.trim();
       const message = this.container.querySelector('#contact-message').value.trim();
-      const submitBtn = this.container.querySelector('#btn-submit-contact');
+
+      const recaptchaToken = this.recaptchaInstance?.getToken?.() || null;
+      if (this.recaptchaInstance?.enabled && !recaptchaToken) {
+        this.showToast('Please verify the reCAPTCHA checkbox before submitting.', 'error');
+        if (submitBtn) submitBtn.disabled = true;
+        return;
+      }
 
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<span>Sending message...</span>';
 
       try {
-        await api.submitContact({ name, email, subject, message });
+        await api.submitContact({ name, email, subject, message, recaptchaToken });
         form.reset();
+        this.recaptchaInstance?.reset?.();
         this.openContactSuccessModal({ name, email });
       } catch (err) {
         this.showToast(err.message, 'error');
+        if (!this.recaptchaInstance?.enabled) {
+          submitBtn.disabled = false;
+        }
       } finally {
-        submitBtn.disabled = false;
+        if (!this.recaptchaInstance?.enabled || this.recaptchaInstance?.getToken?.()) {
+          submitBtn.disabled = false;
+        }
         submitBtn.innerHTML = '<span>Send Message</span>';
       }
     });

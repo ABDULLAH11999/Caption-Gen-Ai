@@ -592,9 +592,61 @@ apiRouter.get('/public/settings', async (req, res) => {
   res.json({ settings });
 });
 
+// Dynamic reCAPTCHA Public Configuration
+apiRouter.get('/public/recaptcha-config', (req, res) => {
+  const isEnabled = String(process.env.RECAPTCHA_STATUS || 'false').trim().toLowerCase() === 'true';
+  const siteKey = (process.env.RECAPTCHA_SITE_KEY || '').trim();
+  res.json({
+    enabled: isEnabled,
+    siteKey: isEnabled ? siteKey : ''
+  });
+});
+
+// Helper to verify Google reCAPTCHA Token on submission
+async function verifyRecaptcha(token) {
+  const isEnabled = String(process.env.RECAPTCHA_STATUS || 'false').trim().toLowerCase() === 'true';
+  if (!isEnabled) {
+    return { success: true };
+  }
+  if (!token) {
+    return { success: false, error: 'Please verify the reCAPTCHA checkbox before submitting.' };
+  }
+  const secret = (process.env.RECAPTCHA_SECRET_KEY || '').trim();
+  if (!secret) {
+    console.warn('[reCAPTCHA] Secret key missing in .env, bypassing verification.');
+    return { success: true };
+  }
+  try {
+    const params = new URLSearchParams({
+      secret,
+      response: token
+    });
+    const resp = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+    const data = await resp.json();
+    if (data.success) {
+      return { success: true };
+    }
+    console.warn('[reCAPTCHA] Google siteverify failed:', data['error-codes']);
+    return { success: false, error: 'reCAPTCHA verification failed. Please try again.' };
+  } catch (err) {
+    console.error('[reCAPTCHA] Network verification error:', err.message);
+    return { success: false, error: 'reCAPTCHA verification service temporarily unavailable.' };
+  }
+}
+
 // Contact Request Submission (Throttled against Form Spamming)
 apiRouter.post('/public/contact', publicFormLimiter.middleware(), async (req, res) => {
-  const { name, email, subject, message } = req.body;
+  const { name, email, subject, message, recaptchaToken } = req.body;
+
+  const recaptchaCheck = await verifyRecaptcha(recaptchaToken);
+  if (!recaptchaCheck.success) {
+    return res.status(400).json({ error: recaptchaCheck.error });
+  }
+
   if (!name || !email || !message) {
     return res.status(400).json({ error: 'Name, email, and message are required.' });
   }
@@ -654,6 +706,12 @@ apiRouter.post('/public/contact', publicFormLimiter.middleware(), async (req, re
 
 // Purchase Request Submission (Throttled to protect Gmail SMTP Quota)
 apiRouter.post('/public/purchase', publicFormLimiter.middleware(), async (req, res) => {
+  const { recaptchaToken } = req.body;
+  const recaptchaCheck = await verifyRecaptcha(recaptchaToken);
+  if (!recaptchaCheck.success) {
+    return res.status(400).json({ error: recaptchaCheck.error });
+  }
+
   const name = String(req.body.name || req.body.user_name || '').trim();
   const email = String(req.body.email || req.body.user_email || '').trim().toLowerCase();
   const phone = String(req.body.phone || req.body.user_phone || '').trim();

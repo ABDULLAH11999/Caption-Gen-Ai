@@ -115,6 +115,8 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -126,13 +128,25 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   overflow-x: hidden;
-  /* Ethereal luminous ambient gradients as on Captions.ai */
+  position: relative;
+}
+
+/* GPU-composited Ambient Gradient Layer (Eliminates full-viewport scroll repaints) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
   background-image:
     radial-gradient(circle at 50% 0%, rgba(140, 32, 248, 0.07) 0%, transparent 48%),
     radial-gradient(circle at 85% 15%, rgba(99, 102, 241, 0.06) 0%, transparent 40%),
     radial-gradient(circle at 12% 35%, rgba(236, 72, 153, 0.04) 0%, transparent 35%),
     radial-gradient(circle at 80% 70%, rgba(14, 165, 233, 0.04) 0%, transparent 40%);
-  background-attachment: fixed;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 /* Global Notices */
@@ -145,9 +159,9 @@ body {
   background: rgba(9, 10, 20, 0.94);
   color: #ffffff;
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  transform: translateY(0);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transform: translateZ(0);
   opacity: 1;
   transition: transform 0.32s var(--ease-spring), opacity 0.22s ease;
 }
@@ -946,4 +960,46 @@ textarea.form-control {
   .saas-footer {
     padding: 50px 16px 28px;
   }
+}
+
+/* ==========================================================================
+   GLOBAL SCROLL & MOMENTUM RENDERING OPTIMIZATION
+   ========================================================================== */
+html,
+body {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+[class*="-scroll"],
+[class*="-scrollable"],
+.admin-main-wrap,
+.modal-overlay-content,
+.tool-modal-body,
+.blog-list-container,
+.legal-page-container {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+}
+
+img,
+video {
+  content-visibility: auto;
+}
+
+/* reCAPTCHA State Styling */
+.recaptcha-holder {
+  margin: 14px 0 10px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 78px;
+}
+
+.recaptcha-pending {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
 }

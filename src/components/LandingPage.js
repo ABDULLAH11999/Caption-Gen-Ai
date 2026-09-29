@@ -1,5 +1,6 @@
 import { api } from '../services/apiClient.js';
 import { CAPTION_TEMPLATES } from '../config.js';
+import { recaptchaService } from '../utils/recaptchaService.js';
 
 export class LandingPage {
   constructor({ onNavigate, onOpenAuth, showToast }) {
@@ -10,6 +11,7 @@ export class LandingPage {
     this.plans = [];
     this.selectedPlanForPurchase = null;
     this.activeCompareMode = 'split'; // 'split' | 'before' | 'after'
+    this.purchaseRecaptchaInstance = null;
   }
 
   async init() {
@@ -484,6 +486,8 @@ export class LandingPage {
               <label class="form-label" for="purchase-notes">Special Instructions or Notes</label>
               <textarea class="form-control" id="purchase-notes" rows="3" placeholder="Tell us about your team size, custom presets or API requirements..."></textarea>
             </div>
+
+            <div id="landing-purchase-recaptcha-container"></div>
 
             <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
               <button type="button" class="btn btn-outline" id="btn-cancel-purchase">Cancel</button>
@@ -1013,6 +1017,7 @@ export class LandingPage {
     const closeModal = () => {
       modal?.classList.remove('open');
       this.selectedPlanForPurchase = null;
+      this.purchaseRecaptchaInstance?.reset?.();
     };
 
     closeBtn?.addEventListener('click', closeModal);
@@ -1038,6 +1043,13 @@ export class LandingPage {
       const submitBtn = this.container.querySelector('#btn-submit-purchase');
       const planName = this.selectedPlanForPurchase?.name || 'Creator Pro';
 
+      const recaptchaToken = this.purchaseRecaptchaInstance?.getToken?.() || null;
+      if (this.purchaseRecaptchaInstance?.enabled && !recaptchaToken) {
+        this.showToast('Please verify the reCAPTCHA checkbox before submitting.', 'error');
+        if (submitBtn) submitBtn.disabled = true;
+        return;
+      }
+
       if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span>Sending Request...</span>';
@@ -1050,16 +1062,23 @@ export class LandingPage {
           name,
           email,
           phone,
-          notes
+          notes,
+          recaptchaToken
         });
         closeModal();
         purchaseForm.reset();
+        this.purchaseRecaptchaInstance?.reset?.();
         this.openPurchaseSuccessModal({ name, email, planName });
       } catch (err) {
         this.showToast('Failed to submit purchase request: ' + err.message, 'error');
+        if (!this.purchaseRecaptchaInstance?.enabled) {
+          if (submitBtn) submitBtn.disabled = false;
+        }
       } finally {
         if (submitBtn) {
-          submitBtn.disabled = false;
+          if (!this.purchaseRecaptchaInstance?.enabled || this.purchaseRecaptchaInstance?.getToken?.()) {
+            submitBtn.disabled = false;
+          }
           submitBtn.innerHTML = '<span>Submit Request</span>';
         }
       }
@@ -1083,12 +1102,21 @@ export class LandingPage {
     const nameEl = this.container.querySelector('#modal-plan-name');
     const descEl = this.container.querySelector('#modal-plan-desc');
     const priceEl = this.container.querySelector('#modal-plan-price');
+    const submitBtn = this.container.querySelector('#btn-submit-purchase');
+    const recaptchaContainer = this.container.querySelector('#landing-purchase-recaptcha-container');
 
     if (nameEl) nameEl.textContent = plan.name;
     if (descEl) descEl.textContent = plan.description || 'Full creator access';
     if (priceEl) priceEl.textContent = `${plan.price} / ${plan.billing || 'mo'}`;
 
     if (modal) modal.classList.add('open');
+
+    recaptchaService.attach({
+      containerEl: recaptchaContainer,
+      submitBtn
+    }).then(inst => {
+      this.purchaseRecaptchaInstance = inst;
+    });
   }
 }
 

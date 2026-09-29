@@ -22,6 +22,7 @@ import { languageIdentifier } from '../services/languageIdentifier.js';
 import { translationService } from '../services/translationService.js';
 import { geminiTranslationService } from '../services/geminiTranslationService.js';
 import { generateDemoVideoBlob } from '../utils/sampleVideoGenerator.js';
+import { recaptchaService } from '../utils/recaptchaService.js';
 
 import { autoTypographyEngine } from '../services/autoTypographyEngine.js';
 import { videoColorAnalyzer } from '../services/videoColorAnalyzer.js';
@@ -4391,6 +4392,8 @@ export class UserDashboard {
             <textarea class="form-control" id="quota-upgrade-notes" rows="3" placeholder="Tell us about your team, volume or desired features..."></textarea>
           </div>
 
+          <div id="dashboard-upgrade-recaptcha-container"></div>
+
           <div class="saas-modal-footer" style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
             <button type="button" class="btn btn-outline" id="btn-cancel-quota-upgrade">Cancel</button>
             <button type="submit" class="btn btn-primary" id="btn-submit-quota-upgrade">Submit Upgrade Request</button>
@@ -4399,8 +4402,20 @@ export class UserDashboard {
       </div>
     `;
 
+    let upgradeRecaptchaInstance = null;
+    const recaptchaBox = modal.querySelector('#dashboard-upgrade-recaptcha-container');
+    const submitBtn = modal.querySelector('#btn-submit-quota-upgrade');
+
+    recaptchaService.attach({
+      containerEl: recaptchaBox,
+      submitBtn
+    }).then(inst => {
+      upgradeRecaptchaInstance = inst;
+    });
+
     const closeModal = () => {
       modal.classList.remove('open');
+      upgradeRecaptchaInstance?.reset?.();
     };
 
     modal.querySelector('#btn-close-quota-upgrade')?.addEventListener('click', closeModal);
@@ -4411,7 +4426,14 @@ export class UserDashboard {
 
     modal.querySelector('#form-quota-upgrade-request')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const submitBtn = modal.querySelector('#btn-submit-quota-upgrade');
+
+      const recaptchaToken = upgradeRecaptchaInstance?.getToken?.() || null;
+      if (upgradeRecaptchaInstance?.enabled && !recaptchaToken) {
+        this.showToast('Please verify the reCAPTCHA checkbox before submitting.', 'error');
+        if (submitBtn) submitBtn.disabled = true;
+        return;
+      }
+
       if (submitBtn) submitBtn.disabled = true;
 
       const name = modal.querySelector('#quota-upgrade-name')?.value;
@@ -4426,15 +4448,24 @@ export class UserDashboard {
           name,
           email,
           phone,
-          notes
+          notes,
+          recaptchaToken
         });
         soundFx.playSaveSuccess();
         closeModal();
+        upgradeRecaptchaInstance?.reset?.();
         this.openPurchaseSuccessModal({ name, email, planName: targetPlan.name });
       } catch (err) {
         this.showToast('Failed to submit upgrade request: ' + (err.message || 'Error'), 'error');
+        if (!upgradeRecaptchaInstance?.enabled) {
+          if (submitBtn) submitBtn.disabled = false;
+        }
       } finally {
-        if (submitBtn) submitBtn.disabled = false;
+        if (submitBtn) {
+          if (!upgradeRecaptchaInstance?.enabled || upgradeRecaptchaInstance?.getToken?.()) {
+            submitBtn.disabled = false;
+          }
+        }
       }
     });
 

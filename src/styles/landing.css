@@ -8,10 +8,13 @@
 .landing-bg-glow {
   position: absolute;
   border-radius: 50%;
-  filter: blur(110px);
+  filter: blur(80px);
   pointer-events: none;
   z-index: 0;
-  opacity: 0.6;
+  opacity: 0.55;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  contain: strict;
 }
 
 .glow-top-center {
@@ -49,14 +52,16 @@
   max-width: 1180px;
   width: calc(100% - 32px);
   margin: 0 auto;
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.95);
   border-radius: var(--radius-pill);
   padding: 10px 22px;
   box-shadow: 0 14px 34px -10px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
-  transition: all 0.28s var(--ease-spring);
+  transform: translateZ(0);
+  will-change: transform;
+  transition: transform 0.28s var(--ease-spring), box-shadow 0.28s var(--ease-spring), background 0.28s var(--ease-spring);
 }
 
 .saas-navbar-header.is-logged-in {
@@ -404,6 +409,8 @@
   margin: 0 auto;
   position: relative;
   z-index: 1;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 650px;
 }
 
 .section-header-center {
@@ -1272,17 +1279,27 @@
 
 .templates-showcase-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 32px 24px;
-  max-width: 640px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px 20px;
+  max-width: 1140px;
+  width: 100%;
   margin: 0 auto;
   justify-content: center;
 }
 
+@media (max-width: 900px) {
+  .templates-showcase-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 16px;
+    max-width: 580px;
+  }
+}
+
 @media (max-width: 640px) {
   .templates-showcase-grid {
-    grid-template-columns: 1fr;
-    gap: 24px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 10px;
+    max-width: 100%;
   }
 }
 
@@ -1511,6 +1528,7 @@
   gap: 24px;
   max-width: 1080px;
   margin: 0 auto;
+  padding-top: 18px;
 }
 
 .pricing-card {
@@ -1522,6 +1540,8 @@
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: visible !important;
+  contain: none !important;
   box-shadow: 0 16px 40px -10px rgba(15, 23, 42, 0.06);
   transition: all 0.25s var(--ease-spring);
 }
@@ -1535,20 +1555,26 @@
 .pricing-card.is-popular {
   border-color: #000000;
   box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.1);
+  overflow: visible !important;
 }
 
 .popular-ribbon {
   position: absolute;
-  top: -12px;
+  top: -14px;
   left: 50%;
   transform: translateX(-50%);
   background: #000000;
   color: #ffffff;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.8px;
-  padding: 4px 14px;
+  padding: 5px 16px;
   border-radius: var(--radius-pill);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 25;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .pricing-card-header {
@@ -1973,4 +1999,21 @@
   max-width: 540px;
   margin: 0 auto 28px auto;
   line-height: 1.6;
+}
+
+/* ==========================================================================
+   BUTTERY SMOOTH 60/120 FPS HARDWARE ACCELERATION & SCROLL PROMOTION
+   ========================================================================== */
+.hero-glass-section,
+.hero-glass-uploader,
+.compare-container,
+.compare-card,
+.template-showcase-card,
+.testimonial-card-clean,
+.faq-item,
+.cta-banner-glass,
+.blog-card-clean,
+.interactive-preview-card {
+  transform: translateZ(0);
+  contain: paint;
 }
