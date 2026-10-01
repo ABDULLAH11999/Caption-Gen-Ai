@@ -1691,6 +1691,7 @@ export class UserDashboard {
         URL.revokeObjectURL(url);
         video.removeAttribute('src');
         video.load();
+        video.remove();
       };
       const finish = (fn, value) => {
         if (settled) return;
@@ -1700,9 +1701,26 @@ export class UserDashboard {
       };
 
       video.preload = 'metadata';
+      video.playsInline = true;
+      video.muted = true;
+      video.setAttribute('playsinline', '');
+      video.setAttribute('webkit-playsinline', '');
+      video.style.cssText = 'position:fixed;left:-99999px;width:1px;height:1px;opacity:0;';
+      document.body.appendChild(video);
+
       video.onloadedmetadata = () => finish(resolve, Number(video.duration) || 0);
+      video.ondurationchange = () => { if (video.duration) finish(resolve, Number(video.duration) || 0); };
+      video.oncanplay = () => { if (video.duration) finish(resolve, Number(video.duration) || 0); };
       video.onerror = () => finish(reject, new Error('Invalid or corrupted video file format.'));
+
+      // iOS Safari timeout fallback if metadata event fires late
+      setTimeout(() => {
+        if (!settled && video.duration) finish(resolve, Number(video.duration) || 0);
+        else if (!settled) finish(resolve, 10);
+      }, 6000);
+
       video.src = url;
+      try { video.load(); } catch (_) {}
     });
   }
 
