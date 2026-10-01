@@ -49,6 +49,14 @@ class SpeechTranscriberService {
     
     // Mobile / Tablet detection
     this._isMobile = this._isIOS || /Android|Mobile|Silk/i.test(ua);
+
+    // Apple WebKit/Apple Silicon is more reliable with non-SIMD single-thread WASM.
+    // ONNX SIMD support can exist but still return empty Whisper output on some iPhone/Mac browsers.
+    if (this._isIOS || this._isSafari || this._isMac) {
+      env.backends.onnx.wasm.numThreads = 1;
+      env.backends.onnx.wasm.simd = false;
+      env.backends.onnx.wasm.proxy = false;
+    }
   }
 
   withTimeout(promise, ms, message) {
@@ -548,6 +556,8 @@ class SpeechTranscriberService {
     } else if (hintType === 'english') {
       addAttempt(true, 'english', 80, 'Transcribing spoken words with Whisper');
       addAttempt(true, null, 86, 'Transcribing spoken words with Whisper');
+      addAttempt(false, 'english', 88, 'Transcribing spoken words with Whisper (No TS)');
+      addAttempt(false, null, 89, 'Transcribing spoken words with Whisper (No TS)');
     } else {
       addAttempt(true, null, 80, 'Transcribing spoken words with Whisper');
       addAttempt(true, 'english', 82, 'Retrying English speech');
@@ -1017,7 +1027,7 @@ class SpeechTranscriberService {
 
         this.pipelinePromise = (async () => {
           try {
-            return await createPipeline(true);
+            return await createPipeline(!(this._isIOS || this._isSafari || this._isMac));
           } catch (simdErr) {
             console.warn('[speechTranscriber] SIMD initialization failed, retrying with standard WASM for Mac/iOS:', simdErr.message);
             onProgress({ status: 'loading_model', message: 'Configuring standard speech model...', percent: 47 });
@@ -1063,6 +1073,7 @@ class SpeechTranscriberService {
 
     if (rawPcm && rawPcm.length > 0) {
       const speechSegments = this.detectSpeechSegments(rawPcm, 16000);
+      const originalPcm = rawPcm;
       rawPcm = this.normalizePcmForWhisper(rawPcm);
       const targetModelId = this.getModelIdForFile(fileBlob);
       const languageHintType = this.getLanguageHintType(fileBlob);
@@ -1174,6 +1185,19 @@ class SpeechTranscriberService {
           this.lastHasUrduOrHindi = !!hasUrduOrHindi;
           this.lastDetectedLanguage = detectedLanguage;
           return finalSentences;
+        }
+
+        if ((this._isIOS || this._isSafari || this._isMac) && originalPcm && originalPcm.length > 0 && originalPcm !== rawPcm) {
+          onProgress({ status: 'transcribing', message: 'Retrying Apple-compatible audio path...', percent: 90 });
+          const appleRetry = await this._transcribeOnMainThread(originalPcm, duration, onProgress, fileBlob, targetModelId);
+          if (this.hasTranscriptText(appleRetry)) {
+            const rawSentences = this.formatWhisperResultToSentences(appleRetry, duration, speechSegments);
+            if (rawSentences?.length) {
+              this.lastHasUrduOrHindi = this.isUrduOrHindiTranscript(rawSentences, appleRetry.detectedLanguage, fileBlob);
+              this.lastDetectedLanguage = appleRetry.detectedLanguage || this.getLanguageDisplayName(null, this.getLanguageHintType(fileBlob));
+              return rawSentences;
+            }
+          }
         }
 
         throw new Error('Whisper did not detect any transcript text in this video.');

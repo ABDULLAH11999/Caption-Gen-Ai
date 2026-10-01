@@ -345,8 +345,8 @@ export class VideoRenderer {
       : null;
     const previewFontSize = customSentenceSize || (isPortrait ? 25 : ((config.fontSize && Number(config.fontSize) <= 30) ? Number(config.fontSize) : 28));
     const baseFontSize = Math.max(16, Math.round(previewFontSize * scale));
-    const realEstateTopSize = Math.max(16, Math.round((customSentenceSize ? customSentenceSize * (52 / 36) : 46) * scale));
-    const realEstateBodySize = Math.max(14, Math.round((customSentenceSize || 34) * scale));
+    const realEstateTopSize = Math.max(16, Math.round(Number(sentence.topFontSize || 70) * scale));
+    const realEstateBodySize = Math.max(14, Math.round(Number(sentence.fontSize || 50) * scale));
 
     const normalFontFamily = this.getFontFamily(config.normalFontFamily || 'Inter');
     const prominentFontFamily = this.getFontFamily(config.prominentFontFamily || 'Syne');
@@ -403,7 +403,7 @@ export class VideoRenderer {
       }
 
       const fontWeight = forceBold ? '900' : ((isSpeaking && !isRealEstate) ? '900' : (isProminent ? '800' : '700'));
-      const fontStyle = forceItalic ? 'italic' : 'normal';
+      const fontStyle = isRealEstate ? 'normal' : (forceItalic ? 'italic' : 'normal');
       const strokeWidth = strokeEnabled
         ? ((isProminent
             ? (config.prominentOutlineWidth !== undefined ? config.prominentOutlineWidth : 2.5)
@@ -445,7 +445,7 @@ export class VideoRenderer {
     const wordGap = Math.max(3, Math.round(baseFontSize * 0.20));
 
     // Helper: draw a block of text lines at a specified position with animations and effects
-    const drawLineBlock = (linesToDraw, startX, startY, blockLineHeight, alignMode = 'left') => {
+    const drawLineBlock = (linesToDraw, startX, startY, blockLineHeight, alignMode = 'left', applyAnimation = true) => {
       if (!linesToDraw || linesToDraw.length === 0) return;
       const totalBlockHeight = linesToDraw.length * blockLineHeight;
       const blockTopY = (alignMode === 'middle') ? (startY - totalBlockHeight * 0.5) : startY;
@@ -459,11 +459,13 @@ export class VideoRenderer {
       ctx.globalAlpha = Math.max(0, Math.min(1.0, animState.blockOpacity));
       ctx.filter = 'none';
 
-      // Apply block entrance animation transform
-      ctx.translate(blockCenterX + animState.blockOffsetX, blockCenterY + animState.blockOffsetY);
-      if (animState.blockRotation) ctx.rotate((animState.blockRotation * Math.PI) / 180);
-      if (animState.blockScale !== 1.0) ctx.scale(animState.blockScale, animState.blockScale);
-      ctx.translate(-blockCenterX, -blockCenterY);
+      // Apply block entrance animation transform once per segment.
+      if (applyAnimation) {
+        ctx.translate(blockCenterX + animState.blockOffsetX, blockCenterY + animState.blockOffsetY);
+        if (animState.blockRotation) ctx.rotate((animState.blockRotation * Math.PI) / 180);
+        if (animState.blockScale !== 1.0) ctx.scale(animState.blockScale, animState.blockScale);
+        ctx.translate(-blockCenterX, -blockCenterY);
+      }
 
       if (animState.typewriterProgress < 1) {
         const clipLeft = alignMode === 'center'
@@ -599,14 +601,16 @@ export class VideoRenderer {
       topWord.rawWidth = topW;
 
       const topLines = [{ words: [topWord], width: topW }];
-      drawLineBlock(topLines, topPosX, topPosY, realEstateTopSize * 1.1, isTopCentered ? 'center' : 'left');
+      let bodyLinesForDraw = [];
+      let bodyPosX = 0;
+      let bodyPosY = 0;
 
       if (styledWords.length >= 2) {
         const bodyWords = styledWords.slice(1);
         const bodyRawX = sentence.posX !== undefined ? Number(sentence.posX) : 6;
         const bodyRawY = sentence.posY !== undefined ? Number(sentence.posY) : 48;
-        const bodyPosX = (canvasWidth * Math.max(2, Math.min(88, bodyRawX))) / 100;
-        const bodyPosY = (canvasHeight * Math.max(2, Math.min(92, bodyRawY))) / 100;
+        bodyPosX = (canvasWidth * Math.max(2, Math.min(88, bodyRawX))) / 100;
+        bodyPosY = (canvasHeight * Math.max(2, Math.min(92, bodyRawY))) / 100;
         const maxBodyWidth = Math.max(20, canvasWidth - bodyPosX - (canvasWidth * 0.04));
 
         const bodyLines = [];
@@ -639,8 +643,22 @@ export class VideoRenderer {
           bodyLines.push({ words: curLine, width: curLineWidth });
         }
 
-        drawLineBlock(bodyLines, bodyPosX, bodyPosY, realEstateBodySize * 1.15, 'middle');
+        bodyLinesForDraw = bodyLines;
       }
+
+      const segmentCenterX = canvasWidth / 2;
+      const segmentCenterY = canvasHeight / 2;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1.0, animState.blockOpacity));
+      ctx.translate(segmentCenterX + animState.blockOffsetX, segmentCenterY + animState.blockOffsetY);
+      if (animState.blockRotation) ctx.rotate((animState.blockRotation * Math.PI) / 180);
+      if (animState.blockScale !== 1.0) ctx.scale(animState.blockScale, animState.blockScale);
+      ctx.translate(-segmentCenterX, -segmentCenterY);
+      drawLineBlock(topLines, topPosX, topPosY, realEstateTopSize * 1.1, isTopCentered ? 'center' : 'left', false);
+      if (bodyLinesForDraw.length) {
+        drawLineBlock(bodyLinesForDraw, bodyPosX, bodyPosY, realEstateBodySize * 1.15, 'middle', false);
+      }
+      ctx.restore();
       return;
     }
 
