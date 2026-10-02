@@ -225,11 +225,15 @@ export class Mp4AudioExtractor {
     let offset = stsd.offset + 8 + 8;
     const entrySize = view.getUint32(offset);
     const codec = this._getString(view, offset + 4, 4);
+    if (entrySize < 36 || offset + entrySize > view.byteLength) return null;
 
     // Audio sample entry fields:
-    // data_reference_index(2) + version(2) + revision(2) + vendor(4) + channelCount(2) + sampleSize(2) + compressionId(2) + packetSize(2) + sampleRate(4 fixed 16.16)
-    const channels = view.getUint16(offset + 16);
-    const sampleRateFixed = view.getUint32(offset + 24);
+    // reserved(6) + data_reference_index(2) + version(2) + revision(2) + vendor(4)
+    // + channelCount(2) + sampleSize(2) + compressionId(2) + packetSize(2)
+    // + sampleRate(4 fixed 16.16)
+    const version = view.getUint16(offset + 16);
+    const channels = view.getUint16(offset + 24) || 2;
+    const sampleRateFixed = view.getUint32(offset + 32);
     const sampleRate = (sampleRateFixed >>> 16) || 44100;
 
     let audioObjectType = 2; // AAC-LC
@@ -238,9 +242,8 @@ export class Mp4AudioExtractor {
 
     // Search for esds atom inside mp4a entry
     const entryEnd = offset + entrySize;
-    let childOffset = offset + 28;
-    // If version === 1, there are 16 extra bytes; version === 2 has 36 extra bytes
-    const version = view.getUint16(offset + 8);
+    let childOffset = offset + 36;
+    // If version === 1, there are 16 extra bytes; version === 2 has 36 extra bytes.
     if (version === 1) childOffset += 16;
     else if (version === 2) childOffset += 36;
 
@@ -296,8 +299,9 @@ export class Mp4AudioExtractor {
       // Tag 0x05: DecSpecificInfo
       if (pos >= end || view.getUint8(pos) !== 0x05) return null;
       pos++;
-      const infoLen = view.getUint8(pos);
-      pos++;
+      const lenInfo = this._readDescriptorLength(view, pos, end);
+      const infoLen = lenInfo.length;
+      pos = lenInfo.pos;
       if (pos + 2 > end || infoLen < 2) return null;
 
       // AudioSpecificConfig (2 bytes)
@@ -320,6 +324,16 @@ export class Mp4AudioExtractor {
       if ((b & 0x80) === 0) break;
     }
     return pos;
+  }
+
+  static _readDescriptorLength(view, pos, end = view.byteLength) {
+    let length = 0;
+    for (let i = 0; i < 4 && pos < end; i++) {
+      const b = view.getUint8(pos++);
+      length = (length << 7) | (b & 0x7F);
+      if ((b & 0x80) === 0) break;
+    }
+    return { length, pos };
   }
 
   static _parseStsc(view, stsc) {
