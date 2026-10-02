@@ -625,6 +625,7 @@ class SpeechTranscriberService {
   buildWhisperAttempts(fileBlob = null, duration = 0) {
     const hintType = this.getLanguageHintType(fileBlob);
     const displayLanguage = this.getLanguageDisplayName(null, hintType);
+    const isAppleOrMobileAuto = hintType === 'auto' && (this._isIOS || this._isSafari || this._isMac || this._isMobile);
     const attempts = [];
     const seen = new Set();
     const addAttempt = (timestampMode, language, basePercent, labelPrefix) => {
@@ -660,6 +661,11 @@ class SpeechTranscriberService {
       addAttempt(true, null, 86, 'Transcribing spoken words with Whisper');
       addAttempt(false, 'english', 88, 'Transcribing spoken words with Whisper (No TS)');
       addAttempt(false, null, 89, 'Transcribing spoken words with Whisper (No TS)');
+    } else if (isAppleOrMobileAuto) {
+      addAttempt(true, null, 80, 'Transcribing spoken words with Whisper');
+      addAttempt(true, 'english', 84, 'Retrying English speech');
+      addAttempt(false, null, 88, 'Finalizing spoken words with Whisper');
+      addAttempt(false, 'english', 89, 'Finalizing English speech');
     } else {
       addAttempt(true, null, 80, 'Transcribing spoken words with Whisper');
       addAttempt(true, 'english', 82, 'Retrying English speech');
@@ -1092,7 +1098,8 @@ class SpeechTranscriberService {
           rawPcm: rawPcm,
           duration,
           modelId,
-          fileName: this._activeFileName || ''
+          fileName: this._activeFileName || '',
+          preferEnglishAuto: this._isIOS || this._isSafari || this._isMac || this._isMobile
         });
       } catch (postErr) {
         cleanup();

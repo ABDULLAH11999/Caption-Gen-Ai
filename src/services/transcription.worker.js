@@ -202,7 +202,7 @@ function normalizePcmForWhisper(rawPcm) {
   return normalized;
 }
 
-function buildTranscriptionAttempts(fileName = '', duration = 0) {
+function buildTranscriptionAttempts(fileName = '', duration = 0, preferEnglishAuto = false) {
   const hintType = getLanguageHintType(fileName);
   const displayLanguage = getLanguageDisplayName(null, hintType);
   const attempts = [];
@@ -236,6 +236,11 @@ function buildTranscriptionAttempts(fileName = '', duration = 0) {
   } else if (hintType === 'english') {
     addAttempt(true, 'english', 80, 'Transcribing spoken words with Whisper');
     addAttempt(true, null, 86, 'Transcribing spoken words with Whisper');
+  } else if (preferEnglishAuto) {
+    addAttempt(true, null, 80, 'Transcribing spoken words with Whisper');
+    addAttempt(true, 'english', 84, 'Retrying English speech');
+    addAttempt(false, null, 88, 'Finalizing spoken words with Whisper');
+    addAttempt(false, 'english', 89, 'Finalizing English speech');
   } else {
     // Standard Auto-detection: Whisper automatically detects spoken language
     addAttempt(true, null, 80, 'Transcribing spoken words with Whisper');
@@ -250,10 +255,10 @@ function buildTranscriptionAttempts(fileName = '', duration = 0) {
   return attempts;
 }
 
-async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
+async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '', preferEnglishAuto = false) {
   const pcm = normalizePcmForWhisper(rawPcm);
   const duration = options.duration || 0;
-  const attempts = buildTranscriptionAttempts(fileName, duration);
+  const attempts = buildTranscriptionAttempts(fileName, duration, preferEnglishAuto);
   const hintType = getLanguageHintType(fileName);
 
   let lastError = null;
@@ -325,7 +330,7 @@ async function runTranscriptionAttempts(rawPcm, options = {}, fileName = '') {
 }
 
 self.addEventListener('message', async (e) => {
-  const { type, rawPcm, modelId, options, fileName, duration } = e.data || {};
+  const { type, rawPcm, modelId, options, fileName, duration, preferEnglishAuto } = e.data || {};
 
   if (type === 'init' || type === 'transcribe') {
     const targetModel = modelId || currentModelId;
@@ -373,7 +378,7 @@ self.addEventListener('message', async (e) => {
         return;
       }
 
-      const result = await runTranscriptionAttempts(rawPcm, { ...(options || {}), duration }, fileName);
+      const result = await runTranscriptionAttempts(rawPcm, { ...(options || {}), duration }, fileName, !!preferEnglishAuto);
       self.postMessage({ type: 'done', result });
     } catch (err) {
       self.postMessage({ type: 'error', error: err.message || String(err) });
