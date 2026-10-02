@@ -1560,6 +1560,7 @@ class SpeechTranscriberService {
       console.warn('[speechTranscriber] Rejecting hallucinated closing phrase in format:', rawText);
       return [];
     }
+    const rawTokens = rawText.split(/\s+/).filter(Boolean);
     const words = this.extractWhisperWords(whisperResult);
 
     // 1. Check whether Whisper returned real word-level timestamps
@@ -1567,18 +1568,31 @@ class SpeechTranscriberService {
       Number.isFinite(words[0].start) && Number.isFinite(words[0].end);
 
     if (hasRealTimestamps) {
-      // Build captions directly from Whisper's own word timing
-      const timedSentences = this.sanitizeCaptionSentences(
-        this.buildSentencesFromTimedWords(words, totalDuration),
-        totalDuration
-      );
-      if (timedSentences && timedSentences.length > 0) {
-        return timedSentences;
+      const finiteStarts = words.map(w => Number(w.start)).filter(Number.isFinite);
+      const finiteEnds = words.map(w => Number(w.end)).filter(Number.isFinite);
+      const firstTimedStart = finiteStarts.length ? Math.min(...finiteStarts) : 0;
+      const lastTimedEnd = finiteEnds.length ? Math.max(...finiteEnds) : 0;
+      const timedCoverage = totalDuration > 0 ? Math.max(0, lastTimedEnd - firstTimedStart) / totalDuration : 1;
+      const rawHasMoreTranscript = rawTokens.length > words.length + Math.max(2, Math.round(rawTokens.length * 0.25));
+      const startsTooLate = totalDuration > 8 && firstTimedStart > totalDuration * 0.35;
+      const coversTooLittle = totalDuration > 8 && timedCoverage < 0.22 && rawTokens.length >= 8;
+
+      if (rawHasMoreTranscript || startsTooLate || coversTooLittle) {
+        console.warn('[speechTranscriber] Sparse Whisper timestamps detected; aligning full transcript text to speech cadence.');
+      } else {
+        // Build captions directly from Whisper's own word timing
+        const timedSentences = this.sanitizeCaptionSentences(
+          this.buildSentencesFromTimedWords(words, totalDuration),
+          totalDuration
+        );
+        if (timedSentences && timedSentences.length > 0) {
+          return timedSentences;
+        }
       }
     }
 
     // 2. Fallback: plain string words → align against VAD speech energy segments
-    const sourceWords = words.length > 0 ? words : rawText.split(/\s+/).filter(Boolean);
+    const sourceWords = rawTokens.length > 0 ? rawTokens : words;
     const alignedSentences = this.sanitizeCaptionSentences(
       this.buildVoiceAlignedSentences(sourceWords, totalDuration, speechSegments),
       totalDuration
@@ -1588,9 +1602,8 @@ class SpeechTranscriberService {
     }
 
     // 3. Last-resort fallback: synthesize timing across total duration
-    const fallbackTokens = rawText.split(/\s+/).filter(Boolean);
-    if (fallbackTokens.length > 0) {
-      const fallbackSentences = this.buildVoiceAlignedSentences(fallbackTokens, totalDuration, speechSegments);
+    if (rawTokens.length > 0) {
+      const fallbackSentences = this.buildVoiceAlignedSentences(rawTokens, totalDuration, speechSegments);
       const sanitizedFallback = this.sanitizeCaptionSentences(fallbackSentences, totalDuration);
       return sanitizedFallback.length > 0 ? sanitizedFallback : fallbackSentences;
     }
