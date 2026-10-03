@@ -397,7 +397,7 @@ export class VideoRenderer {
           ? this.getFontFamily(config.accentFontFamily || config.prominentFontFamily)
           : (localIdx === words.length - 1 ? prominentFontFamily : normalFontFamily));
       } else {
-        font = (isProminent || isSpeaking) ? prominentFontFamily : (segmentFontFamily || normalFontFamily);
+        font = segmentFontFamily || ((isProminent || isSpeaking) ? prominentFontFamily : normalFontFamily);
       }
 
       let color = isProminent ? prominentColor : defaultTextColor;

@@ -2836,9 +2836,10 @@ export class UserDashboard {
       const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && globalIdx === 1);
 
       // Fit guarantee for any preset
-      const currentFontSize = checkWordFitSize(w.word, baseFontSize, baseX, (isProminent || isSpeaking) ? prominentFontFamily : (segmentFontFamily || normalFontFamily), forceBold ? 900 : (isSpeaking ? 900 : (isProminent ? 800 : 700)), forceItalic ? 'italic' : 'normal', false);
+      const wordFontFamily = segmentFontFamily || ((isProminent || isSpeaking) ? prominentFontFamily : normalFontFamily);
+      const currentFontSize = checkWordFitSize(w.word, baseFontSize, baseX, wordFontFamily, forceBold ? 900 : (isSpeaking ? 900 : (isProminent ? 800 : 700)), forceItalic ? 'italic' : 'normal', false);
 
-      const font = (isProminent || isSpeaking) ? prominentFontFamily : (segmentFontFamily || normalFontFamily);
+      const font = wordFontFamily;
       let color = isProminent ? prominentColor : defaultTextColor;
       if (isLastWord && hasLastWordColor) {
         color = lastWordColor;
