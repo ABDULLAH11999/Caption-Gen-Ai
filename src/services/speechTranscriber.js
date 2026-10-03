@@ -589,6 +589,30 @@ class SpeechTranscriberService {
     return words.length >= 10;
   }
 
+  isPartialAppleTranscript(result, sentences = [], duration = 0) {
+    if (!(this._isIOS || this._isSafari || this._isMac || this._isMobile) || !duration || duration <= 8) return false;
+    const textWords = (result?.text || '').trim().split(/\s+/).filter(Boolean).length;
+    const sentenceWords = (sentences || []).reduce((sum, sentence) => {
+      if (Array.isArray(sentence.words) && sentence.words.length > 0) return sum + sentence.words.length;
+      return sum + (sentence.text || '').trim().split(/\s+/).filter(Boolean).length;
+    }, 0);
+    const firstStart = sentences.length
+      ? Math.min(...sentences.map(s => Number(s.start ?? s.startTime ?? 0)).filter(Number.isFinite))
+      : Infinity;
+    const lastEnd = sentences.length
+      ? Math.max(...sentences.map(s => Number(s.end ?? s.endTime ?? 0)).filter(Number.isFinite))
+      : 0;
+    const sentenceCoverage = Math.max(0, lastEnd - (Number.isFinite(firstStart) ? firstStart : 0)) / Math.max(1, duration);
+    const whisperCoverage = this.getTranscriptCoverage(result, duration);
+
+    return (
+      textWords <= 8 ||
+      sentenceWords <= 8 ||
+      firstStart > duration * 0.35 ||
+      (sentenceCoverage < 0.25 && whisperCoverage < 0.25)
+    );
+  }
+
   isAcceptableSouthAsianTranscript(result, score, duration = 0) {
     const text = result?.text || '';
     const hasSouthAsianScript = /[\u0600-\u06FF\u0900-\u097F]/.test(text);
@@ -1170,6 +1194,101 @@ class SpeechTranscriberService {
     return this.runWhisperAttempts(mainPipeline, rawPcm, duration, onProgress, fileBlob);
   }
 
+  buildAppleChunkWindows(speechSegments = [], duration = 0) {
+    const totalDuration = Math.max(0.8, Number(duration) || 0);
+    const fixedWindowSeconds = totalDuration > 45 ? 10 : 8;
+
+    if (!Array.isArray(speechSegments) || speechSegments.length < 2) {
+      const windows = [];
+      for (let start = 0; start < totalDuration; start += fixedWindowSeconds) {
+        windows.push({
+          start: parseFloat(start.toFixed(2)),
+          end: parseFloat(Math.min(totalDuration, start + fixedWindowSeconds).toFixed(2))
+        });
+      }
+      return windows;
+    }
+
+    const windows = [];
+    let current = null;
+    speechSegments.forEach((seg) => {
+      const start = Math.max(0, Number(seg.start ?? 0));
+      const end = Math.min(totalDuration, Number(seg.end ?? totalDuration));
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
+
+      if (!current) {
+        current = { start, end };
+        return;
+      }
+
+      const gap = start - current.end;
+      if ((end - current.start) <= 10 && gap <= 1.4) {
+        current.end = Math.max(current.end, end);
+      } else {
+        windows.push(current);
+        current = { start, end };
+      }
+    });
+    if (current) windows.push(current);
+
+    return windows.map(win => ({
+      start: parseFloat(Math.max(0, win.start - 0.2).toFixed(2)),
+      end: parseFloat(Math.min(totalDuration, win.end + 0.25).toFixed(2))
+    })).filter(win => win.end - win.start >= 0.6);
+  }
+
+  slicePcmWindow(rawPcm, start, end, sampleRate = 16000) {
+    const startIdx = Math.max(0, Math.floor(start * sampleRate));
+    const endIdx = Math.min(rawPcm.length, Math.ceil(end * sampleRate));
+    if (endIdx <= startIdx) return null;
+    return rawPcm.slice(startIdx, endIdx);
+  }
+
+  async transcribeAppleChunks(rawPcm, duration, speechSegments, onProgress, fileBlob, modelId) {
+    const windows = this.buildAppleChunkWindows(speechSegments, duration);
+    if (!windows.length) return [];
+
+    const pipelineInstance = await this._loadMainThreadPipeline(modelId, onProgress);
+    const hintType = this.getLanguageHintType(fileBlob);
+    const language = hintType === 'south_asian' ? null : 'english';
+    const sentences = [];
+
+    for (let idx = 0; idx < windows.length; idx++) {
+      const win = windows[idx];
+      const chunkPcm = this.slicePcmWindow(rawPcm, win.start, win.end);
+      if (!chunkPcm || chunkPcm.length < 1600) continue;
+
+      onProgress({
+        status: 'transcribing',
+        message: `Capturing full iPhone/Mac audio ${idx + 1}/${windows.length}...`,
+        percent: Math.min(91, 72 + Math.round(((idx + 1) / windows.length) * 17))
+      });
+
+      try {
+        const chunkResult = await this.withTimeout(
+          pipelineInstance(chunkPcm, {
+            task: 'transcribe',
+            return_timestamps: false,
+            ...(language ? { language } : {})
+          }),
+          Math.max(120000, Math.ceil((win.end - win.start) * 12000)),
+          'Apple audio chunk transcription took too long'
+        );
+        const text = this.normalizeTranscriptText(chunkResult?.text || '');
+        if (!text || this.isLikelyFillerHallucination(text, win.end - win.start)) continue;
+        const tokens = text.split(/\s+/).filter(Boolean);
+        this.pushCaptionChunksForSpeechSegment(sentences, tokens, win);
+      } catch (chunkErr) {
+        console.warn('[speechTranscriber] Apple chunk transcription failed:', chunkErr.message);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 30));
+    }
+
+    this.normalizeWordSequences(sentences);
+    return this.sanitizeCaptionSentences(this.consolidateTimeTokens(sentences), duration);
+  }
+
   /**
    * Transcribes the audio file using neural in-browser Whisper AI
    */
@@ -1236,7 +1355,20 @@ class SpeechTranscriberService {
         if (this.hasTranscriptText(result)) {
           const detectedLanguage = result.detectedLanguage || this.getLanguageDisplayName(null, this.getLanguageHintType(fileBlob));
           onProgress({ status: 'translating', message: `Detected language: ${detectedLanguage}. Synchronizing captions...`, percent: 92 });
-          const rawSentences = this.formatWhisperResultToSentences(result, duration, speechSegments);
+          let rawSentences = this.formatWhisperResultToSentences(result, duration, speechSegments);
+          if (
+            languageHintType !== 'south_asian' &&
+            this.isPartialAppleTranscript(result, rawSentences, duration)
+          ) {
+            onProgress({ status: 'transcribing', message: 'Recovering full iPhone/Mac transcript...', percent: 91 });
+            const chunkSentences = await this.transcribeAppleChunks(rawPcm, duration, speechSegments, onProgress, fileBlob, targetModelId);
+            const chunkWordCount = chunkSentences.reduce((sum, s) => sum + ((s.words && s.words.length) || (s.text || '').split(/\s+/).filter(Boolean).length), 0);
+            const rawWordCount = rawSentences.reduce((sum, s) => sum + ((s.words && s.words.length) || (s.text || '').split(/\s+/).filter(Boolean).length), 0);
+            if (chunkSentences.length > rawSentences.length || chunkWordCount > rawWordCount) {
+              rawSentences = chunkSentences;
+            }
+          }
+
           const transcriptWordCount = rawSentences.reduce((sum, s) => {
             if (Array.isArray(s.words) && s.words.length > 0) return sum + s.words.length;
             return sum + (s.text || '').trim().split(/\s+/).filter(Boolean).length;
@@ -1300,7 +1432,15 @@ class SpeechTranscriberService {
           onProgress({ status: 'transcribing', message: 'Retrying Apple-compatible audio path...', percent: 90 });
           const appleRetry = await this._transcribeOnMainThread(originalPcm, duration, onProgress, fileBlob, targetModelId);
           if (this.hasTranscriptText(appleRetry)) {
-            const rawSentences = this.formatWhisperResultToSentences(appleRetry, duration, speechSegments);
+            let rawSentences = this.formatWhisperResultToSentences(appleRetry, duration, speechSegments);
+            if (languageHintType !== 'south_asian' && this.isPartialAppleTranscript(appleRetry, rawSentences, duration)) {
+              const chunkSentences = await this.transcribeAppleChunks(originalPcm, duration, speechSegments, onProgress, fileBlob, targetModelId);
+              const chunkWordCount = chunkSentences.reduce((sum, s) => sum + ((s.words && s.words.length) || (s.text || '').split(/\s+/).filter(Boolean).length), 0);
+              const rawWordCount = rawSentences.reduce((sum, s) => sum + ((s.words && s.words.length) || (s.text || '').split(/\s+/).filter(Boolean).length), 0);
+              if (chunkSentences.length > rawSentences.length || chunkWordCount > rawWordCount) {
+                rawSentences = chunkSentences;
+              }
+            }
             if (rawSentences?.length) {
               this.lastHasUrduOrHindi = this.isUrduOrHindiTranscript(rawSentences, appleRetry.detectedLanguage, fileBlob);
               this.lastDetectedLanguage = appleRetry.detectedLanguage || this.getLanguageDisplayName(null, this.getLanguageHintType(fileBlob));
