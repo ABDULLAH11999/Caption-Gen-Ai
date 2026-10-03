@@ -64,11 +64,11 @@
 
 /* 5. Blink / Strobe */
 .anim-blink {
-  animation: animBlinkFlash 0.35s ease 2 alternate;
+  animation: animBlinkFlash 0.45s ease-out both;
 }
 @keyframes animBlinkFlash {
   0% { opacity: 0; filter: brightness(2); }
-  50% { opacity: 1; filter: brightness(1.4); }
+  45% { opacity: 1; filter: brightness(1.4); }
   100% { opacity: 1; filter: brightness(1); }
 }
 
@@ -104,7 +104,7 @@
 
 /* 8. Karaoke Glow (YouTube / Highlighted Words) */
 .anim-karaoke-glow .caption-word-token.current {
-  animation: karaokePulse 0.4s infinite alternate;
+  animation: karaokePulse 0.42s ease-out both;
 }
 @keyframes karaokePulse {
   0% {
@@ -153,7 +153,7 @@
 
 /* 12. Neon Pulse */
 .anim-neon-pulse {
-  animation: animNeonPulse 1.2s infinite alternate ease-in-out;
+  animation: animNeonPulse 0.65s ease-out both;
 }
 @keyframes animNeonPulse {
   0% {
@@ -166,7 +166,7 @@
 
 /* 13. Glitch Cyber */
 .anim-glitch {
-  animation: animGlitchTwitch 0.5s steps(2, start) infinite;
+  animation: animGlitchTwitch 0.5s steps(2, start) both;
 }
 @keyframes animGlitchTwitch {
   0% { transform: translate(0, 0); text-shadow: -2px 0 var(--cyan-primary), 2px 0 var(--pink-accent); }
@@ -516,5 +516,4 @@
   opacity: 1 !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
-
 

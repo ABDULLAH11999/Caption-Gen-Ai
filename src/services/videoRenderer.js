@@ -161,9 +161,8 @@ export class VideoRenderer {
         break;
       }
       case 'anim-blink': {
-        const p = clamp(elapsed / 0.7);
-        const pulse = Math.abs(Math.sin(p * Math.PI * 2));
-        state.blockOpacity = elapsed < 0.7 ? Math.max(0.35, pulse) : 1;
+        const p = clamp(elapsed / 0.45);
+        state.blockOpacity = elapsed < 0.45 ? Math.max(0.35, Math.sin(p * Math.PI)) : 1;
         break;
       }
       case 'anim-typewriter': {
@@ -192,9 +191,11 @@ export class VideoRenderer {
         break;
       }
       case 'anim-glitch': {
-        const phase = Math.floor(elapsed * 18) % 4;
-        state.glitchX = ([0, -2, 2, -1][phase] || 0) * scale;
-        state.glitchY = ([0, 1, -1, -1][phase] || 0) * scale;
+        if (elapsed <= 0.5) {
+          const phase = Math.floor(elapsed * 18) % 4;
+          state.glitchX = ([0, -2, 2, -1][phase] || 0) * scale;
+          state.glitchY = ([0, 1, -1, -1][phase] || 0) * scale;
+        }
         break;
       }
       case 'anim-flip3d': {
@@ -838,8 +839,8 @@ export class VideoRenderer {
     ctx.rect(0, 0, canvasWidth, canvasHeight);
     ctx.clip();
 
+    const realEstateGroups = new Set();
     const renderSentenceOncePerRealEstateGroup = (items) => {
-      const realEstateGroups = new Set();
       items.forEach((s) => {
         let sentenceToRender = s;
         if (s?.realEstateLayout && s.realEstatePart) {

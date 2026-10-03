@@ -227,6 +227,7 @@ export class UserDashboard {
     const isRealEstate = tpl?.baseType === 'real-estate' || this.selectedTemplateId.startsWith('real-estate');
     const isRealEstateFancy = isRealEstate && fontSetId === 'fancy';
     return (sentences || []).flatMap((sentence, index) => {
+      const isSameTemplateSource = sentence.templateMode === this.selectedTemplateId && (!sentence.baseFontSet || sentence.baseFontSet === fontSetId);
       const text = String(sentence.text || '').trim();
       const tokens = text.split(/\s+/).filter(Boolean);
       const start = Number(sentence.start ?? sentence.startTime ?? index * 2.5);
@@ -244,22 +245,22 @@ export class UserDashboard {
         end,
         startTime: start,
         endTime: end,
-        strokeEnabled: sentence.strokeEnabled !== undefined ? sentence.strokeEnabled : false,
-        strokeColor: sentence.strokeColor !== undefined ? sentence.strokeColor : 'transparent',
-        labelBoxEnabled: sentence.labelBoxEnabled !== undefined ? !!sentence.labelBoxEnabled : false,
-        labelBoxColor: sentence.labelBoxColor || 'rgba(0,0,0,0.38)',
-        labelBoxRadius: sentence.labelBoxRadius !== undefined ? sentence.labelBoxRadius : 14,
-        textColor: sentence.textColor !== undefined ? sentence.textColor : '#FFFFFF',
-        prominentColor: sentence.prominentColor !== undefined ? sentence.prominentColor : cfg.prominentColor,
-        fontFamily: sentence.fontFamily || (isRealEstateFancy ? 'BodoniModa' : cfg.normalFontFamily),
-        animation: sentence.animation || cfg.animation,
-        fontSize: sentence.fontSize !== undefined ? sentence.fontSize : (isRealEstate ? 36 : 30),
-        boxWidth: sentence.boxWidth !== undefined ? sentence.boxWidth : (isRealEstate ? 90 : 74),
+        strokeEnabled: isSameTemplateSource && sentence.strokeEnabled !== undefined ? sentence.strokeEnabled : false,
+        strokeColor: isSameTemplateSource && sentence.strokeColor !== undefined ? sentence.strokeColor : 'transparent',
+        labelBoxEnabled: isSameTemplateSource && sentence.labelBoxEnabled !== undefined ? !!sentence.labelBoxEnabled : false,
+        labelBoxColor: isSameTemplateSource && sentence.labelBoxColor ? sentence.labelBoxColor : 'rgba(0,0,0,0.38)',
+        labelBoxRadius: isSameTemplateSource && sentence.labelBoxRadius !== undefined ? sentence.labelBoxRadius : 14,
+        textColor: isSameTemplateSource && sentence.textColor !== undefined ? sentence.textColor : '#FFFFFF',
+        prominentColor: isSameTemplateSource && sentence.prominentColor !== undefined ? sentence.prominentColor : cfg.prominentColor,
+        fontFamily: isSameTemplateSource && sentence.fontFamily ? sentence.fontFamily : (isRealEstateFancy ? 'BodoniModa' : cfg.normalFontFamily),
+        animation: isSameTemplateSource && sentence.animation ? sentence.animation : cfg.animation,
+        fontSize: isSameTemplateSource && sentence.fontSize !== undefined ? sentence.fontSize : (isRealEstate ? 36 : 30),
+        boxWidth: isSameTemplateSource && sentence.boxWidth !== undefined ? sentence.boxWidth : (isRealEstate ? 90 : 74),
         templateMode: this.selectedTemplateId,
         baseFontSet: fontSetId,
-        italic: sentence.italic !== undefined ? !!sentence.italic : !!cfg.defaultItalic,
-        bold: sentence.bold !== undefined ? !!sentence.bold : (isRealEstateFancy ? true : undefined),
-        underline: sentence.underline !== undefined ? !!sentence.underline : false,
+        italic: isSameTemplateSource && sentence.italic !== undefined ? !!sentence.italic : !!cfg.defaultItalic,
+        bold: isSameTemplateSource && sentence.bold !== undefined ? !!sentence.bold : (isRealEstateFancy ? true : undefined),
+        underline: isSameTemplateSource && sentence.underline !== undefined ? !!sentence.underline : false,
         behind: false,
         glowColor: sentence.glowColor !== undefined ? sentence.glowColor : undefined,
         savedGlowColor: sentence.savedGlowColor !== undefined ? sentence.savedGlowColor : undefined,
@@ -270,30 +271,30 @@ export class UserDashboard {
         // Subtitle & Subtitle Fancy: default to Top Left (14%, 10%) matching preview
         return {
           ...base,
-          posX: sentence.posX !== undefined ? sentence.posX : 14,
-          posY: sentence.posY !== undefined ? sentence.posY : 10,
-          hasCustomPos: !!sentence.hasCustomPos,
-          boxWidth: sentence.boxWidth !== undefined ? sentence.boxWidth : 78
+          posX: isSameTemplateSource && sentence.posX !== undefined ? sentence.posX : 14,
+          posY: isSameTemplateSource && sentence.posY !== undefined ? sentence.posY : 10,
+          hasCustomPos: isSameTemplateSource && !!sentence.hasCustomPos,
+          boxWidth: isSameTemplateSource && sentence.boxWidth !== undefined ? sentence.boxWidth : 78
         };
       }
 
       const realEstateBase = {
         ...base,
-        posX: sentence.posX !== undefined ? sentence.posX : 6,
-        posY: sentence.posY !== undefined ? sentence.posY : 48,
-        topWordPosX: sentence.topWordPosX !== undefined ? sentence.topWordPosX : 50,
-        topWordPosY: sentence.topWordPosY !== undefined ? sentence.topWordPosY : 10,
-        hasCustomPos: !!sentence.hasCustomPos,
-        hasCustomTopPos: !!sentence.hasCustomTopPos,
-        boxWidth: sentence.boxWidth !== undefined ? sentence.boxWidth : 90,
+        posX: isSameTemplateSource && sentence.posX !== undefined ? sentence.posX : 6,
+        posY: isSameTemplateSource && sentence.posY !== undefined ? sentence.posY : 48,
+        topWordPosX: isSameTemplateSource && sentence.topWordPosX !== undefined ? sentence.topWordPosX : 50,
+        topWordPosY: isSameTemplateSource && sentence.topWordPosY !== undefined ? sentence.topWordPosY : 10,
+        hasCustomPos: isSameTemplateSource && !!sentence.hasCustomPos,
+        hasCustomTopPos: isSameTemplateSource && !!sentence.hasCustomTopPos,
+        boxWidth: isSameTemplateSource && sentence.boxWidth !== undefined ? sentence.boxWidth : 90,
         realEstateLayout: true,
         templateMode: this.selectedTemplateId || 'real-estate',
-        fontSize: sentence.fontSize !== undefined ? sentence.fontSize : 36,
+        fontSize: isSameTemplateSource && sentence.fontSize !== undefined ? sentence.fontSize : 36,
         topWord: sourceWords[0]?.word || '',
         bodyWords: sourceWords.slice(1).map(word => word.word),
         words: sourceWords.map((word, wordIndex) => ({
           ...word,
-          italic: sentence.italic !== undefined ? !!sentence.italic : !!cfg.defaultItalic,
+          italic: isSameTemplateSource && sentence.italic !== undefined ? !!sentence.italic : !!cfg.defaultItalic,
           isTopWord: wordIndex === 0,
           isProminent: wordIndex === sourceWords.length - 1
         }))
@@ -306,8 +307,8 @@ export class UserDashboard {
           realEstatePart: 'top',
           text: sourceWords[0]?.word || text,
           words: sourceWords.slice(0, 1).map(word => ({ ...word, isTopWord: true, isProminent: false })),
-          posX: sentence.topWordPosX !== undefined ? sentence.topWordPosX : 50,
-          posY: sentence.topWordPosY !== undefined ? sentence.topWordPosY : 10
+          posX: isSameTemplateSource && sentence.topWordPosX !== undefined ? sentence.topWordPosX : 50,
+          posY: isSameTemplateSource && sentence.topWordPosY !== undefined ? sentence.topWordPosY : 10
         }];
       }
 
@@ -318,8 +319,8 @@ export class UserDashboard {
           realEstatePart: 'top',
           text: sourceWords[0]?.word || '',
           words: sourceWords.slice(0, 1).map(word => ({ ...word, isTopWord: true, isProminent: false })),
-          posX: sentence.topWordPosX !== undefined ? sentence.topWordPosX : 50,
-          posY: sentence.topWordPosY !== undefined ? sentence.topWordPosY : 10,
+          posX: isSameTemplateSource && sentence.topWordPosX !== undefined ? sentence.topWordPosX : 50,
+          posY: isSameTemplateSource && sentence.topWordPosY !== undefined ? sentence.topWordPosY : 10,
           boxWidth: null
         },
         {
