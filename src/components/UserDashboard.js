@@ -249,6 +249,7 @@ export class UserDashboard {
         italic: sentence.italic !== undefined ? !!sentence.italic : false,
         bold: sentence.bold !== undefined ? !!sentence.bold : undefined,
         underline: sentence.underline !== undefined ? !!sentence.underline : false,
+        behind: false,
         glowColor: sentence.glowColor !== undefined ? sentence.glowColor : undefined,
         savedGlowColor: sentence.savedGlowColor !== undefined ? sentence.savedGlowColor : undefined,
         words: sourceWords
@@ -2806,6 +2807,16 @@ export class UserDashboard {
 
     const behindMatches = activeMatches.filter(m => m.sentence && m.sentence.behind);
     const frontMatches = activeMatches.filter(m => !m.sentence || !m.sentence.behind);
+    if (behindMatches.length === 0 && behindOverlay && behindOverlay.innerHTML) {
+      behindOverlay.innerHTML = '';
+    }
+    if (behindMatches.length === 0 && this.cutoutCanvas && this.cutoutCanvas.style.display !== 'none') {
+      this.cutoutCanvas.style.display = 'none';
+      const cutoutCtx = this.cutoutCanvas.getContext('2d');
+      if (cutoutCtx && this.cutoutCanvas.width > 0 && this.cutoutCanvas.height > 0) {
+        cutoutCtx.clearRect(0, 0, this.cutoutCanvas.width, this.cutoutCanvas.height);
+      }
+    }
 
     const behindHtml = behindMatches.map((match, index) => {
       const isEditable = !activeId || String(match.sentence.id || '') === String(activeId);
@@ -4123,11 +4134,17 @@ export class UserDashboard {
         }
       }
 
+      const isIOSExportDevice = typeof navigator !== 'undefined' && (
+        /iPhone|iPad|iPod/i.test(navigator.userAgent || '') ||
+        ((navigator.platform || '') === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1)
+      );
+
       const renderCfg = {
         ...cfg,
         previewDisplayWidth,
         previewDisplayHeight,
-        previewMode: this.currentMode
+        previewMode: this.currentMode,
+        skipAutoDownload: isIOSExportDevice
       };
 
       const exportedBlob = await videoRenderer.burnCaptionsToVideoLossless(this.videoBlob, captionEngine.sentences, renderCfg, (p) => {
@@ -4201,22 +4218,28 @@ export class UserDashboard {
     this.lastExportedBlob = blob;
 
     const progressBox = this.container.querySelector('#user-export-progress');
-    const anchor = document.createElement('a');
-    anchor.id = 'user-export-save-panel';
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.target = '_blank';
-    anchor.rel = 'noopener';
-    anchor.style.cssText = 'display:block;margin-top:12px;padding:14px 16px;border-radius:16px;background:#fff7ed;border:1px solid #fed7aa;color:#111827;text-align:center;font-weight:900;text-decoration:none;box-shadow:0 10px 24px rgba(251,146,60,0.18);';
-    anchor.innerHTML = `
-      <div style="font-size:15px;">Save / Share Video</div>
-      <div style="font-size:12px;color:#64748b;font-weight:700;margin-top:3px;">If iPhone does not auto-save, tap here and choose Save Video</div>
+    const isIOSExportDevice = typeof navigator !== 'undefined' && (
+      /iPhone|iPad|iPod/i.test(navigator.userAgent || '') ||
+      ((navigator.platform || '') === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1)
+    );
+    const panel = document.createElement('div');
+    panel.id = 'user-export-save-panel';
+    panel.style.cssText = 'margin-top:12px;padding:14px;border-radius:18px;background:#fff7ed;border:1px solid #fed7aa;color:#111827;text-align:center;box-shadow:0 10px 24px rgba(251,146,60,0.18);';
+    panel.innerHTML = `
+      <div style="font-size:15px;font-weight:900;">Export Ready</div>
+      <div style="font-size:12px;color:#64748b;font-weight:700;margin:4px 0 10px;">
+        ${isIOSExportDevice ? 'On iPhone, tap Share / Save and choose Save Video or Save to Files.' : 'If download does not open automatically, use the buttons below.'}
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <button type="button" id="btn-ios-share-export" style="border:0;border-radius:999px;background:#000;color:#fff;font-weight:900;padding:11px 16px;min-width:150px;">Share / Save Video</button>
+        <a id="btn-ios-open-export" href="${url}" download="${filename}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:#fff;color:#111827;border:1px solid #e5e7eb;font-weight:900;padding:10px 16px;text-decoration:none;min-width:120px;">Open Video</a>
+      </div>
+      <video src="${url}" controls playsinline webkit-playsinline style="display:${isIOSExportDevice ? 'block' : 'none'};width:100%;max-height:220px;margin-top:12px;border-radius:14px;background:#000;"></video>
     `;
 
-    anchor.addEventListener('click', async (event) => {
+    panel.querySelector('#btn-ios-share-export')?.addEventListener('click', async () => {
       const file = new File([blob], filename, { type: blob.type || (isMp4 ? 'video/mp4' : 'video/webm') });
       if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
-        event.preventDefault();
         try {
           await navigator.share({ files: [file], title: 'Zen Captioned Video' });
           this.showToast('Share sheet opened. Choose Save Video or Files.', 'success');
@@ -4225,13 +4248,16 @@ export class UserDashboard {
             window.open(url, '_blank');
           }
         }
+      } else {
+        window.open(url, '_blank');
+        this.showToast('Video opened. Use the browser share button to save it.', 'info');
       }
     });
 
     if (progressBox) {
-      progressBox.insertAdjacentElement('afterend', anchor);
+      progressBox.insertAdjacentElement('afterend', panel);
     } else {
-      this.container.querySelector('#user-btn-burn')?.insertAdjacentElement('afterend', anchor);
+      this.container.querySelector('#user-btn-burn')?.insertAdjacentElement('afterend', panel);
     }
   }
 

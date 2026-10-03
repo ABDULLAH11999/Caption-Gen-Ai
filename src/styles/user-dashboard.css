@@ -1231,6 +1231,7 @@ body.app-shell-locked {
   align-items: center;
   justify-content: center;
   box-shadow: none;
+  isolation: isolate;
 }
 
 .video-container .studio-video-element {
@@ -1240,6 +1241,7 @@ body.app-shell-locked {
   height: 100%;
   z-index: 1;
   object-fit: contain;
+  transform: translateZ(0);
 }
 
 .video-container .studio-video-element.video-enhanced,
@@ -1257,6 +1259,7 @@ body.app-shell-locked {
 .video-container .caption-behind-overlay,
 #user-caption-behind-overlay {
   z-index: 2 !important;
+  transform: translateZ(1px);
 }
 
 .video-container .cutout-live-canvas,
@@ -1269,11 +1272,15 @@ body.app-shell-locked {
   background: transparent !important;
   object-fit: contain;
   filter: none !important;
+  transform: translateZ(2px);
 }
 
 .video-container .caption-front-overlay,
 #user-caption-front-overlay {
   z-index: 15 !important;
+  transform: translateZ(3px);
+  -webkit-transform: translateZ(3px);
+  will-change: transform;
 }
 
 /* Floating Draggable Caption Segment & Action Bar */

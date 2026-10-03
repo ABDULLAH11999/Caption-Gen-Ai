@@ -1149,18 +1149,21 @@ export class VideoRenderer {
         }
       });
 
-      // Auto-trigger browser download
       const isMp4 = exportedBlob.type.includes('mp4');
       const ext = isMp4 ? 'mp4' : 'webm';
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(exportedBlob);
-      a.download = `Zen_Captioned_Video_60FPS.${ext}`;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        URL.revokeObjectURL(a.href);
-        a.remove();
-      }, 1500);
+      if (!effectiveConfig.skipAutoDownload) {
+        // Auto-trigger browser download. iOS Safari blocks this hidden click, so
+        // the dashboard passes skipAutoDownload and shows a real user-tap save panel.
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(exportedBlob);
+        a.download = `Zen_Captioned_Video_60FPS.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(a.href);
+          a.remove();
+        }, 1500);
+      }
 
       return exportedBlob;
     } finally {
