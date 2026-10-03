@@ -381,6 +381,7 @@ export class CaptionEngine {
           savedGlowColor: s.savedGlowColor,
           animation: s.animation,
           realEstateLayout: s.realEstateLayout,
+          realEstatePart: s.realEstatePart,
           templateMode: s.templateMode
         });
       }
@@ -447,6 +448,7 @@ export class CaptionEngine {
         savedGlowColor: s.savedGlowColor,
         animation: s.animation,
         realEstateLayout: s.realEstateLayout,
+        realEstatePart: s.realEstatePart,
         templateMode: s.templateMode
       };
     });
@@ -512,6 +514,7 @@ export class CaptionEngine {
         savedGlowColor: s.savedGlowColor,
         animation: s.animation,
         realEstateLayout: s.realEstateLayout,
+        realEstatePart: s.realEstatePart,
         templateMode: s.templateMode
       };
     }).sort((a, b) => a.start - b.start);

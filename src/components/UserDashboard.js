@@ -218,7 +218,7 @@ export class UserDashboard {
     const fontSetId = tpl?.fontSetId || (this.selectedTemplateId.endsWith('-fancy') ? 'fancy' : 'basic');
     const cfg = this.getTemplateConfig(this.selectedTemplateId, fontSetId);
     const isRealEstate = tpl?.baseType === 'real-estate' || this.selectedTemplateId.startsWith('real-estate');
-    return (sentences || []).map((sentence, index) => {
+    return (sentences || []).flatMap((sentence, index) => {
       const text = String(sentence.text || '').trim();
       const tokens = text.split(/\s+/).filter(Boolean);
       const start = Number(sentence.start ?? sentence.startTime ?? index * 2.5);
@@ -269,7 +269,7 @@ export class UserDashboard {
         };
       }
 
-      return {
+      const realEstateBase = {
         ...base,
         posX: sentence.posX !== undefined ? sentence.posX : 6,
         posY: sentence.posY !== undefined ? sentence.posY : 48,
@@ -290,6 +290,42 @@ export class UserDashboard {
           isProminent: wordIndex === sourceWords.length - 1
         }))
       };
+
+      if (sourceWords.length <= 1) {
+        return [{
+          ...realEstateBase,
+          id: sentence.id ? `${sentence.id}_re_top` : `sentence_${index + 1}_re_top`,
+          realEstatePart: 'top',
+          text: sourceWords[0]?.word || text,
+          words: sourceWords.slice(0, 1).map(word => ({ ...word, isTopWord: true, isProminent: false })),
+          posX: sentence.topWordPosX !== undefined ? sentence.topWordPosX : 50,
+          posY: sentence.topWordPosY !== undefined ? sentence.topWordPosY : 10
+        }];
+      }
+
+      return [
+        {
+          ...realEstateBase,
+          id: sentence.id ? `${sentence.id}_re_top` : `sentence_${index + 1}_re_top`,
+          realEstatePart: 'top',
+          text: sourceWords[0]?.word || '',
+          words: sourceWords.slice(0, 1).map(word => ({ ...word, isTopWord: true, isProminent: false })),
+          posX: sentence.topWordPosX !== undefined ? sentence.topWordPosX : 50,
+          posY: sentence.topWordPosY !== undefined ? sentence.topWordPosY : 10,
+          boxWidth: null
+        },
+        {
+          ...realEstateBase,
+          id: sentence.id ? `${sentence.id}_re_body` : `sentence_${index + 1}_re_body`,
+          realEstatePart: 'body',
+          text: sourceWords.slice(1).map(word => word.word).join(' '),
+          words: sourceWords.slice(1).map((word, bodyIndex, arr) => ({
+            ...word,
+            isTopWord: false,
+            isProminent: bodyIndex === arr.length - 1
+          }))
+        }
+      ];
     });
   }
 
@@ -2604,6 +2640,7 @@ export class UserDashboard {
     const animClass = animMeta ? animMeta.cssClass : (resolvedAnimId.startsWith('anim-') ? resolvedAnimId : 'anim-pop');
     const isBehind = !!currentSentence.behind;
     const anchorZIndex = isBehind ? 5 : (20 + anchorIndex);
+    const realEstatePart = currentSentence.realEstatePart || 'combined';
 
     const buildToolbarHtml = (placeBelow = false) => showToolbar ? `
       <div class="caption-drag-toolbar ${placeBelow ? 'toolbar-below' : ''}">
@@ -2655,10 +2692,23 @@ export class UserDashboard {
         ">${this.escapeHtml(formatCaptionWord(topWord.word))}</span>
       `;
 
-      if (displayWords.length >= 2) {
-        const bodyWords = displayWords.slice(1);
+      if (realEstatePart === 'top') {
+        return `
+          <div class="caption-segment-anchor caption-real-estate-top-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="top" data-segment-key="seg_top_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${topPosY}%;left:${topPosX}%;transform:${topTransform};width:auto;max-width:${topMaxWidth}%;text-align:${topTextAlign};z-index:${anchorZIndex};">
+            ${buildToolbarHtml(true)}
+            <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${topJustify};align-items:baseline;width:${labelBoxWidth};max-width:100%;text-transform:none;line-height:1.05;transform-origin:center top;will-change:transform,opacity;${labelBoxStyle}">
+              ${topWordHtml}
+            </div>
+            <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines"><div class="resize-grip-line"></div></div>
+            <div class="caption-resize-handle resize-corner" title="Drag corner to adjust font size and box width"><div class="resize-grip-dot"></div></div>
+          </div>
+        `;
+      }
+
+      if (displayWords.length >= 2 || realEstatePart === 'body') {
+        const bodyWords = realEstatePart === 'body' ? displayWords : displayWords.slice(1);
         const bodyWordsHtml = bodyWords.map((w, localIdx) => {
-          const globalIdx = chunkOffset + 1 + localIdx;
+          const globalIdx = chunkOffset + (realEstatePart === 'body' ? 0 : 1) + localIdx;
           const isSpeaking = globalIdx === speakingWordIdx;
           const isLastWord = localIdx === bodyWords.length - 1;
           const font = isLastWord ? prominentFontFamily : normalFontFamily;
@@ -2678,6 +2728,19 @@ export class UserDashboard {
 
         const customWidth = currentSentence.boxWidth ? `${currentSentence.boxWidth}%` : 'auto';
         const bodyMaxWidth = Math.max(10, 96 - bodyPosX);
+
+        if (realEstatePart === 'body') {
+          return `
+            <div class="caption-segment-anchor caption-real-estate-body-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="body" data-segment-key="seg_body_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${bodyPosY}%;left:${bodyPosX}%;transform:${bodyTransform};width:${customWidth};max-width:${bodyMaxWidth}%;text-align:left;z-index:${anchorZIndex};">
+              ${buildToolbarHtml(false)}
+              <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:flex-start;align-items:baseline;gap:2px 5px;width:${labelBoxWidth};max-width:100%;text-transform:none;line-height:1.05;transform-origin:left center;will-change:transform,opacity;${labelBoxStyle}">
+                ${bodyWordsHtml}
+              </div>
+              <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines"><div class="resize-grip-line"></div></div>
+              <div class="caption-resize-handle resize-corner" title="Drag corner to adjust font size and box width"><div class="resize-grip-dot"></div></div>
+            </div>
+          `;
+        }
 
         return `
           <div class="caption-segment-anchor caption-real-estate-top-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="top" data-segment-key="seg_top_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${topPosY}%;left:${topPosX}%;transform:${topTransform};width:auto;max-width:${topMaxWidth}%;text-align:${topTextAlign};z-index:${anchorZIndex};">
@@ -2801,6 +2864,18 @@ export class UserDashboard {
 
     // Find active segments strictly matching timeline
     let activeMatches = sentenceOverride ? [{ sentence: sentenceOverride, index: 0 }] : this.findActiveSentenceMatches(sentences, time);
+    if (sentenceOverride?.realEstateLayout && sentenceOverride.realEstatePart) {
+      const overrideStart = Number(sentenceOverride.start ?? sentenceOverride.startTime ?? 0);
+      const overrideEnd = Number(sentenceOverride.end ?? sentenceOverride.endTime ?? 0);
+      activeMatches = sentences
+        .map((sentence, index) => ({ sentence, index }))
+        .filter(({ sentence }) => (
+          sentence?.realEstateLayout &&
+          sentence.realEstatePart &&
+          Math.abs(Number(sentence.start ?? sentence.startTime ?? 0) - overrideStart) < 0.05 &&
+          Math.abs(Number(sentence.end ?? sentence.endTime ?? 0) - overrideEnd) < 0.05
+        ));
+    }
     if (activeMatches.length === 0) {
       const fallback = this.findActiveSentence(sentences, time, sentenceOverride);
       if (fallback) activeMatches = [{ sentence: fallback, index: 0 }];
@@ -2849,7 +2924,7 @@ export class UserDashboard {
       });
     }).join('');
 
-    const renderKey = activeMatches.map(m => `${m.sentence.id || m.index}:${m.sentence.posX ?? ''}:${m.sentence.posY ?? ''}:${m.sentence.topWordPosX ?? ''}:${m.sentence.topWordPosY ?? ''}:${m.sentence.boxWidth ?? ''}:${m.sentence.fontSize ?? ''}:${m.sentence.behind ? '1' : '0'}:${m.sentence.textColor ?? ''}:${m.sentence.prominentColor ?? ''}:${m.sentence.italic ? '1' : '0'}:${m.sentence.bold ? '1' : '0'}:${m.sentence.underline ? '1' : '0'}:${m.sentence.fontFamily ?? ''}:${m.sentence.glowColor ?? ''}:${m.sentence.strokeColor ?? ''}:${m.sentence.strokeEnabled !== false ? '1' : '0'}:${m.sentence.labelBoxEnabled ? '1' : '0'}:${m.sentence.labelBoxColor ?? ''}:${m.sentence.labelBoxRadius ?? ''}:${m.sentence.animation ?? ''}:${m.sentence.hasCustomPos ? '1' : '0'}:${m.sentence.hasCustomTopPos ? '1' : '0'}`).join('|');
+    const renderKey = activeMatches.map(m => `${m.sentence.id || m.index}:${m.sentence.realEstatePart ?? ''}:${m.sentence.posX ?? ''}:${m.sentence.posY ?? ''}:${m.sentence.topWordPosX ?? ''}:${m.sentence.topWordPosY ?? ''}:${m.sentence.boxWidth ?? ''}:${m.sentence.fontSize ?? ''}:${m.sentence.behind ? '1' : '0'}:${m.sentence.textColor ?? ''}:${m.sentence.prominentColor ?? ''}:${m.sentence.italic ? '1' : '0'}:${m.sentence.bold ? '1' : '0'}:${m.sentence.underline ? '1' : '0'}:${m.sentence.fontFamily ?? ''}:${m.sentence.glowColor ?? ''}:${m.sentence.strokeColor ?? ''}:${m.sentence.strokeEnabled !== false ? '1' : '0'}:${m.sentence.labelBoxEnabled ? '1' : '0'}:${m.sentence.labelBoxColor ?? ''}:${m.sentence.labelBoxRadius ?? ''}:${m.sentence.animation ?? ''}:${m.sentence.hasCustomPos ? '1' : '0'}:${m.sentence.hasCustomTopPos ? '1' : '0'}`).join('|');
 
     if (this.lastRenderedSentenceKey !== renderKey || (behindOverlay && behindOverlay.innerHTML.trim() === '' && behindHtml) || (frontOverlay && frontOverlay.innerHTML.trim() === '' && frontHtml)) {
       if (behindOverlay) behindOverlay.innerHTML = behindHtml;

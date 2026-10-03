@@ -340,6 +340,7 @@ export class VideoRenderer {
 
     const isPortrait = canvasHeight > canvasWidth;
     const isRealEstate = (config.templateId === 'real-estate' || config.templateId === 'real-estate-fancy' || String(config.templateId).startsWith('real-estate') || sentence.templateMode === 'real-estate' || sentence.templateMode === 'real-estate-fancy' || String(sentence.templateMode).startsWith('real-estate') || !!sentence.realEstateLayout);
+    const realEstatePart = sentence.realEstatePart || 'combined';
     const customSentenceSize = (sentence.fontSize !== undefined && sentence.fontSize !== null && sentence.fontSize > 0)
       ? Number(sentence.fontSize)
       : null;
@@ -386,7 +387,7 @@ export class VideoRenderer {
       const isSpeaking = (localIdx === speakingWordIdx);
       const isLastWord = (localIdx === words.length - 1);
       const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && localIdx === 1);
-      const isTopWord = isRealEstate && localIdx === 0;
+      const isTopWord = isRealEstate && realEstatePart !== 'body' && localIdx === 0;
       const currentFontSize = isRealEstate ? (isTopWord ? realEstateTopSize : realEstateBodySize) : baseFontSize;
 
       let font = normalFontFamily;
@@ -641,8 +642,8 @@ export class VideoRenderer {
       let bodyPosX = 0;
       let bodyPosY = 0;
 
-      if (styledWords.length >= 2) {
-        const bodyWords = styledWords.slice(1);
+      if (realEstatePart !== 'top' && (styledWords.length >= 2 || realEstatePart === 'body')) {
+        const bodyWords = realEstatePart === 'body' ? styledWords : styledWords.slice(1);
         const bodyRawX = sentence.posX !== undefined ? Number(sentence.posX) : 6;
         const bodyRawY = sentence.posY !== undefined ? Number(sentence.posY) : 48;
         bodyPosX = (canvasWidth * Math.max(2, Math.min(88, bodyRawX))) / 100;
@@ -690,7 +691,9 @@ export class VideoRenderer {
       if (animState.blockRotation) ctx.rotate((animState.blockRotation * Math.PI) / 180);
       if (animState.blockScale !== 1.0) ctx.scale(animState.blockScale, animState.blockScale);
       ctx.translate(-segmentCenterX, -segmentCenterY);
-      drawLineBlock(topLines, topPosX, topPosY, realEstateTopSize * 1.1, isTopCentered ? 'center' : 'left', false);
+      if (realEstatePart !== 'body') {
+        drawLineBlock(topLines, topPosX, topPosY, realEstateTopSize * 1.1, isTopCentered ? 'center' : 'left', false);
+      }
       if (bodyLinesForDraw.length) {
         drawLineBlock(bodyLinesForDraw, bodyPosX, bodyPosY, realEstateBodySize * 1.15, 'middle', false);
       }
