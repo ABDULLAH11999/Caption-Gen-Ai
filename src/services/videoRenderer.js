@@ -622,8 +622,9 @@ export class VideoRenderer {
       const topRawX = sentence.topWordPosX !== undefined ? Number(sentence.topWordPosX) : 50;
       const topRawY = sentence.topWordPosY !== undefined ? Number(sentence.topWordPosY) : 10;
       const topPosX = (canvasWidth * Math.max(2, Math.min(88, topRawX))) / 100;
-      const topPosY = (canvasHeight * Math.max(2, Math.min(92, topRawY))) / 100;
-      const isTopCentered = topRawX === 50 && !sentence.hasCustomTopPos;
+      const hasCustomTopPos = !!sentence.hasCustomTopPos;
+      const topPosY = (canvasHeight * Math.max(hasCustomTopPos ? 1 : 2, Math.min(92, topRawY))) / 100;
+      const isTopCentered = topRawX === 50 && !hasCustomTopPos;
       const maxTopWidth = isTopCentered ? Math.max(20, canvasWidth * 0.92) : Math.max(20, canvasWidth - topPosX - (canvasWidth * 0.04));
 
       // Fit guarantee for top word

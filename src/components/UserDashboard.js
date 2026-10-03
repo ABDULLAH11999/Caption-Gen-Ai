@@ -2688,10 +2688,10 @@ export class UserDashboard {
     if (isRealEstate && displayWords.length > 0) {
       const topRawX = currentSentence.topWordPosX !== undefined ? Number(currentSentence.topWordPosX) : 50;
       const topRawY = currentSentence.topWordPosY !== undefined ? Number(currentSentence.topWordPosY) : 10;
-      const topPosX = Math.max(2, Math.min(88, Number.isFinite(topRawX) ? topRawX : 50));
-      const topSafeMinY = Math.max(4, Math.ceil(((realEstateTopSize * 1.08) / Math.max(1, videoDisplayH)) * 100));
-      const topPosY = Math.max(topSafeMinY, Math.min(88, Number.isFinite(topRawY) ? topRawY : 10));
       const hasCustomTopPos = !!currentSentence.hasCustomTopPos;
+      const topPosX = Math.max(2, Math.min(88, Number.isFinite(topRawX) ? topRawX : 50));
+      const topSafeMinY = hasCustomTopPos ? 1 : Math.max(4, Math.ceil(((realEstateTopSize * 0.45) / Math.max(1, videoDisplayH)) * 100));
+      const topPosY = Math.max(topSafeMinY, Math.min(88, Number.isFinite(topRawY) ? topRawY : 10));
       const topTransform = hasCustomTopPos ? 'translate(0, 0)' : 'translate(-50%, 0)';
       const topTextAlign = hasCustomTopPos ? 'left' : 'center';
       const topJustify = hasCustomTopPos ? 'flex-start' : 'center';
@@ -2972,15 +2972,6 @@ export class UserDashboard {
     if (this.lastRenderedSentenceKey !== renderKey || (behindOverlay && behindOverlay.innerHTML.trim() === '' && behindHtml) || (frontOverlay && frontOverlay.innerHTML.trim() === '' && frontHtml)) {
       if (behindOverlay) behindOverlay.innerHTML = behindHtml;
       if (frontOverlay) frontOverlay.innerHTML = frontHtml;
-
-      this.container.querySelectorAll('.caption-anim-segment-wrapper').forEach((wrapper) => {
-        const animClass = [...wrapper.classList].find(cls => cls.startsWith('anim-'));
-        if (animClass) {
-          wrapper.classList.remove(animClass);
-          void wrapper.offsetWidth;
-          wrapper.classList.add(animClass);
-        }
-      });
     } else {
       activeMatches.forEach((match) => {
         const targetOverlay = match.sentence.behind ? behindOverlay : frontOverlay;
