@@ -4130,7 +4130,7 @@ export class UserDashboard {
         previewMode: this.currentMode
       };
 
-      await videoRenderer.burnCaptionsToVideoLossless(this.videoBlob, captionEngine.sentences, renderCfg, (p) => {
+      const exportedBlob = await videoRenderer.burnCaptionsToVideoLossless(this.videoBlob, captionEngine.sentences, renderCfg, (p) => {
         const percentVal = Math.max(0, Math.min(100, Math.round(p * 100)));
         if (bar) bar.style.width = `${percentVal}%`;
         if (pct) pct.textContent = `${percentVal}%`;
@@ -4147,7 +4147,8 @@ export class UserDashboard {
       }, this.enhanceVideoQuality);
 
       soundFx.playExportComplete();
-      this.showToast('Export Complete! Downloaded 60 FPS video.', 'success');
+      this.showExportSaveOption(exportedBlob);
+      this.showToast('Export complete! Tap Save / Share Video if download does not open automatically.', 'success');
 
       if (burnBtn) {
         burnBtn.style.setProperty('--burn-progress', '100%');
@@ -4158,6 +4159,7 @@ export class UserDashboard {
         `;
       }
 
+      const hasManualSavePanel = !!this.container.querySelector('#user-export-save-panel');
       setTimeout(() => {
         if (progBox) progBox.style.display = 'none';
         if (burnBtn) {
@@ -4167,7 +4169,7 @@ export class UserDashboard {
           burnBtn.style.removeProperty('--burn-progress');
           burnBtn.innerHTML = defaultBtnHtml;
         }
-      }, 2500);
+      }, hasManualSavePanel ? 9000 : 2500);
     } catch (err) {
       this.showToast('Export failed: ' + err.message, 'error');
       if (progBox) progBox.style.display = 'none';
@@ -4178,6 +4180,58 @@ export class UserDashboard {
           burnBtn.style.removeProperty('--burn-progress');
           burnBtn.innerHTML = defaultBtnHtml;
       }
+    }
+  }
+
+  showExportSaveOption(blob) {
+    if (!blob || blob.size <= 0) return;
+
+    const oldPanel = this.container.querySelector('#user-export-save-panel');
+    if (oldPanel) oldPanel.remove();
+    if (this.exportObjectUrl) {
+      try { URL.revokeObjectURL(this.exportObjectUrl); } catch (_) {}
+      this.exportObjectUrl = null;
+    }
+
+    const isMp4 = String(blob.type || '').includes('mp4');
+    const ext = isMp4 ? 'mp4' : 'webm';
+    const filename = `Zen_Captioned_Video_60FPS.${ext}`;
+    const url = URL.createObjectURL(blob);
+    this.exportObjectUrl = url;
+    this.lastExportedBlob = blob;
+
+    const progressBox = this.container.querySelector('#user-export-progress');
+    const anchor = document.createElement('a');
+    anchor.id = 'user-export-save-panel';
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener';
+    anchor.style.cssText = 'display:block;margin-top:12px;padding:14px 16px;border-radius:16px;background:#fff7ed;border:1px solid #fed7aa;color:#111827;text-align:center;font-weight:900;text-decoration:none;box-shadow:0 10px 24px rgba(251,146,60,0.18);';
+    anchor.innerHTML = `
+      <div style="font-size:15px;">Save / Share Video</div>
+      <div style="font-size:12px;color:#64748b;font-weight:700;margin-top:3px;">If iPhone does not auto-save, tap here and choose Save Video</div>
+    `;
+
+    anchor.addEventListener('click', async (event) => {
+      const file = new File([blob], filename, { type: blob.type || (isMp4 ? 'video/mp4' : 'video/webm') });
+      if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+        event.preventDefault();
+        try {
+          await navigator.share({ files: [file], title: 'Zen Captioned Video' });
+          this.showToast('Share sheet opened. Choose Save Video or Files.', 'success');
+        } catch (shareErr) {
+          if (shareErr?.name !== 'AbortError') {
+            window.open(url, '_blank');
+          }
+        }
+      }
+    });
+
+    if (progressBox) {
+      progressBox.insertAdjacentElement('afterend', anchor);
+    } else {
+      this.container.querySelector('#user-btn-burn')?.insertAdjacentElement('afterend', anchor);
     }
   }
 
