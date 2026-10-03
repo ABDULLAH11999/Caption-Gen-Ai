@@ -1175,7 +1175,7 @@ body.app-shell-locked {
    ========================================================================== */
 .workspace-studio-layout {
   display: grid;
-  grid-template-columns: 1fr 420px;
+  grid-template-columns: minmax(0, 1fr) 420px;
   grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100vh;
   width: 100%;
@@ -1218,7 +1218,11 @@ body.app-shell-locked {
   gap: 0;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .video-container {
@@ -1232,6 +1236,7 @@ body.app-shell-locked {
   justify-content: center;
   box-shadow: none;
   isolation: isolate;
+  flex: 0 0 auto;
 }
 
 .video-container .studio-video-element {
@@ -1470,6 +1475,30 @@ body.app-shell-locked {
   border-radius: 0 !important;
   margin-top: 0 !important;
   border-top: 1px solid rgba(226, 232, 240, 0.95);
+  flex: 0 0 auto;
+  max-height: min(34vh, 330px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.player-controls::-webkit-scrollbar,
+.video-player-card::-webkit-scrollbar {
+  width: 8px;
+}
+
+.player-controls::-webkit-scrollbar-track,
+.video-player-card::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.6);
+  border-radius: 999px;
+}
+
+.player-controls::-webkit-scrollbar-thumb,
+.video-player-card::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.55);
+  border-radius: 999px;
 }
 
 .timeline-scrubber-wrapper {
@@ -3169,6 +3198,8 @@ body.app-shell-locked {
   }
   .player-controls {
     padding: 12px 14px !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
   .player-action-controls {
     flex-direction: column !important;
