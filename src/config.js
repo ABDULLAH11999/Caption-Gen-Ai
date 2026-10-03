@@ -11,7 +11,7 @@ export const FONTS = [
   { id: 'Italiana', name: 'Emily Reference Serif (Bodoni Italic)', family: "'Bodoni Moda', 'Playfair Display', Georgia, serif", defaultItalic: true, defaultBold: true },
   { id: 'CormorantGaramond', name: 'Cormorant Garamond (Editorial Chic)', family: "'Cormorant Garamond', 'Italiana', Georgia, serif" },
   { id: 'PlayfairDisplay', name: 'Playfair Display (Luxury Editorial)', family: "'Playfair Display', Georgia, serif" },
-  { id: 'BodoniModa', name: 'Bodoni Moda (Vogue Runway Luxury)', family: "'Bodoni Moda', Georgia, serif" },
+  { id: 'BodoniModa', name: 'Bodoni Moda (Vogue Runway Luxury)', family: "'Bodoni Moda', Georgia, serif", defaultItalic: true, defaultBold: true },
   { id: 'Cinzel', name: 'Cinzel (Classical Roman Serif)', family: "'Cinzel', serif" },
   { id: 'Syne', name: 'Syne (Viral Ultra Display)', family: "'Syne', sans-serif" },
   { id: 'Righteous', name: 'Righteous (Bold Rounded Retro)', family: "'Righteous', cursive, sans-serif" },

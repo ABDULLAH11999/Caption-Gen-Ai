@@ -360,7 +360,7 @@ export class VideoRenderer {
       segmentFontMeta?.id === 'Italiana' ||
       /emily|bodoni/i.test(segmentFontMeta?.name || '')
     );
-    const forceItalic = sentence.italic !== undefined ? !!sentence.italic : (isRealEstate ? false : !!segmentFontMeta?.defaultItalic);
+    const forceItalic = sentence.italic !== undefined ? !!sentence.italic : (!!config.defaultItalic || !!segmentFontMeta?.defaultItalic);
     const forceBold = sentence.bold !== undefined ? !!sentence.bold : !!segmentFontMeta?.defaultBold;
     const forceUnderline = !!sentence.underline;
 
@@ -392,9 +392,9 @@ export class VideoRenderer {
 
       let font = normalFontFamily;
       if (isRealEstate) {
-        font = isTopWord
+        font = segmentFontFamily || (isTopWord
           ? this.getFontFamily(config.accentFontFamily || config.prominentFontFamily)
-          : (localIdx === words.length - 1 ? prominentFontFamily : normalFontFamily);
+          : (localIdx === words.length - 1 ? prominentFontFamily : normalFontFamily));
       } else {
         font = (isProminent || isSpeaking) ? prominentFontFamily : (segmentFontFamily || normalFontFamily);
       }
@@ -407,7 +407,7 @@ export class VideoRenderer {
       }
 
       const fontWeight = forceBold ? '900' : ((isSpeaking && !isRealEstate) ? '900' : (isProminent ? '800' : '700'));
-      const fontStyle = isRealEstate ? 'normal' : (forceItalic ? 'italic' : 'normal');
+      const fontStyle = forceItalic ? 'italic' : 'normal';
       const strokeWidth = strokeEnabled
         ? ((isProminent
             ? (config.prominentOutlineWidth !== undefined ? config.prominentOutlineWidth : 2.5)
@@ -437,7 +437,7 @@ export class VideoRenderer {
       };
     });
 
-    let resolvedAnimId = sentence.animation || config.animation || 'anim-auto';
+    let resolvedAnimId = sentence.suppressAnimation ? 'anim-none' : (sentence.animation || config.animation || 'anim-auto');
     if (resolvedAnimId === 'anim-auto') {
       const targetIdx = sentences.findIndex(s => s === sentence || (s.id !== undefined && s.id === sentence.id));
       resolvedAnimId = AUTO_ANIMATION_SEQUENCE[Math.max(0, targetIdx) % AUTO_ANIMATION_SEQUENCE.length];
@@ -838,10 +838,24 @@ export class VideoRenderer {
     ctx.rect(0, 0, canvasWidth, canvasHeight);
     ctx.clip();
 
+    const renderSentenceOncePerRealEstateGroup = (items) => {
+      const realEstateGroups = new Set();
+      items.forEach((s) => {
+        let sentenceToRender = s;
+        if (s?.realEstateLayout && s.realEstatePart) {
+          const groupKey = `${Number(s.start ?? s.startTime ?? 0).toFixed(2)}_${Number(s.end ?? s.endTime ?? 0).toFixed(2)}_${s.behind ? 'behind' : 'front'}`;
+          if (realEstateGroups.has(groupKey)) {
+            sentenceToRender = { ...s, suppressAnimation: true };
+          } else {
+            realEstateGroups.add(groupKey);
+          }
+        }
+        this.renderSentence(ctx, sentenceToRender, curTime, config, canvasWidth, canvasHeight, sentences, scale);
+      });
+    };
+
     // Layer 2: Behind Captions
-    behindSentences.forEach((s) => {
-      this.renderSentence(ctx, s, curTime, config, canvasWidth, canvasHeight, sentences, scale);
-    });
+    renderSentenceOncePerRealEstateGroup(behindSentences);
 
     // Layer 3: Rotoscoped Person Cutout (draw over Behind Captions)
     if (behindSentences.length > 0 && selfieSegmenterService.isReady()) {
@@ -853,9 +867,7 @@ export class VideoRenderer {
     }
 
     // Layer 4: Front Captions (draw in front of Person Cutout)
-    frontSentences.forEach((s) => {
-      this.renderSentence(ctx, s, curTime, config, canvasWidth, canvasHeight, sentences, scale);
-    });
+    renderSentenceOncePerRealEstateGroup(frontSentences);
 
     ctx.restore();
   }

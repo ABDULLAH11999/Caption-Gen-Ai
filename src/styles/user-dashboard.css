@@ -1330,6 +1330,21 @@ body.app-shell-locked {
   bottom: auto;
 }
 
+.caption-no-segment-animation {
+  animation: none !important;
+}
+
+.caption-real-estate-top-anchor,
+.caption-real-estate-body-anchor {
+  contain: layout style;
+}
+
+.caption-real-estate-top-anchor .caption-word-token,
+.caption-real-estate-body-anchor .caption-word-token {
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+
 /* Show toolbar when hovering over caption anchor or when video is paused */
 .caption-segment-anchor:hover .caption-drag-toolbar,
 .video-container.is-paused .caption-drag-toolbar,

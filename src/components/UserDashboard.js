@@ -168,8 +168,14 @@ export class UserDashboard {
     const tpl = this.getDashboardTemplateMeta(targetId);
     const resolvedFontSetId = fontSetId || tpl?.fontSetId || (targetId.endsWith('-fancy') ? 'fancy' : 'basic');
     const fontSet = this.getBaseFontSet(resolvedFontSetId);
-    const [normalFont, prominentFont, accentFont] = fontSet.fonts;
+    let [normalFont, prominentFont, accentFont] = fontSet.fonts;
     const isRealEstate = tpl?.baseType === 'real-estate' || targetId.startsWith('real-estate');
+    const isRealEstateFancy = isRealEstate && resolvedFontSetId === 'fancy';
+    if (isRealEstateFancy) {
+      normalFont = 'BodoniModa';
+      prominentFont = 'BodoniModa';
+      accentFont = 'BodoniModa';
+    }
     return {
       ...DEFAULT_LANDSCAPE_CONFIG,
       templateId: targetId,
@@ -188,6 +194,7 @@ export class UserDashboard {
       shadowBlur: isRealEstate ? 10 : 0,
       animation: 'anim-fade',
       uppercase: true,
+      defaultItalic: isRealEstateFancy,
       karaokeHighlightColor: '#FF5533',
       enableLastWordColor: true,
       lastWordColor: '#FF5533',
@@ -218,6 +225,7 @@ export class UserDashboard {
     const fontSetId = tpl?.fontSetId || (this.selectedTemplateId.endsWith('-fancy') ? 'fancy' : 'basic');
     const cfg = this.getTemplateConfig(this.selectedTemplateId, fontSetId);
     const isRealEstate = tpl?.baseType === 'real-estate' || this.selectedTemplateId.startsWith('real-estate');
+    const isRealEstateFancy = isRealEstate && fontSetId === 'fancy';
     return (sentences || []).flatMap((sentence, index) => {
       const text = String(sentence.text || '').trim();
       const tokens = text.split(/\s+/).filter(Boolean);
@@ -243,14 +251,14 @@ export class UserDashboard {
         labelBoxRadius: sentence.labelBoxRadius !== undefined ? sentence.labelBoxRadius : 14,
         textColor: sentence.textColor !== undefined ? sentence.textColor : '#FFFFFF',
         prominentColor: sentence.prominentColor !== undefined ? sentence.prominentColor : cfg.prominentColor,
-        fontFamily: sentence.fontFamily || cfg.normalFontFamily,
+        fontFamily: sentence.fontFamily || (isRealEstateFancy ? 'BodoniModa' : cfg.normalFontFamily),
         animation: sentence.animation || cfg.animation,
         fontSize: sentence.fontSize !== undefined ? sentence.fontSize : (isRealEstate ? 36 : 30),
         boxWidth: sentence.boxWidth !== undefined ? sentence.boxWidth : (isRealEstate ? 90 : 74),
         templateMode: this.selectedTemplateId,
         baseFontSet: fontSetId,
-        italic: sentence.italic !== undefined ? !!sentence.italic : false,
-        bold: sentence.bold !== undefined ? !!sentence.bold : undefined,
+        italic: sentence.italic !== undefined ? !!sentence.italic : !!cfg.defaultItalic,
+        bold: sentence.bold !== undefined ? !!sentence.bold : (isRealEstateFancy ? true : undefined),
         underline: sentence.underline !== undefined ? !!sentence.underline : false,
         behind: false,
         glowColor: sentence.glowColor !== undefined ? sentence.glowColor : undefined,
@@ -285,7 +293,7 @@ export class UserDashboard {
         bodyWords: sourceWords.slice(1).map(word => word.word),
         words: sourceWords.map((word, wordIndex) => ({
           ...word,
-          italic: sentence.italic !== undefined ? !!sentence.italic : false,
+          italic: sentence.italic !== undefined ? !!sentence.italic : !!cfg.defaultItalic,
           isTopWord: wordIndex === 0,
           isProminent: wordIndex === sourceWords.length - 1
         }))
@@ -936,11 +944,15 @@ export class UserDashboard {
   renderTemplateOptionCard(tpl) {
     const isSelected = this.selectedTemplateId === tpl.id;
     const fontSet = this.getBaseFontSet(tpl.fontSetId);
-    const [normalFont, prominentFont, accentFont] = fontSet.fonts;
+    const isRealEstateFancy = tpl.id === 'real-estate-fancy';
+    const [normalFont, prominentFont, accentFont] = isRealEstateFancy
+      ? ['BodoniModa', 'BodoniModa', 'BodoniModa']
+      : fontSet.fonts;
     const normalFamily = this.getFontFamily(normalFont);
     const prominentFamily = this.getFontFamily(prominentFont);
     const accentFamily = this.getFontFamily(accentFont);
     const isRealEstate = tpl.baseType === 'real-estate' || tpl.id.startsWith('real-estate');
+    const previewItalic = isRealEstateFancy ? 'italic' : 'normal';
     const card = document.createElement('article');
     card.className = `simple-template-card ${isSelected ? 'selected' : ''}`;
     card.dataset.tplId = tpl.id;
@@ -952,12 +964,12 @@ export class UserDashboard {
         <img src="/preview-img.jpg?v=20260929_fresh3" alt="${tpl.name} preview" loading="lazy">
         <div class="template-preview-vignette"></div>
         ${isRealEstate ? `
-          <div class="template-preview-overlay template-preview-real-top" style="font-family: ${accentFamily}; font-style: normal !important; color: #ffffff !important;">
-            <span style="font-family: ${accentFamily}; font-style: normal !important; text-transform: uppercase; color: #ffffff !important;">${tpl.previewWords[0]}</span>
+          <div class="template-preview-overlay template-preview-real-top" style="font-family: ${accentFamily}; font-style: ${previewItalic} !important; color: #ffffff !important;">
+            <span style="font-family: ${accentFamily}; font-style: ${previewItalic} !important; text-transform: uppercase; color: #ffffff !important;">${tpl.previewWords[0]}</span>
           </div>
-          <div class="template-preview-overlay template-preview-real-body" style="font-style: normal !important;">
-            <span style="font-family: ${normalFamily}; font-style: normal !important; text-transform: uppercase; color: #ffffff !important;">${tpl.previewWords[1]}</span>
-            <span class="accent-word" style="font-family: ${prominentFamily}; font-style: normal !important; color: #ff5533 !important; text-transform: uppercase;">${tpl.previewWords[2]}</span>
+          <div class="template-preview-overlay template-preview-real-body" style="font-style: ${previewItalic} !important;">
+            <span style="font-family: ${normalFamily}; font-style: ${previewItalic} !important; text-transform: uppercase; color: #ffffff !important;">${tpl.previewWords[1]}</span>
+            <span class="accent-word" style="font-family: ${prominentFamily}; font-style: ${previewItalic} !important; color: #ff5533 !important; text-transform: uppercase;">${tpl.previewWords[2]}</span>
           </div>
         ` : `
           <div class="template-preview-overlay template-preview-normal-line" style="font-style: normal !important;">
@@ -2572,14 +2584,6 @@ export class UserDashboard {
     const realEstateTopSize = customSentenceSize ? Math.round(customSentenceSize * (52 / 36)) : Math.round(46 * previewScale);
     const realEstateBodySize = customSentenceSize || Math.round(34 * previewScale);
 
-    // Guaranteed aspect ratio fit: dynamically clamp font size if a word would overflow video width
-    const checkWordFitSize = (wordStr, targetFontSize, targetLeftPct) => {
-      const availPx = Math.max(60, videoDisplayW * ((96 - targetLeftPct) / 100));
-      const cleanLen = Math.max(1, String(wordStr || '').replace(/[.,!?:;"'()]/g, '').length);
-      const maxFit = Math.floor(availPx / (cleanLen * 0.62));
-      return Math.min(targetFontSize, Math.max(14, maxFit));
-    };
-
     const normalFontFamily = this.getFontFamily(cfg.normalFontFamily || 'Inter');
     const prominentFontFamily = this.getFontFamily(cfg.prominentFontFamily || 'Syne');
     const segmentFontFamily = currentSentence.fontFamily ? this.getFontFamily(currentSentence.fontFamily) : null;
@@ -2599,9 +2603,30 @@ export class UserDashboard {
         token.charAt(0).toUpperCase() + token.slice(1)
       ));
     };
-    const forceItalic = currentSentence.italic !== undefined ? (!!currentSentence.italic && !isRealEstate) : (!isRealEstate && !!segmentFontMeta?.defaultItalic);
+    const forceItalic = currentSentence.italic !== undefined ? !!currentSentence.italic : (!!cfg.defaultItalic || !!segmentFontMeta?.defaultItalic);
     const forceBold = currentSentence.bold !== undefined ? !!currentSentence.bold : !!segmentFontMeta?.defaultBold;
     const forceUnderline = !!currentSentence.underline;
+    const measureCtx = (() => {
+      if (typeof document === 'undefined') return null;
+      if (!this.captionMeasureCanvas) this.captionMeasureCanvas = document.createElement('canvas');
+      return this.captionMeasureCanvas.getContext('2d');
+    })();
+    const checkWordFitSize = (wordStr, targetFontSize, targetLeftPct, fontFamily = normalFontFamily, fontWeight = 800, fontStyle = 'normal', isCentered = false) => {
+      const safeLeft = Math.max(2, Math.min(88, Number(targetLeftPct) || 6));
+      const edgeAllowancePct = isCentered ? 94 : Math.max(10, 96 - safeLeft);
+      const availPx = Math.max(48, videoDisplayW * (edgeAllowancePct / 100) - 18);
+      const cleanText = formatCaptionWord(String(wordStr || '').replace(/\s+/g, ' ').trim());
+      if (!measureCtx || !cleanText) {
+        const cleanLen = Math.max(1, cleanText.length);
+        const maxFit = Math.floor(availPx / (cleanLen * 0.72));
+        return Math.min(targetFontSize, Math.max(12, maxFit));
+      }
+      measureCtx.font = `${fontStyle} ${fontWeight} ${targetFontSize}px ${fontFamily}`;
+      const measuredWidth = measureCtx.measureText(cleanText).width + 8;
+      if (measuredWidth <= availPx) return targetFontSize;
+      const ratio = availPx / Math.max(1, measuredWidth);
+      return Math.min(targetFontSize, Math.max(12, Math.floor(targetFontSize * ratio)));
+    };
     const defaultTextColor = currentSentence.textColor || cfg.textColor || '#FFFFFF';
     const prominentColor = currentSentence.prominentColor || cfg.prominentColor || '#FFE600';
     const hasLastWordColor = !currentSentence.prominentColor && (cfg.enableLastWordColor !== false && !!cfg.lastWordColor);
@@ -2637,10 +2662,12 @@ export class UserDashboard {
       resolvedAnimId = AUTO_ANIMATION_SEQUENCE[Math.max(0, targetIdx) % AUTO_ANIMATION_SEQUENCE.length];
     }
     const animMeta = CAPTION_ANIMATIONS.find(a => a.id === resolvedAnimId || a.cssClass === resolvedAnimId);
-    const animClass = animMeta ? animMeta.cssClass : (resolvedAnimId.startsWith('anim-') ? resolvedAnimId : 'anim-pop');
+    const baseAnimClass = animMeta ? animMeta.cssClass : (resolvedAnimId.startsWith('anim-') ? resolvedAnimId : 'anim-pop');
     const isBehind = !!currentSentence.behind;
     const anchorZIndex = isBehind ? 5 : (20 + anchorIndex);
     const realEstatePart = currentSentence.realEstatePart || 'combined';
+    const suppressSegmentAnimation = !!options.suppressAnimation;
+    const animClass = suppressSegmentAnimation ? 'caption-no-segment-animation' : baseAnimClass;
 
     const buildToolbarHtml = (placeBelow = false) => showToolbar ? `
       <div class="caption-drag-toolbar ${placeBelow ? 'toolbar-below' : ''}">
@@ -2678,13 +2705,14 @@ export class UserDashboard {
 
       const topWord = displayWords[0];
       const isTopSpeaking = speakingWordIdx === chunkOffset;
-      const topFont = this.getFontFamily(cfg.accentFontFamily || cfg.prominentFontFamily);
-      const topFitSize = checkWordFitSize(topWord.word, realEstateTopSize, hasCustomTopPos ? topPosX : 2);
+      const topFont = segmentFontFamily || this.getFontFamily(cfg.accentFontFamily || cfg.prominentFontFamily);
+      const topFontStyle = forceItalic ? 'italic' : 'normal';
+      const topFitSize = checkWordFitSize(topWord.word, realEstateTopSize, hasCustomTopPos ? topPosX : 50, topFont, forceBold ? 900 : 800, topFontStyle, !hasCustomTopPos);
 
       const topWordHtml = `
         <span class="caption-word-token ${isTopSpeaking ? 'speaking current' : ''} real-estate-top-token" style="
           display:inline-block!important;vertical-align:baseline!important;margin:1px 0!important;padding:0 2px!important;box-sizing:border-box!important;
-          font-family:${topFont}!important;color:${defaultTextColor}!important;font-size:${topFitSize}px!important;font-weight:${forceBold ? 900 : 800};font-style:${forceItalic ? 'italic' : 'normal'}!important;text-decoration:${forceUnderline ? 'underline' : 'none'};
+          font-family:${topFont}!important;color:${defaultTextColor}!important;font-size:${topFitSize}px!important;font-weight:${forceBold ? 900 : 800};font-style:${topFontStyle}!important;text-decoration:${forceUnderline ? 'underline' : 'none'};
           opacity:1!important;visibility:visible!important;line-height:1.06;letter-spacing:.2px;${glowStyles}
           -webkit-text-stroke:${strokeWidth}px ${strokeColor};paint-order:stroke fill;-webkit-paint-order:stroke fill;
           transform:scale(1)!important;transform-origin:center center!important;z-index:5!important;
@@ -2711,13 +2739,14 @@ export class UserDashboard {
           const globalIdx = chunkOffset + (realEstatePart === 'body' ? 0 : 1) + localIdx;
           const isSpeaking = globalIdx === speakingWordIdx;
           const isLastWord = localIdx === bodyWords.length - 1;
-          const font = isLastWord ? prominentFontFamily : normalFontFamily;
+          const font = segmentFontFamily || (isLastWord ? prominentFontFamily : normalFontFamily);
           const color = isLastWord ? prominentColor : defaultTextColor;
-          const bodyFitSize = checkWordFitSize(w.word, realEstateBodySize, bodyPosX);
+          const bodyFontStyle = forceItalic ? 'italic' : 'normal';
+          const bodyFitSize = checkWordFitSize(w.word, realEstateBodySize, bodyPosX, font, forceBold ? 900 : (isSpeaking ? 900 : 800), bodyFontStyle, false);
           return `
             <span class="caption-word-token ${isSpeaking ? 'speaking current' : ''}" style="
               display:inline-block!important;vertical-align:baseline!important;margin:1px 3px!important;padding:0 1px!important;box-sizing:border-box!important;
-              font-family:${font}!important;color:${color}!important;font-size:${bodyFitSize}px!important;font-weight:${forceBold ? 900 : (isSpeaking ? 900 : 800)};font-style:${forceItalic ? 'italic' : 'normal'}!important;text-decoration:${forceUnderline ? 'underline' : 'none'};
+              font-family:${font}!important;color:${color}!important;font-size:${bodyFitSize}px!important;font-weight:${forceBold ? 900 : (isSpeaking ? 900 : 800)};font-style:${bodyFontStyle}!important;text-decoration:${forceUnderline ? 'underline' : 'none'};
               opacity:1!important;visibility:visible!important;line-height:1.08;letter-spacing:.2px;${glowStyles}
               -webkit-text-stroke:${strokeWidth}px ${strokeColor};paint-order:stroke fill;-webkit-paint-order:stroke fill;
               transform:scale(1)!important;transform-origin:left center!important;z-index:${isSpeaking ? 5 : 1}!important;
@@ -2806,7 +2835,7 @@ export class UserDashboard {
       const isProminent = w.isProminent || isHeroKeyword || isLastWord || (words.length >= 3 && globalIdx === 1);
 
       // Fit guarantee for any preset
-      const currentFontSize = checkWordFitSize(w.word, baseFontSize, baseX);
+      const currentFontSize = checkWordFitSize(w.word, baseFontSize, baseX, (isProminent || isSpeaking) ? prominentFontFamily : (segmentFontFamily || normalFontFamily), forceBold ? 900 : (isSpeaking ? 900 : (isProminent ? 800 : 700)), forceItalic ? 'italic' : 'normal', false);
 
       const font = (isProminent || isSpeaking) ? prominentFontFamily : (segmentFontFamily || normalFontFamily);
       let color = isProminent ? prominentColor : defaultTextColor;
@@ -2908,11 +2937,22 @@ export class UserDashboard {
       }
     }
 
+    const realEstateAnimationGroups = new Set();
+    const shouldSuppressRealEstateAnimation = (match) => {
+      const sentence = match?.sentence;
+      if (!sentence?.realEstateLayout || !sentence.realEstatePart) return false;
+      const groupKey = `${Number(sentence.start ?? sentence.startTime ?? 0).toFixed(2)}_${Number(sentence.end ?? sentence.endTime ?? 0).toFixed(2)}_${sentence.behind ? 'behind' : 'front'}`;
+      if (realEstateAnimationGroups.has(groupKey)) return true;
+      realEstateAnimationGroups.add(groupKey);
+      return false;
+    };
+
     const behindHtml = behindMatches.map((match, index) => {
       const isEditable = !activeId || String(match.sentence.id || '') === String(activeId);
       return this.buildCaptionOverlayHtml(match.sentence, time, sentences, cfg, {
         anchorIndex: index,
-        showToolbar: isEditable
+        showToolbar: isEditable,
+        suppressAnimation: shouldSuppressRealEstateAnimation(match)
       });
     }).join('');
 
@@ -2920,7 +2960,8 @@ export class UserDashboard {
       const isEditable = !activeId || String(match.sentence.id || '') === String(activeId);
       return this.buildCaptionOverlayHtml(match.sentence, time, sentences, cfg, {
         anchorIndex: index,
-        showToolbar: isEditable
+        showToolbar: isEditable,
+        suppressAnimation: shouldSuppressRealEstateAnimation(match)
       });
     }).join('');
 
@@ -3057,7 +3098,7 @@ export class UserDashboard {
             <div class="seg-typo-bar" onclick="event.stopPropagation()">
               <div class="seg-font-picker-wrap">
                 <button type="button" class="seg-font-trigger" data-idx="${idx}" title="Select font for segment #${idx + 1}">
-                  <span class="seg-font-trigger-text" style="font-family: ${curFontMeta.family}; font-style: ${curFontMeta.defaultItalic ? 'italic' : 'normal'}; font-weight: ${curFontMeta.defaultBold ? 900 : 700};">
+                  <span class="seg-font-trigger-text" style="font-family: ${curFontMeta.family}; font-style: ${curItalic ? 'italic' : 'normal'}; font-weight: ${curBold ? 900 : 700};">
                     ${curFontMeta.name}
                   </span>
                   <svg class="seg-dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -3296,7 +3337,7 @@ export class UserDashboard {
           const fontId = opt.getAttribute('data-font');
           s.fontFamily = fontId;
           const chosenFont = FONTS.find(f => f.id === fontId);
-          if (s.italic === undefined && chosenFont?.defaultItalic !== undefined) {
+          if ((s.italic === undefined || s.templateMode === 'real-estate-fancy') && chosenFont?.defaultItalic !== undefined) {
             s.italic = !!chosenFont.defaultItalic;
           }
           if (chosenFont?.defaultBold !== undefined) s.bold = !!chosenFont.defaultBold;
