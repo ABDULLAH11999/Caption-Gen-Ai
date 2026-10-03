@@ -1320,6 +1320,11 @@ body.app-shell-locked {
   transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
 }
 
+.caption-drag-toolbar.toolbar-below {
+  top: calc(100% + 8px);
+  bottom: auto;
+}
+
 /* Show toolbar when hovering over caption anchor or when video is paused */
 .caption-segment-anchor:hover .caption-drag-toolbar,
 .video-container.is-paused .caption-drag-toolbar,

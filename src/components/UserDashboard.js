@@ -2524,6 +2524,7 @@ export class UserDashboard {
     const isRealEstate = this.selectedTemplateId?.startsWith('real-estate') || currentSentence.templateMode?.startsWith('real-estate') || !!currentSentence.realEstateLayout;
     
     const videoDisplayW = this.videoDisplayBounds?.width || (this.videoElement?.clientWidth || (isPortrait ? 360 : 640));
+    const videoDisplayH = this.videoDisplayBounds?.height || (this.videoElement?.clientHeight || (isPortrait ? 640 : 360));
     const refW = isPortrait ? 360 : 640;
     const previewScale = Math.max(0.65, Math.min(2.0, videoDisplayW / refW));
 
@@ -2604,8 +2605,8 @@ export class UserDashboard {
     const isBehind = !!currentSentence.behind;
     const anchorZIndex = isBehind ? 5 : (20 + anchorIndex);
 
-    const toolbarHtml = showToolbar ? `
-      <div class="caption-drag-toolbar">
+    const buildToolbarHtml = (placeBelow = false) => showToolbar ? `
+      <div class="caption-drag-toolbar ${placeBelow ? 'toolbar-below' : ''}">
         <span class="caption-toolbar-pill caption-drag-handle" title="Click and drag anywhere on video to position">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="2"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/><circle cx="16" cy="18" r="2"/></svg>
           <span>Move</span>
@@ -2623,7 +2624,8 @@ export class UserDashboard {
       const topRawX = currentSentence.topWordPosX !== undefined ? Number(currentSentence.topWordPosX) : 50;
       const topRawY = currentSentence.topWordPosY !== undefined ? Number(currentSentence.topWordPosY) : 10;
       const topPosX = Math.max(2, Math.min(88, Number.isFinite(topRawX) ? topRawX : 50));
-      const topPosY = Math.max(2, Math.min(92, Number.isFinite(topRawY) ? topRawY : 10));
+      const topSafeMinY = Math.max(4, Math.ceil(((realEstateTopSize * 1.08) / Math.max(1, videoDisplayH)) * 100));
+      const topPosY = Math.max(topSafeMinY, Math.min(88, Number.isFinite(topRawY) ? topRawY : 10));
       const hasCustomTopPos = !!currentSentence.hasCustomTopPos;
       const topTransform = hasCustomTopPos ? 'translate(0, 0)' : 'translate(-50%, 0)';
       const topTextAlign = hasCustomTopPos ? 'left' : 'center';
@@ -2684,7 +2686,7 @@ export class UserDashboard {
             </div>
           </div>
           <div class="caption-segment-anchor caption-real-estate-body-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="body" data-segment-key="seg_body_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${bodyPosY}%;left:${bodyPosX}%;transform:${bodyTransform};width:${customWidth};max-width:${bodyMaxWidth}%;text-align:left;z-index:${anchorZIndex};">
-            ${toolbarHtml}
+            ${buildToolbarHtml(false)}
             <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:flex-start;align-items:baseline;gap:2px 5px;width:${labelBoxWidth};max-width:100%;text-transform:none;line-height:1.05;transform-origin:left center;will-change:transform,opacity;${labelBoxStyle}">
               ${bodyWordsHtml}
             </div>
@@ -2697,7 +2699,7 @@ export class UserDashboard {
       // Single word Real Estate
       return `
         <div class="caption-segment-anchor caption-real-estate-top-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="top" data-segment-key="seg_top_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${topPosY}%;left:${topPosX}%;transform:${topTransform};width:auto;max-width:${topMaxWidth}%;text-align:${topTextAlign};z-index:${anchorZIndex};">
-          ${toolbarHtml}
+          ${buildToolbarHtml(true)}
           <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${topJustify};align-items:baseline;width:${labelBoxWidth};max-width:100%;text-transform:none;line-height:1.05;transform-origin:center top;will-change:transform,opacity;${labelBoxStyle}">
             ${topWordHtml}
           </div>
@@ -2715,10 +2717,13 @@ export class UserDashboard {
     const rawX = hasCustomPos ? Number(currentSentence.posX) : (currentSentence.posX !== undefined ? Number(currentSentence.posX) : Number(String(defaultPosMeta.x || '6').replace('%', '')));
     const rawY = hasCustomPos ? Number(currentSentence.posY) : (currentSentence.posY !== undefined ? Number(currentSentence.posY) : Number(String(defaultPosMeta.y || '50').replace('%', '')));
     const baseX = Math.max(2, Math.min(88, Number.isFinite(rawX) ? rawX : 6));
-    const baseY = Math.max(2, Math.min(92, Number.isFinite(rawY) ? rawY : 50));
+    const topSafeMinY = Math.max(3, Math.ceil(((baseFontSize * 0.9) / Math.max(1, videoDisplayH)) * 100));
+    const bottomSafeMaxY = 92;
+    const baseY = Math.max(topSafeMinY, Math.min(bottomSafeMaxY, Number.isFinite(rawY) ? rawY : 50));
     const posX = `${baseX}%`;
     const visualY = baseY + (hasCustomPos ? 0 : anchorIndex * 7);
     const posY = `${Math.min(92, Math.max(2, visualY))}%`;
+    const toolbarBelow = baseY <= Math.max(16, topSafeMinY + 8);
     const posTransform = hasCustomPos ? 'translate(0, 0)' : (defaultPosMeta.transform || 'translate(0, -50%)');
     const textAlign = defaultPosMeta.align || 'left';
     const justifyAlign = (textAlign === 'left') ? 'flex-start' : (textAlign === 'right' ? 'flex-end' : 'center');
@@ -2773,7 +2778,7 @@ export class UserDashboard {
 
     return `
       <div class="caption-segment-anchor" data-sentence-id="${currentSentence.id || ''}" data-segment-key="seg_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${posY};left:${posX};transform:${posTransform};width:${customWidth};max-width:${customMaxWidth};text-align:${textAlign};z-index:${anchorZIndex};">
-        ${toolbarHtml}
+        ${buildToolbarHtml(toolbarBelow)}
         <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${justifyAlign};align-items:baseline;gap:2px 5px;width:${labelBoxWidth};max-width:100%;text-transform:none;line-height:1.05;transform-origin:center center;will-change:transform,opacity;${labelBoxStyle}">
           ${wordsHtml}
         </div>
