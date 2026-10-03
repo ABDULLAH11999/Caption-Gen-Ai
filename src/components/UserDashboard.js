@@ -4298,6 +4298,7 @@ export class UserDashboard {
 
       const renderCfg = {
         ...cfg,
+        templateId: this.selectedTemplateId,
         previewDisplayWidth,
         previewDisplayHeight,
         previewMode: this.currentMode,

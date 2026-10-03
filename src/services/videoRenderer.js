@@ -346,8 +346,8 @@ export class VideoRenderer {
       : null;
     const previewFontSize = customSentenceSize || (isPortrait ? 25 : ((config.fontSize && Number(config.fontSize) <= 30) ? Number(config.fontSize) : 28));
     const baseFontSize = Math.max(16, Math.round(previewFontSize * scale));
-    const realEstateTopSize = Math.max(16, Math.round(Number(sentence.topFontSize || 70) * scale));
-    const realEstateBodySize = Math.max(14, Math.round(Number(sentence.fontSize || 50) * scale));
+    const realEstateTopSize = Math.max(16, Math.round(Number(sentence.topFontSize || (sentence.fontSize ? Number(sentence.fontSize) * (52 / 36) : 46)) * scale));
+    const realEstateBodySize = Math.max(14, Math.round(Number(sentence.fontSize || 34) * scale));
 
     const normalFontFamily = this.getFontFamily(config.normalFontFamily || 'Inter');
     const prominentFontFamily = this.getFontFamily(config.prominentFontFamily || 'Syne');
@@ -401,7 +401,7 @@ export class VideoRenderer {
 
       let color = isProminent ? prominentColor : defaultTextColor;
       if (isRealEstate) {
-        color = isTopWord ? (sentence.textColor || '#FFFFFF') : (localIdx === words.length - 1 ? prominentColor : (sentence.textColor || '#FFFFFF'));
+        color = isTopWord ? defaultTextColor : (localIdx === words.length - 1 ? prominentColor : defaultTextColor);
       } else if (isLastWord && hasLastWordColor) {
         color = lastWordColor;
       }
