@@ -370,6 +370,9 @@ export class VideoRenderer {
 
     const strokeEnabled = sentence.strokeEnabled !== false;
     const customStrokeColor = sentence.strokeColor;
+    const labelBoxEnabled = !!sentence.labelBoxEnabled;
+    const labelBoxColor = sentence.labelBoxColor || 'rgba(0,0,0,0.38)';
+    const labelBoxRadius = Math.max(0, Number(sentence.labelBoxRadius ?? 14) || 14);
     const hasGlow = sentence.glowColor && sentence.glowColor !== 'transparent' && sentence.glowColor !== '';
     const glowColor = hasGlow ? sentence.glowColor : null;
 
@@ -444,6 +447,21 @@ export class VideoRenderer {
     const animState = this.getAnimationFrameState(resolvedAnimId, animElapsed, scale);
     const wordGap = Math.max(3, Math.round(baseFontSize * 0.20));
 
+    const drawRoundedRect = (x, y, width, height, radius) => {
+      const r = Math.min(radius, width / 2, height / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + width - r, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+      ctx.lineTo(x + width, y + height - r);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+      ctx.lineTo(x + r, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    };
+
     // Helper: draw a block of text lines at a specified position with animations and effects
     const drawLineBlock = (linesToDraw, startX, startY, blockLineHeight, alignMode = 'left', applyAnimation = true) => {
       if (!linesToDraw || linesToDraw.length === 0) return;
@@ -474,6 +492,24 @@ export class VideoRenderer {
         ctx.beginPath();
         ctx.rect(clipLeft - 4 * scale, blockTopY - blockLineHeight, (maxLineWidth + 8 * scale) * animState.typewriterProgress, totalBlockHeight + blockLineHeight * 1.4);
         ctx.clip();
+      }
+
+      if (labelBoxEnabled) {
+        const padX = Math.max(5, Math.round(11 * scale));
+        const padY = Math.max(4, Math.round(7 * scale));
+        const boxLeft = alignMode === 'center'
+          ? blockCenterX - maxLineWidth / 2 - padX
+          : (alignMode === 'right' ? startX - maxLineWidth - padX : startX - padX);
+        const boxTop = blockTopY - padY;
+        const boxWidth = maxLineWidth + padX * 2;
+        const boxHeight = totalBlockHeight + padY * 2;
+        ctx.save();
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = labelBoxColor;
+        drawRoundedRect(boxLeft, boxTop, boxWidth, boxHeight, labelBoxRadius * scale);
+        ctx.fill();
+        ctx.restore();
       }
 
       linesToDraw.forEach((line, lineIdx) => {
@@ -1083,7 +1119,16 @@ export class VideoRenderer {
       if (!originalPaused) videoElement.play();
 
       const finalDuration = duration > 0 ? duration : (videoElement.duration || 1);
-      const fixedBlob = await fixVideoMetadata(rawBlob, finalDuration);
+      const userAgent = typeof navigator !== 'undefined' ? (navigator.userAgent || '') : '';
+      const navPlatform = typeof navigator !== 'undefined' ? (navigator.platform || '') : '';
+      const navTouchPoints = typeof navigator !== 'undefined' ? (navigator.maxTouchPoints || 0) : 0;
+      const isAppleSafariRecorder = /iPhone|iPad|iPod/i.test(userAgent) ||
+        (navPlatform === 'MacIntel' && navTouchPoints > 1) ||
+        (/Safari/i.test(userAgent) && !/Chrome|CriOS|FxiOS|Edg/i.test(userAgent));
+      const isMp4Blob = /mp4/i.test(rawBlob?.type || '');
+      const fixedBlob = (config.skipMetadataFix || (isAppleSafariRecorder && isMp4Blob))
+        ? rawBlob
+        : await fixVideoMetadata(rawBlob, finalDuration);
       selfieSegmenterService.clearExportCutoutCache();
 
       return fixedBlob;

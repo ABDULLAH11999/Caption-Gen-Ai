@@ -238,6 +238,9 @@ export class UserDashboard {
         endTime: end,
         strokeEnabled: sentence.strokeEnabled !== undefined ? sentence.strokeEnabled : false,
         strokeColor: sentence.strokeColor !== undefined ? sentence.strokeColor : 'transparent',
+        labelBoxEnabled: sentence.labelBoxEnabled !== undefined ? !!sentence.labelBoxEnabled : false,
+        labelBoxColor: sentence.labelBoxColor || 'rgba(0,0,0,0.38)',
+        labelBoxRadius: sentence.labelBoxRadius !== undefined ? sentence.labelBoxRadius : 14,
         textColor: sentence.textColor !== undefined ? sentence.textColor : '#FFFFFF',
         prominentColor: sentence.prominentColor !== undefined ? sentence.prominentColor : cfg.prominentColor,
         fontFamily: sentence.fontFamily || cfg.normalFontFamily,
@@ -2559,7 +2562,7 @@ export class UserDashboard {
         token.charAt(0).toUpperCase() + token.slice(1)
       ));
     };
-    const forceItalic = currentSentence.italic !== undefined ? !!currentSentence.italic : !!segmentFontMeta?.defaultItalic;
+    const forceItalic = currentSentence.italic !== undefined ? (!!currentSentence.italic && !isRealEstate) : (!isRealEstate && !!segmentFontMeta?.defaultItalic);
     const forceBold = currentSentence.bold !== undefined ? !!currentSentence.bold : !!segmentFontMeta?.defaultBold;
     const forceUnderline = !!currentSentence.underline;
     const defaultTextColor = currentSentence.textColor || cfg.textColor || '#FFFFFF';
@@ -2573,6 +2576,13 @@ export class UserDashboard {
     const glowStyles = glowColor
       ? `text-shadow: 0 0 6px ${glowColor}, 0 0 16px ${glowColor}, 0 0 28px ${glowColor} !important; filter: drop-shadow(0 0 8px ${glowColor}) !important;`
       : 'text-shadow: none !important; filter: none !important;';
+    const labelBoxEnabled = !!currentSentence.labelBoxEnabled;
+    const labelBoxColor = currentSentence.labelBoxColor || 'rgba(0,0,0,0.38)';
+    const labelBoxRadius = Math.max(0, Number(currentSentence.labelBoxRadius ?? 14) || 14);
+    const labelBoxStyle = labelBoxEnabled
+      ? `background:${labelBoxColor};border-radius:${labelBoxRadius}px;padding:7px 11px;box-decoration-break:clone;-webkit-box-decoration-break:clone;`
+      : '';
+    const labelBoxWidth = labelBoxEnabled ? 'auto' : '100%';
 
     const strokeWidth = strokeEnabled
       ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.0)
@@ -2669,13 +2679,13 @@ export class UserDashboard {
 
         return `
           <div class="caption-segment-anchor caption-real-estate-top-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="top" data-segment-key="seg_top_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${topPosY}%;left:${topPosX}%;transform:${topTransform};width:auto;max-width:${topMaxWidth}%;text-align:${topTextAlign};z-index:${anchorZIndex};">
-            <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${topJustify};align-items:baseline;width:100%;max-width:100%;text-transform:none;line-height:1.05;transform-origin:center top;will-change:transform,opacity;">
+            <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${topJustify};align-items:baseline;width:${labelBoxWidth};max-width:100%;text-transform:none;line-height:1.05;transform-origin:center top;will-change:transform,opacity;${labelBoxStyle}">
               ${topWordHtml}
             </div>
           </div>
           <div class="caption-segment-anchor caption-real-estate-body-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="body" data-segment-key="seg_body_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${bodyPosY}%;left:${bodyPosX}%;transform:${bodyTransform};width:${customWidth};max-width:${bodyMaxWidth}%;text-align:left;z-index:${anchorZIndex};">
             ${toolbarHtml}
-            <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:flex-start;align-items:baseline;gap:2px 5px;width:100%;max-width:100%;text-transform:none;line-height:1.05;transform-origin:left center;will-change:transform,opacity;">
+            <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:flex-start;align-items:baseline;gap:2px 5px;width:${labelBoxWidth};max-width:100%;text-transform:none;line-height:1.05;transform-origin:left center;will-change:transform,opacity;${labelBoxStyle}">
               ${bodyWordsHtml}
             </div>
             <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines"><div class="resize-grip-line"></div></div>
@@ -2688,7 +2698,7 @@ export class UserDashboard {
       return `
         <div class="caption-segment-anchor caption-real-estate-top-anchor" data-sentence-id="${currentSentence.id || ''}" data-re-part="top" data-segment-key="seg_top_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${topPosY}%;left:${topPosX}%;transform:${topTransform};width:auto;max-width:${topMaxWidth}%;text-align:${topTextAlign};z-index:${anchorZIndex};">
           ${toolbarHtml}
-          <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${topJustify};align-items:baseline;width:100%;max-width:100%;text-transform:none;line-height:1.05;transform-origin:center top;will-change:transform,opacity;">
+          <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${topJustify};align-items:baseline;width:${labelBoxWidth};max-width:100%;text-transform:none;line-height:1.05;transform-origin:center top;will-change:transform,opacity;${labelBoxStyle}">
             ${topWordHtml}
           </div>
           <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines"><div class="resize-grip-line"></div></div>
@@ -2764,7 +2774,7 @@ export class UserDashboard {
     return `
       <div class="caption-segment-anchor" data-sentence-id="${currentSentence.id || ''}" data-segment-key="seg_${currentSentence.id ?? `${sStart.toFixed(2)}_${sEnd.toFixed(2)}`}_${subChunkKey}_${animClass}" style="position:absolute;top:${posY};left:${posX};transform:${posTransform};width:${customWidth};max-width:${customMaxWidth};text-align:${textAlign};z-index:${anchorZIndex};">
         ${toolbarHtml}
-        <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${justifyAlign};align-items:baseline;gap:2px 5px;width:100%;max-width:100%;text-transform:none;line-height:1.05;transform-origin:center center;will-change:transform,opacity;">
+        <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${justifyAlign};align-items:baseline;gap:2px 5px;width:${labelBoxWidth};max-width:100%;text-transform:none;line-height:1.05;transform-origin:center center;will-change:transform,opacity;${labelBoxStyle}">
           ${wordsHtml}
         </div>
         <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines"><div class="resize-grip-line"></div></div>
@@ -2834,7 +2844,7 @@ export class UserDashboard {
       });
     }).join('');
 
-    const renderKey = activeMatches.map(m => `${m.sentence.id || m.index}:${m.sentence.posX ?? ''}:${m.sentence.posY ?? ''}:${m.sentence.topWordPosX ?? ''}:${m.sentence.topWordPosY ?? ''}:${m.sentence.boxWidth ?? ''}:${m.sentence.fontSize ?? ''}:${m.sentence.behind ? '1' : '0'}:${m.sentence.textColor ?? ''}:${m.sentence.prominentColor ?? ''}:${m.sentence.italic ? '1' : '0'}:${m.sentence.bold ? '1' : '0'}:${m.sentence.underline ? '1' : '0'}:${m.sentence.fontFamily ?? ''}:${m.sentence.glowColor ?? ''}:${m.sentence.strokeColor ?? ''}:${m.sentence.strokeEnabled !== false ? '1' : '0'}:${m.sentence.animation ?? ''}:${m.sentence.hasCustomPos ? '1' : '0'}:${m.sentence.hasCustomTopPos ? '1' : '0'}`).join('|');
+    const renderKey = activeMatches.map(m => `${m.sentence.id || m.index}:${m.sentence.posX ?? ''}:${m.sentence.posY ?? ''}:${m.sentence.topWordPosX ?? ''}:${m.sentence.topWordPosY ?? ''}:${m.sentence.boxWidth ?? ''}:${m.sentence.fontSize ?? ''}:${m.sentence.behind ? '1' : '0'}:${m.sentence.textColor ?? ''}:${m.sentence.prominentColor ?? ''}:${m.sentence.italic ? '1' : '0'}:${m.sentence.bold ? '1' : '0'}:${m.sentence.underline ? '1' : '0'}:${m.sentence.fontFamily ?? ''}:${m.sentence.glowColor ?? ''}:${m.sentence.strokeColor ?? ''}:${m.sentence.strokeEnabled !== false ? '1' : '0'}:${m.sentence.labelBoxEnabled ? '1' : '0'}:${m.sentence.labelBoxColor ?? ''}:${m.sentence.labelBoxRadius ?? ''}:${m.sentence.animation ?? ''}:${m.sentence.hasCustomPos ? '1' : '0'}:${m.sentence.hasCustomTopPos ? '1' : '0'}`).join('|');
 
     if (this.lastRenderedSentenceKey !== renderKey || (behindOverlay && behindOverlay.innerHTML.trim() === '' && behindHtml) || (frontOverlay && frontOverlay.innerHTML.trim() === '' && frontHtml)) {
       if (behindOverlay) behindOverlay.innerHTML = behindHtml;
@@ -2908,6 +2918,7 @@ export class UserDashboard {
       const curItalic = s.italic !== undefined ? !!s.italic : !!curFontMeta.defaultItalic;
       const curUnderline = !!s.underline;
       const curStrokeColor = s.strokeColor || cfg.prominentOutlineColor || '#000000';
+      const labelBoxEnabled = !!s.labelBoxEnabled;
       const hasGlow = s.glowColor && s.glowColor !== 'transparent' && s.glowColor !== '';
       const curGlowColor = s.savedGlowColor || (hasGlow ? s.glowColor : (cfg.glowColor || '#FFE600'));
       const curAnim = s.animation || cfg.animation || 'anim-auto';
@@ -3018,6 +3029,13 @@ export class UserDashboard {
                 <label class="color-swatch-wrap ${!strokeEnabled ? 'is-disabled' : ''}">
                   <input type="color" class="hidden-color-input seg-stroke-color-picker" data-idx="${idx}" value="${curStrokeColor}" ${!strokeEnabled ? 'disabled' : ''}>
                   <span class="color-swatch-circle" id="stroke-swatch-${idx}" style="background-color: ${curStrokeColor};"></span>
+                </label>
+              </div>
+
+              <div class="seg-effect-cell" title="Transparent label box behind caption text">
+                <label class="effect-chk-label">
+                  <input type="checkbox" class="chk-seg-label-box" data-idx="${idx}" ${labelBoxEnabled ? 'checked' : ''}>
+                  <span class="effect-label">Box</span>
                 </label>
               </div>
 
@@ -3296,6 +3314,17 @@ export class UserDashboard {
       strokeColorPicker?.addEventListener('input', onStrokeColor);
       strokeColorPicker?.addEventListener('change', onStrokeColor);
 
+      const chkLabelBox = item.querySelector('.chk-seg-label-box');
+      chkLabelBox?.addEventListener('change', (e) => {
+        s.labelBoxEnabled = e.target.checked;
+        if (s.labelBoxEnabled) {
+          s.labelBoxColor = s.labelBoxColor || 'rgba(0,0,0,0.38)';
+          s.labelBoxRadius = s.labelBoxRadius ?? 14;
+        }
+        soundFx.playKeyBeep(s.labelBoxEnabled ? 620 : 440);
+        syncActiveSegment();
+      });
+
       // 6. Glow Controls (Image 3 Style)
       const chkGlow = item.querySelector('.chk-seg-glow');
       const glowColorPicker = item.querySelector('.seg-glow-color-picker');
@@ -3532,7 +3561,8 @@ export class UserDashboard {
       'posX', 'posY', 'boxWidth', 'fontSize', 'fontFamily',
       'bold', 'italic', 'underline',
       'textColor', 'prominentColor', 'strokeEnabled', 'strokeColor',
-      'glowColor', 'animation', 'behind'
+      'glowColor', 'animation', 'behind',
+      'labelBoxEnabled', 'labelBoxColor', 'labelBoxRadius'
     ];
 
     const sourcePosY = source.posY !== undefined ? Number(source.posY) : 50;
@@ -3638,6 +3668,9 @@ export class UserDashboard {
       const targetStrokeColor = currentSentence.strokeColor;
       const targetGlowColor = currentSentence.glowColor;
       const targetSavedGlowColor = currentSentence.savedGlowColor;
+      const targetLabelBoxEnabled = currentSentence.labelBoxEnabled;
+      const targetLabelBoxColor = currentSentence.labelBoxColor;
+      const targetLabelBoxRadius = currentSentence.labelBoxRadius;
       const targetAnimation = currentSentence.animation;
 
       sentences.forEach(s => {
@@ -3659,6 +3692,9 @@ export class UserDashboard {
         if (targetStrokeColor !== undefined) s.strokeColor = targetStrokeColor;
         if (targetGlowColor !== undefined) s.glowColor = targetGlowColor;
         if (targetSavedGlowColor !== undefined) s.savedGlowColor = targetSavedGlowColor;
+        if (targetLabelBoxEnabled !== undefined) s.labelBoxEnabled = targetLabelBoxEnabled;
+        if (targetLabelBoxColor !== undefined) s.labelBoxColor = targetLabelBoxColor;
+        if (targetLabelBoxRadius !== undefined) s.labelBoxRadius = targetLabelBoxRadius;
         if (targetAnimation !== undefined) s.animation = targetAnimation;
       });
 
@@ -4144,7 +4180,8 @@ export class UserDashboard {
         previewDisplayWidth,
         previewDisplayHeight,
         previewMode: this.currentMode,
-        skipAutoDownload: isIOSExportDevice
+        skipAutoDownload: isIOSExportDevice,
+        skipMetadataFix: isIOSExportDevice
       };
 
       const exportedBlob = await videoRenderer.burnCaptionsToVideoLossless(this.videoBlob, captionEngine.sentences, renderCfg, (p) => {
