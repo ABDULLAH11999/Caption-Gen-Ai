@@ -795,7 +795,7 @@ export class VideoRenderer {
     if (!sentences || sentences.length === 0) return;
 
     // Find all active segments at curTime
-    const matchingSentences = [];
+    let matchingSentences = [];
     for (let i = 0; i < sentences.length; i++) {
       const s = sentences[i];
       const sStart = Number(s.start ?? s.startTime ?? 0);
@@ -824,6 +824,29 @@ export class VideoRenderer {
 
     if (matchingSentences.length === 0) return;
 
+    const activeRealEstate = matchingSentences.filter(s => s?.realEstateLayout && s.realEstatePart);
+    if (activeRealEstate.length > 1) {
+      const groupKeyFor = (sentence) => sentence.realEstateGroupId || sentence.id?.replace(/_re_(top|body)$/i, '') || `${Number(sentence.start ?? sentence.startTime ?? 0).toFixed(2)}_${Number(sentence.end ?? sentence.endTime ?? 0).toFixed(2)}`;
+      const groups = new Map();
+      activeRealEstate.forEach((sentence) => {
+        const key = groupKeyFor(sentence);
+        const current = groups.get(key) || [];
+        current.push(sentence);
+        groups.set(key, current);
+      });
+      let selectedGroup = null;
+      groups.forEach((items) => {
+        const score = Math.max(...items.map(item => Number(item.start ?? item.startTime ?? 0)));
+        if (!selectedGroup || score > selectedGroup.score) {
+          selectedGroup = { score, items };
+        }
+      });
+      if (selectedGroup) {
+        const selected = new Set(selectedGroup.items);
+        matchingSentences = matchingSentences.filter(sentence => !sentence?.realEstateLayout || selected.has(sentence));
+      }
+    }
+
     const isPortrait = canvasHeight > canvasWidth;
     const previewDisplayWidth = Number(config.previewDisplayWidth || 0);
     const fallbackRefWidth = isPortrait ? 360 : 640;
@@ -845,7 +868,7 @@ export class VideoRenderer {
       items.forEach((s) => {
         let sentenceToRender = s;
         if (s?.realEstateLayout && s.realEstatePart) {
-          const groupKey = `${Number(s.start ?? s.startTime ?? 0).toFixed(2)}_${Number(s.end ?? s.endTime ?? 0).toFixed(2)}_${s.behind ? 'behind' : 'front'}`;
+          const groupKey = `${s.realEstateGroupId || `${Number(s.start ?? s.startTime ?? 0).toFixed(2)}_${Number(s.end ?? s.endTime ?? 0).toFixed(2)}`}_${s.behind ? 'behind' : 'front'}`;
           if (realEstateGroups.has(groupKey)) {
             sentenceToRender = { ...s, suppressAnimation: true };
           } else {

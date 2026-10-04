@@ -382,6 +382,7 @@ export class CaptionEngine {
           animation: s.animation,
           realEstateLayout: s.realEstateLayout,
           realEstatePart: s.realEstatePart,
+          realEstateGroupId: s.realEstateGroupId,
           templateMode: s.templateMode
         });
       }
@@ -449,6 +450,7 @@ export class CaptionEngine {
         animation: s.animation,
         realEstateLayout: s.realEstateLayout,
         realEstatePart: s.realEstatePart,
+        realEstateGroupId: s.realEstateGroupId,
         templateMode: s.templateMode
       };
     });
@@ -515,6 +517,7 @@ export class CaptionEngine {
         animation: s.animation,
         realEstateLayout: s.realEstateLayout,
         realEstatePart: s.realEstatePart,
+        realEstateGroupId: s.realEstateGroupId,
         templateMode: s.templateMode
       };
     }).sort((a, b) => a.start - b.start);

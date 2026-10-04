@@ -73,8 +73,8 @@ const BASE_FONT_SETS = {
   fancy: {
     id: 'fancy',
     name: 'Fancy',
-    label: 'Cormorant / Emily / Cinzel',
-    fonts: ['CormorantGaramond', 'Italiana', 'Cinzel']
+    label: 'Playfair Display',
+    fonts: ['PlayfairDisplay', 'PlayfairDisplay', 'PlayfairDisplay']
   }
 };
 
@@ -172,9 +172,9 @@ export class UserDashboard {
     const isRealEstate = tpl?.baseType === 'real-estate' || targetId.startsWith('real-estate');
     const isRealEstateFancy = isRealEstate && resolvedFontSetId === 'fancy';
     if (isRealEstateFancy) {
-      normalFont = 'BodoniModa';
-      prominentFont = 'BodoniModa';
-      accentFont = 'BodoniModa';
+      normalFont = 'PlayfairDisplay';
+      prominentFont = 'PlayfairDisplay';
+      accentFont = 'PlayfairDisplay';
     }
     return {
       ...DEFAULT_LANDSCAPE_CONFIG,
@@ -192,7 +192,7 @@ export class UserDashboard {
       prominentOutlineColor: 'transparent',
       prominentOutlineWidth: 0,
       shadowBlur: isRealEstate ? 10 : 0,
-      animation: 'anim-fade',
+      animation: 'anim-bounce-drop',
       uppercase: true,
       defaultItalic: isRealEstateFancy,
       karaokeHighlightColor: '#FF5533',
@@ -252,8 +252,8 @@ export class UserDashboard {
         labelBoxRadius: isSameTemplateSource && sentence.labelBoxRadius !== undefined ? sentence.labelBoxRadius : 14,
         textColor: isSameTemplateSource && sentence.textColor !== undefined ? sentence.textColor : '#FFFFFF',
         prominentColor: isSameTemplateSource && sentence.prominentColor !== undefined ? sentence.prominentColor : cfg.prominentColor,
-        fontFamily: isSameTemplateSource && sentence.fontFamily ? sentence.fontFamily : (isRealEstateFancy ? 'BodoniModa' : cfg.normalFontFamily),
-        animation: isSameTemplateSource && sentence.animation ? sentence.animation : cfg.animation,
+        fontFamily: isSameTemplateSource && sentence.fontFamily ? sentence.fontFamily : (isRealEstateFancy ? 'PlayfairDisplay' : cfg.normalFontFamily),
+        animation: cfg.animation,
         fontSize: isSameTemplateSource && sentence.fontSize !== undefined ? sentence.fontSize : (isRealEstate ? 36 : 30),
         boxWidth: isSameTemplateSource && sentence.boxWidth !== undefined ? sentence.boxWidth : (isRealEstate ? 90 : 74),
         templateMode: this.selectedTemplateId,
@@ -280,6 +280,7 @@ export class UserDashboard {
 
       const realEstateBase = {
         ...base,
+        realEstateGroupId: sentence.realEstateGroupId || sentence.sourceId || sentence.id || `sentence_${index + 1}`,
         posX: isSameTemplateSource && sentence.posX !== undefined ? sentence.posX : 6,
         posY: isSameTemplateSource && sentence.posY !== undefined ? sentence.posY : 48,
         topWordPosX: isSameTemplateSource && sentence.topWordPosX !== undefined ? sentence.topWordPosX : 50,
@@ -945,9 +946,10 @@ export class UserDashboard {
   renderTemplateOptionCard(tpl) {
     const isSelected = this.selectedTemplateId === tpl.id;
     const fontSet = this.getBaseFontSet(tpl.fontSetId);
+    const isFancyTemplate = tpl.fontSetId === 'fancy';
     const isRealEstateFancy = tpl.id === 'real-estate-fancy';
-    const [normalFont, prominentFont, accentFont] = isRealEstateFancy
-      ? ['BodoniModa', 'BodoniModa', 'BodoniModa']
+    const [normalFont, prominentFont, accentFont] = isFancyTemplate
+      ? ['PlayfairDisplay', 'PlayfairDisplay', 'PlayfairDisplay']
       : fontSet.fonts;
     const normalFamily = this.getFontFamily(normalFont);
     const prominentFamily = this.getFontFamily(prominentFont);
@@ -2529,7 +2531,7 @@ export class UserDashboard {
 
   findActiveSentenceMatches(sentences, time) {
     if (!sentences || sentences.length === 0) return [];
-    return sentences
+    const activeItems = sentences
       .map((sentence, index) => {
         const start = Number(sentence.start ?? sentence.startTime ?? 0);
         const end = Number(sentence.end ?? sentence.endTime ?? (start + 2.5));
@@ -2537,6 +2539,30 @@ export class UserDashboard {
         return { sentence, index, start, end, active: time >= start && (isLast ? time <= end : time < end) };
       })
       .filter(item => item.active);
+
+    const realEstateItems = activeItems.filter(item => item.sentence?.realEstateLayout && item.sentence?.realEstatePart);
+    if (realEstateItems.length <= 1) return activeItems;
+
+    const groupKeyFor = (sentence) => sentence.realEstateGroupId || sentence.id?.replace(/_re_(top|body)$/i, '') || `${Number(sentence.start ?? sentence.startTime ?? 0).toFixed(2)}_${Number(sentence.end ?? sentence.endTime ?? 0).toFixed(2)}`;
+    const groups = new Map();
+    realEstateItems.forEach((item) => {
+      const key = groupKeyFor(item.sentence);
+      const current = groups.get(key) || [];
+      current.push(item);
+      groups.set(key, current);
+    });
+
+    let selectedGroup = null;
+    groups.forEach((items) => {
+      const score = Math.max(...items.map(item => item.start));
+      if (!selectedGroup || score > selectedGroup.score) {
+        selectedGroup = { score, items };
+      }
+    });
+
+    if (!selectedGroup) return activeItems;
+    const selected = new Set(selectedGroup.items.map(item => item.index));
+    return activeItems.filter(item => !item.sentence?.realEstateLayout || selected.has(item.index));
   }
 
   buildCaptionOverlayHtml(currentSentence, time, sentences, cfg, options = {}) {
