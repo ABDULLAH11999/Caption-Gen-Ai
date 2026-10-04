@@ -826,7 +826,29 @@ export class VideoRenderer {
 
     const activeRealEstate = matchingSentences.filter(s => s?.realEstateLayout && s.realEstatePart);
     if (activeRealEstate.length > 1) {
-      const groupKeyFor = (sentence) => sentence.realEstateGroupId || sentence.id?.replace(/_re_(top|body)$/i, '') || `${Number(sentence.start ?? sentence.startTime ?? 0).toFixed(2)}_${Number(sentence.end ?? sentence.endTime ?? 0).toFixed(2)}`;
+      const overlaps = (a, b) => {
+        const aStart = Number(a.start ?? a.startTime ?? 0);
+        const aEnd = Number(a.end ?? a.endTime ?? (aStart + 2.5));
+        const bStart = Number(b.start ?? b.startTime ?? 0);
+        const bEnd = Number(b.end ?? b.endTime ?? (bStart + 2.5));
+        return aStart <= bEnd && bStart <= aEnd;
+      };
+      const groupKeyFor = (sentence) => {
+        if (sentence.realEstateGroupId) return sentence.realEstateGroupId;
+        const stableId = sentence.id?.replace(/_re_(top|body)$/i, '');
+        if (stableId && stableId !== sentence.id) return stableId;
+        const matchingIndex = matchingSentences.indexOf(sentence);
+        if (sentence.realEstatePart === 'body') {
+          for (let i = matchingIndex - 1; i >= 0; i--) {
+            const previous = matchingSentences[i];
+            if (previous?.realEstateLayout && previous.realEstatePart === 'top' && overlaps(previous, sentence)) {
+              return `legacy_re_top_${i}`;
+            }
+          }
+        }
+        if (sentence.realEstatePart === 'top') return `legacy_re_top_${matchingIndex}`;
+        return `${Number(sentence.start ?? sentence.startTime ?? 0).toFixed(2)}_${Number(sentence.end ?? sentence.endTime ?? 0).toFixed(2)}`;
+      };
       const groups = new Map();
       activeRealEstate.forEach((sentence) => {
         const key = groupKeyFor(sentence);

@@ -135,6 +135,7 @@ export class UserDashboard {
 
     this.container = null;
     this.lastRenderedSentenceKey = null;
+    this.realEstateTopAnimationPlayed = new Set();
   }
 
   async init() {
@@ -1024,6 +1025,7 @@ export class UserDashboard {
     this.processingCancelled = false;
     this.segments = [];
     this.sourceCaptionSentences = [];
+    this.realEstateTopAnimationPlayed?.clear();
     captionEngine.setSentences([]);
     this.expandedSegments = new Set([0]);
     this.lastRenderedSentenceKey = null;
@@ -1980,6 +1982,7 @@ export class UserDashboard {
       await this.sleep(200);
 
       if (transcribeResult && transcribeResult.sentences && transcribeResult.sentences.length > 0) {
+        this.realEstateTopAnimationPlayed?.clear();
         this.sourceCaptionSentences = this.cloneSourceSentences(transcribeResult.sentences);
         captionEngine.setSentences(this.styleCaptionSentencesForActiveTemplate(this.sourceCaptionSentences));
         this.isNonEnglishVideo = !!(transcribeResult.hasUrduOrHindi || speechTranscriber.isUrduOrHindiTranscript(transcribeResult.sentences));
@@ -2543,10 +2546,32 @@ export class UserDashboard {
     const realEstateItems = activeItems.filter(item => item.sentence?.realEstateLayout && item.sentence?.realEstatePart);
     if (realEstateItems.length <= 1) return activeItems;
 
-    const groupKeyFor = (sentence) => sentence.realEstateGroupId || sentence.id?.replace(/_re_(top|body)$/i, '') || `${Number(sentence.start ?? sentence.startTime ?? 0).toFixed(2)}_${Number(sentence.end ?? sentence.endTime ?? 0).toFixed(2)}`;
+    const overlaps = (a, b) => {
+      const aStart = Number(a.start ?? a.startTime ?? 0);
+      const aEnd = Number(a.end ?? a.endTime ?? (aStart + 2.5));
+      const bStart = Number(b.start ?? b.startTime ?? 0);
+      const bEnd = Number(b.end ?? b.endTime ?? (bStart + 2.5));
+      return aStart <= bEnd && bStart <= aEnd;
+    };
+    const groupKeyFor = (item) => {
+      const sentence = item.sentence;
+      if (sentence.realEstateGroupId) return sentence.realEstateGroupId;
+      const stableId = sentence.id?.replace(/_re_(top|body)$/i, '');
+      if (stableId && stableId !== sentence.id) return stableId;
+      if (sentence.realEstatePart === 'body') {
+        for (let i = item.index - 1; i >= 0; i--) {
+          const previous = sentences[i];
+          if (previous?.realEstateLayout && previous.realEstatePart === 'top' && overlaps(previous, sentence)) {
+            return `legacy_re_top_${i}`;
+          }
+        }
+      }
+      if (sentence.realEstatePart === 'top') return `legacy_re_top_${item.index}`;
+      return `${Number(sentence.start ?? sentence.startTime ?? 0).toFixed(2)}_${Number(sentence.end ?? sentence.endTime ?? 0).toFixed(2)}`;
+    };
     const groups = new Map();
     realEstateItems.forEach((item) => {
-      const key = groupKeyFor(item.sentence);
+      const key = groupKeyFor(item);
       const current = groups.get(key) || [];
       current.push(item);
       groups.set(key, current);
@@ -2969,10 +2994,15 @@ export class UserDashboard {
     const shouldSuppressRealEstateAnimation = (match) => {
       const sentence = match?.sentence;
       if (!sentence?.realEstateLayout || !sentence.realEstatePart) return false;
-      const groupKey = `${Number(sentence.start ?? sentence.startTime ?? 0).toFixed(2)}_${Number(sentence.end ?? sentence.endTime ?? 0).toFixed(2)}_${sentence.behind ? 'behind' : 'front'}`;
-      if (realEstateAnimationGroups.has(groupKey)) return true;
-      realEstateAnimationGroups.add(groupKey);
-      return false;
+      const spanKey = `${sentence.realEstateGroupId || sentence.id?.replace(/_re_(top|body)$/i, '') || 're'}_${Number(sentence.start ?? sentence.startTime ?? 0).toFixed(2)}_${Number(sentence.end ?? sentence.endTime ?? 0).toFixed(2)}_${String(sentence.text || '').trim().toLowerCase()}`;
+      const groupKey = `${sentence.realEstateGroupId || `${Number(sentence.start ?? sentence.startTime ?? 0).toFixed(2)}_${Number(sentence.end ?? sentence.endTime ?? 0).toFixed(2)}`}_${sentence.behind ? 'behind' : 'front'}`;
+      const duplicateGroup = realEstateAnimationGroups.has(groupKey);
+      if (!duplicateGroup) realEstateAnimationGroups.add(groupKey);
+      if (sentence.realEstatePart === 'top') {
+        if (this.realEstateTopAnimationPlayed?.has(spanKey)) return true;
+        this.realEstateTopAnimationPlayed?.add(spanKey);
+      }
+      return duplicateGroup;
     };
 
     const behindHtml = behindMatches.map((match, index) => {
