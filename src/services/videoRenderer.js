@@ -100,6 +100,30 @@ export class VideoRenderer {
     return candidates.find(type => MediaRecorder.isTypeSupported(type)) || '';
   }
 
+  estimateSourceFrameRate(video) {
+    const clampFps = (fps) => {
+      if (!Number.isFinite(fps) || fps <= 0) return null;
+      const commonRates = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60];
+      const nearest = commonRates.reduce((best, rate) => (
+        Math.abs(rate - fps) < Math.abs(best - fps) ? rate : best
+      ), commonRates[0]);
+      if (Math.abs(nearest - fps) <= 3) return nearest;
+      return Math.max(24, Math.min(60, Math.round(fps)));
+    };
+
+    try {
+      const quality = typeof video.getVideoPlaybackQuality === 'function'
+        ? video.getVideoPlaybackQuality()
+        : null;
+      const playedFrames = Number(quality?.totalVideoFrames || video.webkitDecodedFrameCount || video.mozPresentedFrames || 0);
+      const playedSeconds = Number(video.currentTime || 0);
+      const estimated = playedFrames > 12 && playedSeconds > 0.35 ? playedFrames / playedSeconds : null;
+      return clampFps(estimated) || 60;
+    } catch (_) {
+      return 60;
+    }
+  }
+
   easeOutBack(t) {
     const c1 = 1.70158;
     const c3 = c1 + 1;
@@ -447,7 +471,7 @@ export class VideoRenderer {
     const segStartTime = Number(sentence.start ?? sentence.startTime ?? 0);
     const animElapsed = Math.max(0, curTime - segStartTime);
     const animState = this.getAnimationFrameState(resolvedAnimId, animElapsed, scale);
-    const wordGap = Math.max(3, Math.round(baseFontSize * 0.20));
+    const wordGap = Math.max(Math.round(8 * scale), Math.round(baseFontSize * 0.34));
 
     const drawRoundedRect = (x, y, width, height, radius) => {
       const r = Math.min(radius, width / 2, height / 2);
@@ -1042,13 +1066,20 @@ export class VideoRenderer {
         // Already connected
       }
 
-      // 60 FPS Capture Stream
-      const targetFps = 60;
+      // Capture at the source/preview cadence so exports do not collapse into
+      // low variable-FPS files when the input is already 30/50/60 FPS.
+      const targetFps = this.estimateSourceFrameRate(videoElement);
       if (!offscreenCanvas.captureStream || typeof MediaRecorder === 'undefined') {
         throw new Error('This browser cannot export burned captions because MediaRecorder/canvas capture is unavailable. Please use current Chrome, Edge, Safari, or Firefox.');
       }
 
       const canvasStream = offscreenCanvas.captureStream(targetFps);
+      const canvasVideoTrack = canvasStream.getVideoTracks?.()[0];
+      if (canvasVideoTrack?.applyConstraints) {
+        try {
+          await canvasVideoTrack.applyConstraints({ frameRate: { ideal: targetFps, max: targetFps } });
+        } catch (_) {}
+      }
 
       const combinedTracks = canvasStream.getVideoTracks ? [...canvasStream.getVideoTracks()] : [];
       if (dest.stream && dest.stream.getAudioTracks().length > 0) {
@@ -1060,8 +1091,9 @@ export class VideoRenderer {
       // Select highest quality supported container, preferring Safari/iPhone friendly MP4.
       const mimeType = this.getSupportedRecordingMimeType();
 
-      // Broadcast-grade 8 Mbps bitrate for pristine, lag-free 60 FPS video
-      const videoBits = isMobile ? 6000000 : 8000000;
+      // Keep bitrate proportional to target FPS so 50/60 FPS exports keep their
+      // cadence instead of being aggressively thinned by the recorder.
+      const videoBits = Math.round((isMobile ? 7000000 : 9000000) * Math.max(1, targetFps / 30));
       const recorderOptions = {
         videoBitsPerSecond: videoBits,
         audioBitsPerSecond: 192000
