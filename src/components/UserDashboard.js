@@ -2697,6 +2697,10 @@ export class UserDashboard {
       ? `background:${labelBoxColor};border-radius:${labelBoxRadius}px;padding:7px 11px;box-decoration-break:clone;-webkit-box-decoration-break:clone;`
       : '';
     const labelBoxWidth = labelBoxEnabled ? 'auto' : '100%';
+    const isNativeUrduCaption = /[\u0600-\u06FF]/.test(`${currentSentence.text || ''} ${displayWords.map(w => w.word || w.text || '').join(' ')}`);
+    const leftResizeHandleHtml = isNativeUrduCaption
+      ? '<div class="caption-resize-handle resize-left" title="Drag left to widen Urdu caption box"><div class="resize-grip-line"></div></div>'
+      : '';
 
     const strokeWidth = strokeEnabled
       ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.0)
@@ -2927,6 +2931,7 @@ export class UserDashboard {
         <div class="caption-anim-segment-wrapper ${animClass}" style="display:inline-flex;flex-wrap:wrap;justify-content:${justifyAlign};align-items:baseline;gap:2px 5px;width:${labelBoxWidth};max-width:100%;text-transform:none;line-height:1.05;transform-origin:center center;will-change:transform,opacity;${labelBoxStyle}">
           ${wordsHtml}
         </div>
+        ${leftResizeHandleHtml}
         <div class="caption-resize-handle resize-right" title="Drag to adjust width and wrap lines"><div class="resize-grip-line"></div></div>
         <div class="caption-resize-handle resize-corner" title="Drag corner to adjust font size and box width"><div class="resize-grip-dot"></div></div>
       </div>
@@ -3912,14 +3917,16 @@ export class UserDashboard {
 
       const isCornerResize = !!e.target.closest('.resize-corner');
       const isRightResize = !!e.target.closest('.resize-right');
+      const isLeftResize = !!e.target.closest('.resize-left');
 
-      if (isCornerResize || isRightResize) {
+      if (isCornerResize || isRightResize || isLeftResize) {
         // Start resizing width
         isResizing = true;
         isDragging = false;
-        resizeMode = isCornerResize ? 'corner' : 'width';
+        resizeMode = isCornerResize ? 'corner' : (isLeftResize ? 'left-width' : 'width');
         startPointerX = e.clientX;
         startPointerY = e.clientY;
+        initialAnchorLeftPx = anchorRect.left - overlayRect.left;
         initialWidthPx = anchorRect.width;
         initialFontSize = Number(activeSentence.fontSize || (this.currentMode === 'portrait' ? 25 : 28));
         anchor.classList.add('is-resizing');
@@ -3989,13 +3996,27 @@ export class UserDashboard {
         } else if (isResizing) {
           const deltaX = moveEvent.clientX - startPointerX;
           const deltaY = moveEvent.clientY - startPointerY;
-          const newWidthPx = Math.max(90, initialWidthPx + deltaX);
+          const resizingFromLeft = resizeMode === 'left-width';
+          const rawWidthPx = resizingFromLeft ? (initialWidthPx - deltaX) : (initialWidthPx + deltaX);
+          const newWidthPx = Math.max(90, rawWidthPx);
           let widthPct = Math.round((newWidthPx / currentOverlayRect.width) * 100);
           widthPct = Math.max(15, Math.min(96, widthPct));
 
           activeSentence.boxWidth = widthPct;
           activeAnchor.style.width = `${widthPct}%`;
           activeAnchor.style.maxWidth = `${widthPct}%`;
+
+          if (resizingFromLeft) {
+            const widthPx = (widthPct / 100) * currentOverlayRect.width;
+            let newLeftPx = initialAnchorLeftPx + (initialWidthPx - widthPx);
+            const maxLeft = Math.max(0, currentOverlayRect.width - widthPx);
+            newLeftPx = Math.max(0, Math.min(maxLeft, newLeftPx));
+            const xPct = Math.round((newLeftPx / currentOverlayRect.width) * 100);
+            activeSentence.posX = Math.max(2, Math.min(88, xPct));
+            activeSentence.hasCustomPos = true;
+            activeAnchor.style.left = `${activeSentence.posX}%`;
+            activeAnchor.style.transform = 'translate(0, 0)';
+          }
 
           if (resizeMode === 'corner') {
             const sizeDelta = Math.round((deltaX + deltaY) / 18);

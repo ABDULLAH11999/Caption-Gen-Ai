@@ -1437,6 +1437,17 @@ body.app-shell-locked {
   justify-content: center;
 }
 
+.caption-resize-handle.resize-left {
+  top: 10%;
+  left: -8px;
+  width: 14px;
+  height: 80%;
+  cursor: ew-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .resize-grip-line {
   width: 4px;
   height: 22px;
