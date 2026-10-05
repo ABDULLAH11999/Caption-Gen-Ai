@@ -567,7 +567,9 @@ export class VideoRenderer {
     const segStartTime = Number(sentence.start ?? sentence.startTime ?? 0);
     const animElapsed = Math.max(0, curTime - segStartTime);
     const animState = this.getAnimationFrameState(resolvedAnimId, animElapsed, scale);
-    const wordGap = Math.max(Math.round(8 * scale), Math.round(baseFontSize * 0.34));
+    const wordGap = isRealEstate
+      ? Math.max(Math.round(7 * scale), Math.round(baseFontSize * 0.22))
+      : Math.max(Math.round(8 * scale), Math.round(baseFontSize * 0.34));
 
     const drawRoundedRect = (x, y, width, height, radius) => {
       const r = Math.min(radius, width / 2, height / 2);
@@ -817,7 +819,7 @@ export class VideoRenderer {
         drawLineBlock(topLines, topPosX, topPosY, realEstateTopSize * 1.1, isTopCentered ? 'center' : 'left', false);
       }
       if (bodyLinesForDraw.length) {
-        drawLineBlock(bodyLinesForDraw, bodyPosX, bodyPosY, realEstateBodySize * 1.15, 'middle', false);
+        drawLineBlock(bodyLinesForDraw, bodyPosX, bodyPosY, realEstateBodySize * 1.08, 'middle', false);
       }
       ctx.restore();
       return;
@@ -1133,8 +1135,12 @@ export class VideoRenderer {
 
       let width = videoElement.videoWidth || 1280;
       let height = videoElement.videoHeight || 720;
-      if (isMobile && (width > 1920 || height > 1920)) {
-        const scale = 1920 / Math.max(width, height);
+      const configuredMaxSide = Number(config.exportMaxSide || 0);
+      const exportMaxSide = Number.isFinite(configuredMaxSide) && configuredMaxSide >= 720
+        ? configuredMaxSide
+        : (isMobile ? 1280 : Math.max(width, height));
+      if (Math.max(width, height) > exportMaxSide) {
+        const scale = exportMaxSide / Math.max(width, height);
         width = Math.round(width * scale);
         height = Math.round(height * scale);
       }
@@ -1169,9 +1175,9 @@ export class VideoRenderer {
         // Already connected
       }
 
-      // Capture at the source/preview cadence so exports do not collapse into
-      // low variable-FPS files when the input is already 30/50/60 FPS.
-      const targetFps = this.normalizeFrameRate(Number(config.sourceFrameRate || 0)) || this.estimateSourceFrameRate(videoElement);
+      // The studio preview/export contract is 60 FPS. Keep the canvas capture
+      // target fixed at 60 instead of mirroring low-FPS source files.
+      const targetFps = this.normalizeFrameRate(Number(config.exportFrameRate || 0)) || 60;
       if (!offscreenCanvas.captureStream || typeof MediaRecorder === 'undefined') {
         throw new Error('This browser cannot export burned captions because MediaRecorder/canvas capture is unavailable. Please use current Chrome, Edge, Safari, or Firefox.');
       }
@@ -1254,7 +1260,7 @@ export class VideoRenderer {
       await videoElement.play();
 
       let isExportActive = true;
-      let animId = null;
+      let renderTimer = null;
       let lastRenderedTime = -1;
 
       const finishExport = () => {
@@ -1262,9 +1268,9 @@ export class VideoRenderer {
         this.isRendering = false;
         isExportActive = false;
         videoElement.removeEventListener('ended', finishExport);
-        if (animId) {
-          cancelAnimationFrame(animId);
-          animId = null;
+        if (renderTimer) {
+          clearTimeout(renderTimer);
+          renderTimer = null;
         }
         renderCapturedFrame(Math.min(duration, videoElement.currentTime || duration));
         videoElement.pause();
@@ -1285,13 +1291,15 @@ export class VideoRenderer {
 
       const renderAtTime = (time) => {
         const curTime = Math.max(0, Math.min(duration, Number(time) || 0));
-        if (curTime === lastRenderedTime) return;
+        if (Math.abs(curTime - lastRenderedTime) < 0.0005) return;
         lastRenderedTime = curTime;
         updateProgress(curTime);
         renderCapturedFrame(curTime);
       };
 
-      // Keep a deterministic canvas draw loop while the source video plays.
+      const frameIntervalMs = Math.max(8, 1000 / targetFps);
+
+      // Keep a deterministic 60 FPS canvas draw loop while the source video plays.
       const renderLoop = () => {
         if (!isExportActive || !this.isRendering) return;
 
@@ -1303,10 +1311,10 @@ export class VideoRenderer {
           return;
         }
 
-        animId = requestAnimationFrame(renderLoop);
+        renderTimer = setTimeout(renderLoop, frameIntervalMs);
       };
 
-      animId = requestAnimationFrame(renderLoop);
+      renderTimer = setTimeout(renderLoop, frameIntervalMs);
 
       const rawBlob = await exportPromise;
 

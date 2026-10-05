@@ -4372,6 +4372,8 @@ export class UserDashboard {
         previewDisplayWidth,
         previewDisplayHeight,
         previewMode: this.currentMode,
+        exportFrameRate: 60,
+        exportMaxSide: 1280,
         skipAutoDownload: isIOSExportDevice,
         skipMetadataFix: isIOSExportDevice
       };
