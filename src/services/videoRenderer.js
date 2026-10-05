@@ -100,17 +100,113 @@ export class VideoRenderer {
     return candidates.find(type => MediaRecorder.isTypeSupported(type)) || '';
   }
 
-  estimateSourceFrameRate(video) {
-    const clampFps = (fps) => {
-      if (!Number.isFinite(fps) || fps <= 0) return null;
-      const commonRates = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60];
-      const nearest = commonRates.reduce((best, rate) => (
-        Math.abs(rate - fps) < Math.abs(best - fps) ? rate : best
-      ), commonRates[0]);
-      if (Math.abs(nearest - fps) <= 3) return nearest;
-      return Math.max(24, Math.min(60, Math.round(fps)));
-    };
+  normalizeFrameRate(fps) {
+    if (!Number.isFinite(fps) || fps <= 0) return null;
+    if (fps < 8) return null;
+    const commonRates = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60];
+    const nearest = commonRates.reduce((best, rate) => (
+      Math.abs(rate - fps) < Math.abs(best - fps) ? rate : best
+    ), commonRates[0]);
+    if (Math.abs(nearest - fps) <= 1.5) return nearest;
+    return Math.max(24, Math.min(60, Math.round(fps)));
+  }
 
+  async detectMp4FrameRate(videoBlob) {
+    try {
+      if (!videoBlob || !/mp4|quicktime|mov/i.test(videoBlob.type || 'video/mp4')) return null;
+      const buffer = await videoBlob.arrayBuffer();
+      const view = new DataView(buffer);
+      const decoder = new TextDecoder('ascii');
+      const readU32 = (offset) => view.getUint32(offset);
+      const readU64 = (offset) => Number(view.getBigUint64(offset));
+      const readType = (offset) => decoder.decode(new Uint8Array(buffer, offset, 4));
+      const readBoxes = (start = 0, end = buffer.byteLength) => {
+        const parsed = [];
+        let offset = start;
+        while (offset + 8 <= end) {
+          let size = readU32(offset);
+          const type = readType(offset + 4);
+          let header = 8;
+          if (size === 1) {
+            if (offset + 16 > end) break;
+            size = readU64(offset + 8);
+            header = 16;
+          } else if (size === 0) {
+            size = end - offset;
+          }
+          if (!Number.isFinite(size) || size < 8 || offset + size > end) break;
+          parsed.push({ type, start: offset, end: offset + size, header });
+          offset += size;
+        }
+        return parsed;
+      };
+      const children = (box) => readBoxes(box.start + box.header, box.end);
+      const findPath = (roots, path) => path.reduce((items, type) => (
+        items.flatMap(box => children(box).filter(child => child.type === type))
+      ), roots);
+
+      const rootBoxes = readBoxes();
+      const moov = rootBoxes.find(box => box.type === 'moov');
+      if (!moov) return null;
+
+      let videoTrackId = null;
+      let videoDuration = 0;
+      children(moov).filter(box => box.type === 'trak').forEach((trak) => {
+        const mdia = children(trak).find(box => box.type === 'mdia');
+        const hdlr = mdia ? children(mdia).find(box => box.type === 'hdlr') : null;
+        const handler = hdlr ? readType(hdlr.start + 16) : '';
+        if (handler !== 'vide') return;
+
+        const tkhd = children(trak).find(box => box.type === 'tkhd');
+        const tkhdVersion = tkhd ? view.getUint8(tkhd.start + 8) : 0;
+        videoTrackId = tkhd ? readU32(tkhd.start + (tkhdVersion === 1 ? 28 : 20)) : null;
+
+        const mdhd = mdia ? children(mdia).find(box => box.type === 'mdhd') : null;
+        if (mdhd) {
+          const version = view.getUint8(mdhd.start + 8);
+          const timescale = version === 1 ? readU32(mdhd.start + 28) : readU32(mdhd.start + 20);
+          const duration = version === 1 ? readU64(mdhd.start + 32) : readU32(mdhd.start + 24);
+          videoDuration = timescale ? duration / timescale : 0;
+        }
+      });
+
+      if (!videoTrackId || !videoDuration) return null;
+
+      let samples = 0;
+      children(moov).filter(box => box.type === 'trak').forEach((trak) => {
+        const tkhd = children(trak).find(box => box.type === 'tkhd');
+        const tkhdVersion = tkhd ? view.getUint8(tkhd.start + 8) : 0;
+        const trackId = tkhd ? readU32(tkhd.start + (tkhdVersion === 1 ? 28 : 20)) : null;
+        if (trackId !== videoTrackId) return;
+        const stts = findPath([trak], ['mdia', 'minf', 'stbl', 'stts'])[0];
+        if (!stts) return;
+        const entryCount = readU32(stts.start + 12);
+        let offset = stts.start + 16;
+        for (let i = 0; i < entryCount && offset + 8 <= stts.end; i += 1, offset += 8) {
+          samples += readU32(offset);
+        }
+      });
+
+      if (!samples) {
+        rootBoxes.filter(box => box.type === 'moof').forEach((moof) => {
+          children(moof).filter(box => box.type === 'traf').forEach((traf) => {
+            const tfhd = children(traf).find(box => box.type === 'tfhd');
+            const trackId = tfhd ? readU32(tfhd.start + 12) : null;
+            if (trackId !== videoTrackId) return;
+            children(traf).filter(box => box.type === 'trun').forEach((trun) => {
+              samples += readU32(trun.start + 12);
+            });
+          });
+        });
+      }
+
+      return this.normalizeFrameRate(samples / videoDuration);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  estimateSourceFrameRate(video) {
     try {
       const quality = typeof video.getVideoPlaybackQuality === 'function'
         ? video.getVideoPlaybackQuality()
@@ -118,7 +214,7 @@ export class VideoRenderer {
       const playedFrames = Number(quality?.totalVideoFrames || video.webkitDecodedFrameCount || video.mozPresentedFrames || 0);
       const playedSeconds = Number(video.currentTime || 0);
       const estimated = playedFrames > 12 && playedSeconds > 0.35 ? playedFrames / playedSeconds : null;
-      return clampFps(estimated) || 60;
+      return this.normalizeFrameRate(estimated) || 60;
     } catch (_) {
       return 60;
     }
@@ -895,11 +991,18 @@ export class VideoRenderer {
 
     const isPortrait = canvasHeight > canvasWidth;
     const previewDisplayWidth = Number(config.previewDisplayWidth || 0);
+    const previewDisplayHeight = Number(config.previewDisplayHeight || 0);
     const fallbackRefWidth = isPortrait ? 360 : 640;
     const refWidth = Number.isFinite(previewDisplayWidth) && previewDisplayWidth > 80
       ? previewDisplayWidth
       : fallbackRefWidth;
-    const scale = Math.max(0.65, Math.min(8.0, canvasWidth / refWidth));
+    const fallbackRefHeight = isPortrait ? 640 : 360;
+    const refHeight = Number.isFinite(previewDisplayHeight) && previewDisplayHeight > 80
+      ? previewDisplayHeight
+      : fallbackRefHeight;
+    const scaleX = canvasWidth / refWidth;
+    const scaleY = canvasHeight / refHeight;
+    const scale = Math.max(0.65, Math.min(8.0, Number.isFinite(scaleY) && scaleY > 0 ? Math.min(scaleX, scaleY) : scaleX));
 
     const behindSentences = matchingSentences.filter(s => s.behind);
     const frontSentences = matchingSentences.filter(s => !s.behind);
@@ -1068,7 +1171,7 @@ export class VideoRenderer {
 
       // Capture at the source/preview cadence so exports do not collapse into
       // low variable-FPS files when the input is already 30/50/60 FPS.
-      const targetFps = this.estimateSourceFrameRate(videoElement);
+      const targetFps = this.normalizeFrameRate(Number(config.sourceFrameRate || 0)) || this.estimateSourceFrameRate(videoElement);
       if (!offscreenCanvas.captureStream || typeof MediaRecorder === 'undefined') {
         throw new Error('This browser cannot export burned captions because MediaRecorder/canvas capture is unavailable. Please use current Chrome, Edge, Safari, or Firefox.');
       }
@@ -1266,10 +1369,12 @@ export class VideoRenderer {
       setTimeout(resolve, 3500);
     });
 
+    const sourceFrameRate = await this.detectMp4FrameRate(videoBlob);
     const effectiveConfig = {
       ...config,
       enhanceQuality: !!enhanceQuality,
-      enhanceVideoQuality: !!enhanceQuality
+      enhanceVideoQuality: !!enhanceQuality,
+      sourceFrameRate: this.normalizeFrameRate(Number(config?.sourceFrameRate || 0)) || sourceFrameRate || null
     };
 
     // Pre-initialize rotoscoping segmenter if any segment has "behind" checked

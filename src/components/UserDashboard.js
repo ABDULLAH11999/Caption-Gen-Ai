@@ -4334,9 +4334,9 @@ export class UserDashboard {
       const studioConfig = (this.activeConfig && (!this.activeConfig.templateId || this.activeConfig.templateId === tpl.id)) ? this.activeConfig : {};
       const cfg = { ...tpl.config, ...customConfig, ...studioConfig };
 
-      let previewDisplayWidth = null;
-      let previewDisplayHeight = null;
-      if (this.videoElement) {
+      let previewDisplayWidth = Number(this.videoDisplayBounds?.width || 0) || null;
+      let previewDisplayHeight = Number(this.videoDisplayBounds?.height || 0) || null;
+      if ((!previewDisplayWidth || !previewDisplayHeight) && this.videoElement) {
         const rect = this.videoElement.getBoundingClientRect?.() || {};
         const vw = Number(this.videoElement.videoWidth || 0);
         const vh = Number(this.videoElement.videoHeight || 0);
