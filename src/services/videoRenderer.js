@@ -909,16 +909,16 @@ export class VideoRenderer {
     ctx.rect(0, 0, canvasWidth, canvasHeight);
     ctx.clip();
 
-    const realEstateGroups = new Set();
+    const realEstateAnimationParts = new Set();
     const renderSentenceOncePerRealEstateGroup = (items) => {
       items.forEach((s) => {
         let sentenceToRender = s;
         if (s?.realEstateLayout && s.realEstatePart) {
-          const groupKey = `${s.realEstateGroupId || `${Number(s.start ?? s.startTime ?? 0).toFixed(2)}_${Number(s.end ?? s.endTime ?? 0).toFixed(2)}`}_${s.behind ? 'behind' : 'front'}`;
-          if (realEstateGroups.has(groupKey)) {
+          const partKey = `${s.realEstateGroupId || `${Number(s.start ?? s.startTime ?? 0).toFixed(2)}_${Number(s.end ?? s.endTime ?? 0).toFixed(2)}`}_${s.realEstatePart}_${s.behind ? 'behind' : 'front'}`;
+          if (realEstateAnimationParts.has(partKey)) {
             sentenceToRender = { ...s, suppressAnimation: true };
           } else {
-            realEstateGroups.add(groupKey);
+            realEstateAnimationParts.add(partKey);
           }
         }
         this.renderSentence(ctx, sentenceToRender, curTime, config, canvasWidth, canvasHeight, sentences, scale);

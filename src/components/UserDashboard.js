@@ -2995,19 +2995,19 @@ export class UserDashboard {
       }
     }
 
-    const realEstateAnimationGroups = new Set();
+    const realEstateAnimationParts = new Set();
     const shouldSuppressRealEstateAnimation = (match) => {
       const sentence = match?.sentence;
       if (!sentence?.realEstateLayout || !sentence.realEstatePart) return false;
       const spanKey = `${sentence.realEstateGroupId || sentence.id?.replace(/_re_(top|body)$/i, '') || 're'}_${Number(sentence.start ?? sentence.startTime ?? 0).toFixed(2)}_${Number(sentence.end ?? sentence.endTime ?? 0).toFixed(2)}_${String(sentence.text || '').trim().toLowerCase()}`;
-      const groupKey = `${sentence.realEstateGroupId || `${Number(sentence.start ?? sentence.startTime ?? 0).toFixed(2)}_${Number(sentence.end ?? sentence.endTime ?? 0).toFixed(2)}`}_${sentence.behind ? 'behind' : 'front'}`;
-      const duplicateGroup = realEstateAnimationGroups.has(groupKey);
-      if (!duplicateGroup) realEstateAnimationGroups.add(groupKey);
+      const partKey = `${sentence.realEstateGroupId || `${Number(sentence.start ?? sentence.startTime ?? 0).toFixed(2)}_${Number(sentence.end ?? sentence.endTime ?? 0).toFixed(2)}`}_${sentence.realEstatePart}_${sentence.behind ? 'behind' : 'front'}`;
+      const duplicatePart = realEstateAnimationParts.has(partKey);
+      if (!duplicatePart) realEstateAnimationParts.add(partKey);
       if (sentence.realEstatePart === 'top') {
         if (this.realEstateTopAnimationPlayed?.has(spanKey)) return true;
         this.realEstateTopAnimationPlayed?.add(spanKey);
       }
-      return duplicateGroup;
+      return duplicatePart;
     };
 
     const behindHtml = behindMatches.map((match, index) => {
