@@ -4,14 +4,14 @@
 // 2. Native Hindi: 100% pure Devanagari script (हिन्दी) with zero English alphabets.
 // 3. Native Urdu: 100% pure Nastaliq script (اردو) with zero English alphabets.
 // 4. Word-by-word timestamp synchronization managed in transcript code for live animations.
-// 5. Automatic fallback to translationService if Gemini API key is unreachable, leaked, or exhausted.
+// 5. Optional fallback to translationService for non-interactive background workflows.
 
 import { translationService } from './translationService.js';
 import { apiClient } from './apiClient.js';
 
 class GeminiTranslationService {
   constructor() {
-    this.models = ['gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    this.models = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash'];
     this.cache = new Map();
   }
 
@@ -84,11 +84,13 @@ class GeminiTranslationService {
 
     const apiKey = this.getApiKey(options);
     let translatedSegments = null;
+    let geminiError = null;
 
     // STEP 1: Attempt Gemini Translation (Backend Proxy first, then direct REST API)
     try {
       translatedSegments = await this.invokeGeminiTranslation(sentences, scriptMode, languagePreference, apiKey, onProgress);
     } catch (geminiErr) {
+      geminiError = geminiErr;
       console.warn('[Gemini AI] Direct translation error, attempting fallback:', geminiErr.message);
     }
 
@@ -103,7 +105,12 @@ class GeminiTranslationService {
       return merged;
     }
 
-    // STEP 3: Resilient Fallback to translationService if Gemini is unavailable
+    // Interactive switching must never disguise a failed localization as success.
+    if (options?.failOnTranslationError) {
+      throw geminiError || new Error('Gemini did not return localized captions.');
+    }
+
+    // STEP 3: Resilient fallback for non-interactive transcript workflows.
     console.warn('[Gemini AI] Using resilient translation engine fallback.');
     return translationService.translateSentencesToEnglish(sentences, onProgress, options);
   }
@@ -338,14 +345,23 @@ Return ONLY valid JSON array:
 
       const res = await apiClient.request('/ai/translate-transcript', {
         method: 'POST',
-        body: JSON.stringify(serverPayload)
+        body: JSON.stringify(serverPayload),
+        signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+          ? AbortSignal.timeout(45000)
+          : undefined
       });
 
       if (res && res.success && Array.isArray(res.translatedSentences)) {
         return res.translatedSentences;
       }
     } catch (backendErr) {
-      // Backend route might not be running or key is configured client-side
+      // A response from the backend is authoritative. Retrying the same failed
+      // request in the browser only doubles the wait and leaves the UI at 92%.
+      if (backendErr?.status) {
+        throw backendErr;
+      }
+
+      // The backend is unreachable; a client-side key can still be used directly.
       console.warn('[Gemini AI] Backend route unavailable, trying direct client API:', backendErr.message);
     }
 
@@ -358,7 +374,7 @@ Return ONLY valid JSON array:
   }
 
   /**
-   * Direct REST call to Google Generative Language API (Gemini 1.5 Flash / 2.0 Flash)
+   * Direct REST call to the Google Generative Language API.
    */
   async callGeminiDirectRest(sentences, scriptMode, languagePreference, apiKey, onProgress = () => {}) {
     const batchSize = 25; // Chunk large videos into safe prompt windows
@@ -372,7 +388,7 @@ Return ONLY valid JSON array:
       let batchSuccess = false;
       let lastError = null;
 
-      // Try available models in order: gemini-1.5-flash, gemini-2.0-flash, gemini-1.5-pro
+      // Try current supported text-generation models in preferred order.
       for (const model of this.models) {
         try {
           const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -395,7 +411,10 @@ Return ONLY valid JSON array:
           const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+              ? AbortSignal.timeout(20000)
+              : undefined
           });
 
           if (!response.ok) {
@@ -419,6 +438,9 @@ Return ONLY valid JSON array:
         } catch (mErr) {
           lastError = mErr;
           console.warn(`[Gemini AI] Attempt with ${model} failed:`, mErr.message);
+          if (/api key|leaked|permission|forbidden|quota|rate limit|401|403|429/i.test(mErr.message || '')) {
+            throw mErr;
+          }
         }
       }
 
