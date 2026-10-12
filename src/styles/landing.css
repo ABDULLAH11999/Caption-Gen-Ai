@@ -358,7 +358,7 @@
 .hero-section {
   padding: 52px 20px 42px 20px;
   text-align: center;
-  max-width: 980px;
+  max-width: 1040px;
   margin: 0 auto;
   position: relative;
   z-index: 1;
@@ -387,7 +387,15 @@
   color: #090a14;
   line-height: 1.15;
   letter-spacing: -1.4px;
-  margin-bottom: 18px;
+  max-width: 980px;
+  margin: 0 auto 30px auto;
+}
+
+.hero-title .gradient-text-purple {
+  font-family: 'Bodoni Moda', 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: -0.04em;
 }
 
 .hero-subtitle {
@@ -402,17 +410,21 @@
 
 /* OUTLINES BOX AROUND '+' UPLOADER CARD */
 .hero-upload-card {
-  max-width: 600px;
+  width: 960px;
+  max-width: 100%;
+  height: 420px;
   margin: 0 auto 24px auto;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   border: 1.5px dashed rgba(0, 0, 0, 0.2);
   border-radius: 24px;
-  padding: 30px 24px 24px;
-  display: flex;
-  flex-direction: column;
+  padding: 52px 70px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-rows: 1fr;
   align-items: center;
+  gap: 76px;
   cursor: pointer;
   position: relative;
   transition: all 0.28s var(--ease-spring);
@@ -440,27 +452,34 @@
 
 /* Outlines box specifically framing the '+' */
 .upload-plus-outline-box {
-  width: 66px;
-  height: 66px;
+  grid-column: 2;
+  grid-row: 1;
+  width: 240px;
+  height: 280px;
   border: 2px dashed rgba(0, 0, 0, 0.32);
-  border-radius: 18px;
+  border-radius: 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
-  margin-bottom: 16px;
+  background-color: rgba(255, 255, 255, 0.9);
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.055) 1px, transparent 1px);
+  background-size: 24px 24px;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.1);
+  margin: 0;
   transition: all 0.25s var(--ease-spring);
   position: relative;
+  transform: rotate(12deg);
 }
 
 .hero-upload-card:hover .upload-plus-outline-box {
-  border-color: #000000;
+  border-color: #ff5533;
   border-style: solid;
-  background: #000000;
-  transform: scale(1.08);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  background-color: #ffffff;
+  transform: rotate(9deg) scale(1.04);
+  box-shadow: 0 22px 44px rgba(255, 85, 51, 0.18);
 }
 
 .upload-plus-symbol {
@@ -471,9 +490,14 @@
   transition: all 0.25s ease;
 }
 
+.upload-plus-symbol svg {
+  width: 64px;
+  height: 64px;
+}
+
 .hero-upload-card:hover .upload-plus-symbol {
-  color: #ffffff;
-  transform: rotate(90deg);
+  color: #ff5533;
+  transform: scale(1.12);
 }
 
 .upload-plus-tag {
@@ -481,16 +505,19 @@
 }
 
 .upload-copy-group {
-  text-align: center;
-  margin-bottom: 18px;
+  grid-column: 1;
+  grid-row: 1;
+  text-align: left;
+  margin: 0;
 }
 
 .upload-main-title {
-  font-size: 18px;
-  font-weight: 800;
+  font-size: clamp(24px, 2.3vw, 32px);
+  font-weight: 900;
   color: #090a14;
-  letter-spacing: -0.3px;
-  margin-bottom: 6px;
+  letter-spacing: -0.8px;
+  line-height: 1.2;
+  margin: 0;
 }
 
 .upload-drag-hint {
@@ -1827,7 +1854,31 @@
     padding: 36px 16px 30px 16px;
   }
   .hero-upload-card {
-    padding: 24px 18px 20px;
+    width: 100%;
+    height: auto;
+    min-height: 390px;
+    padding: 34px 24px;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    gap: 28px;
+  }
+  .upload-copy-group {
+    grid-column: 1;
+    grid-row: 1;
+    text-align: center;
+  }
+  .upload-plus-outline-box {
+    grid-column: 1;
+    grid-row: 2;
+    width: 170px;
+    height: 190px;
+    justify-self: center;
+    border-radius: 22px;
+    transform: rotate(8deg);
+  }
+  .upload-plus-symbol svg {
+    width: 48px;
+    height: 48px;
   }
   .section-wrap {
     padding: 50px 16px;

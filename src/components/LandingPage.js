@@ -44,10 +44,6 @@ export class LandingPage {
           Free Caption Generator Video Tool - Auto Subtitles in <span class="gradient-text-purple">Seconds</span>.
         </h1>
 
-        <p class="hero-subtitle">
-          Add accurate captions to videos for free with our Auto Subtitle Generator. Automatically transcribe speech to text with Whisper AI, generate viral kinetic subtitles for TikTok, Instagram Reels &amp; YouTube Shorts with zero watermarks.
-        </p>
-
         <!-- OUTLINES BOX AROUND '+' UPLOADER (Captions.ai Inspired) -->
         <div class="hero-upload-card" id="hero-drop-zone">
           <input type="file" id="hero-file-input" accept="video/mp4,video/webm,video/quicktime,video/mov" class="hero-file-hidden" />
@@ -59,21 +55,10 @@ export class LandingPage {
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
             </div>
-            <span class="upload-plus-tag">Click to add video</span>
           </div>
 
           <div class="upload-copy-group">
             <h3 class="upload-main-title">Click to add video or drag &amp; drop here</h3>
-            <p class="upload-sub-title">MP4, WebM or MOV up to 500 MB &bull; Client-side Whisper AI &bull; 100% Free &amp; Private</p>
-          </div>
-
-          <div class="upload-actions-bar">
-            <button type="button" class="btn btn-black btn-sm" id="btn-hero-browse">
-              <span>📁 Select Video File</span>
-            </button>
-            <button type="button" class="btn btn-outline btn-sm" id="btn-hero-launch-direct">
-              <span>⚡ Open Studio</span>
-            </button>
           </div>
         </div>
 
