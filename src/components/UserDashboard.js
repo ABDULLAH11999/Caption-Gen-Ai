@@ -1554,7 +1554,6 @@ export class UserDashboard {
                       <input type="checkbox" id="user-player-enhance" ${this.enhanceVideoQuality ? 'checked' : ''} style="accent-color: #000000; width: 14px; height: 14px; cursor: pointer;">
                       <span>✨ Enhance Video Quality</span>
                     </label>
-                    <span class="badge badge-local-processing" style="font-size: 10px; margin-left: 8px;">60 FPS LOSSLESS</span>
                   </div>
 
                   <div class="player-export-secondary-row" style="display: flex; gap: 6px;">
@@ -1564,7 +1563,7 @@ export class UserDashboard {
 
                   <button class="btn btn-black btn-burn-captions" id="user-btn-burn" style="padding: 10px 22px; font-weight: 700;">
                     <div class="burn-btn-content" style="display: flex; align-items: center; gap: 6px;">
-                      <span>🎬 Burn Captions (60 FPS Export)</span>
+                      <span>🎬 EXPORT</span>
                     </div>
                   </button>
                 </div>
@@ -4347,7 +4346,7 @@ export class UserDashboard {
 
     const defaultBtnHtml = `
       <div class="burn-btn-content">
-        <span>Burn Captions (60 FPS Export)</span>
+        <span>EXPORT</span>
       </div>
     `;
 

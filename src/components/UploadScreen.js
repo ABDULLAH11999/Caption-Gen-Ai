@@ -190,7 +190,7 @@ export class UploadScreen {
                 <button class="btn-export-sub" id="btn-export-srt" title="Download SubRip Subtitles">.SRT</button>
                 <button class="btn-export-sub" id="btn-export-vtt" title="Download WebVTT Subtitles">.VTT</button>
                 <button class="btn-export-video" id="btn-burn-video">
-                  🎥 Burn Captions (Lossless Export)
+                  🎥 EXPORT
                 </button>
               </div>
             </div>
