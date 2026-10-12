@@ -1208,9 +1208,9 @@ export class VideoRenderer {
       // Select highest quality supported container, preferring Safari/iPhone friendly MP4.
       const mimeType = this.getSupportedRecordingMimeType();
 
-      // Keep bitrate proportional to target FPS so 50/60 FPS exports keep their
-      // cadence instead of being aggressively thinned by the recorder.
-      const videoBits = Math.round((isMobile ? 7000000 : 9000000) * Math.max(1, targetFps / 30));
+      // A moderate bitrate leaves the browser encoder enough headroom to retain
+      // frame cadence while remaining visually clean at the capped export size.
+      const videoBits = Math.round((isMobile ? 8000000 : 12000000) * Math.max(0.5, targetFps / 60));
       const recorderOptions = {
         videoBitsPerSecond: videoBits,
         audioBitsPerSecond: 192000
@@ -1268,7 +1268,8 @@ export class VideoRenderer {
       await videoElement.play();
 
       let isExportActive = true;
-      let renderTimer = null;
+      let videoFrameCallbackId = null;
+      let animationFrameId = null;
       let lastRenderedTime = -1;
 
       const finishExport = () => {
@@ -1276,9 +1277,13 @@ export class VideoRenderer {
         this.isRendering = false;
         isExportActive = false;
         videoElement.removeEventListener('ended', finishExport);
-        if (renderTimer) {
-          clearTimeout(renderTimer);
-          renderTimer = null;
+        if (videoFrameCallbackId !== null && typeof videoElement.cancelVideoFrameCallback === 'function') {
+          videoElement.cancelVideoFrameCallback(videoFrameCallbackId);
+          videoFrameCallbackId = null;
+        }
+        if (animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId);
+          animationFrameId = null;
         }
         renderCapturedFrame(Math.min(duration, videoElement.currentTime || duration));
         videoElement.pause();
@@ -1305,24 +1310,40 @@ export class VideoRenderer {
         renderCapturedFrame(curTime);
       };
 
-      const frameIntervalMs = Math.max(8, 1000 / targetFps);
-
-      // Keep a deterministic 60 FPS canvas draw loop while the source video plays.
-      const renderLoop = () => {
-        if (!isExportActive || !this.isRendering) return;
-
-        const curTime = videoElement.currentTime;
-        renderAtTime(curTime);
-
+      const finishIfComplete = (curTime) => {
         if (videoElement.ended || curTime >= duration) {
           finishExport();
-          return;
+          return true;
         }
-
-        renderTimer = setTimeout(renderLoop, frameIntervalMs);
+        return false;
       };
 
-      renderTimer = setTimeout(renderLoop, frameIntervalMs);
+      // Follow decoded source frames directly. Unlike a recursive timeout, this
+      // does not add render cost on top of every 16.7ms frame interval.
+      const renderVideoFrame = (_now, metadata = {}) => {
+        if (!isExportActive || !this.isRendering) return;
+        const mediaTime = Number(metadata.mediaTime);
+        const curTime = Number.isFinite(mediaTime) ? mediaTime : videoElement.currentTime;
+        renderAtTime(curTime);
+        if (finishIfComplete(curTime)) return;
+        videoFrameCallbackId = videoElement.requestVideoFrameCallback(renderVideoFrame);
+      };
+
+      // Older browsers fall back to the display refresh clock, which is still
+      // drift-free because the browser schedules the next frame independently.
+      const renderAnimationFrame = () => {
+        if (!isExportActive || !this.isRendering) return;
+        const curTime = videoElement.currentTime;
+        renderAtTime(curTime);
+        if (finishIfComplete(curTime)) return;
+        animationFrameId = requestAnimationFrame(renderAnimationFrame);
+      };
+
+      if (typeof videoElement.requestVideoFrameCallback === 'function') {
+        videoFrameCallbackId = videoElement.requestVideoFrameCallback(renderVideoFrame);
+      } else {
+        animationFrameId = requestAnimationFrame(renderAnimationFrame);
+      }
 
       const rawBlob = await exportPromise;
 

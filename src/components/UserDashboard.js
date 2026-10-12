@@ -1829,7 +1829,6 @@ export class UserDashboard {
                   <span class="script-option-name">Roman Hindi / Urdu</span>
                   <span class="script-option-tag tag-popular">POPULAR / VIRAL</span>
                 </div>
-                <div class="script-option-desc">Transliterates spoken Urdu and Hindi into natural Latin English alphabets (ideal for Reels, Shorts &amp; TikTok).</div>
                 <div class="script-option-preview">Preview: &ldquo;agar ap isko dekh skte hein toh like karein&rdquo;</div>
               </div>
             </label>
@@ -1843,7 +1842,6 @@ export class UserDashboard {
                     <span class="script-option-name">Native Hindi (हिन्दी)</span>
                   <span class="script-option-tag tag-native">PURE DEVANAGARI</span>
                 </div>
-                <div class="script-option-desc">Pure Devanagari script for Hindi speech. Strictly zero English letters.</div>
                 <div class="script-option-preview">Preview: &ldquo;अगर आप इसको देख सकते हैं तो लाइक करें&rdquo;</div>
               </div>
             </label>
@@ -1857,7 +1855,6 @@ export class UserDashboard {
                     <span class="script-option-name">Native Urdu (اردو)</span>
                   <span class="script-option-tag tag-native">PURE NASTALIQ</span>
                 </div>
-                <div class="script-option-desc">Authentic Nastaliq Urdu script. Strictly zero English letters.</div>
              <div class="script-option-preview">Preview: &ldquo;اگر آپ اس کو دیکھ سکتے ہیں تو لائیک کریں&rdquo;</div>
               </div>
             </label>
@@ -4378,10 +4375,10 @@ export class UserDashboard {
     }
 
     try {
-      const tpl = CAPTION_TEMPLATES.find(t => t.id === this.selectedTemplateId) || CAPTION_TEMPLATES[0];
-      const customConfig = this.userCustomTemplates[tpl.id] || {};
-      const studioConfig = (this.activeConfig && (!this.activeConfig.templateId || this.activeConfig.templateId === tpl.id)) ? this.activeConfig : {};
-      const cfg = { ...tpl.config, ...customConfig, ...studioConfig };
+      const baseConfig = this.getTemplateConfig(this.selectedTemplateId, this.selectedBaseFontSet);
+      const customConfig = this.userCustomTemplates[this.selectedTemplateId] || {};
+      const studioConfig = (this.activeConfig && (!this.activeConfig.templateId || this.activeConfig.templateId === this.selectedTemplateId)) ? this.activeConfig : {};
+      const cfg = { ...baseConfig, ...customConfig, ...studioConfig };
 
       let previewDisplayWidth = Number(this.videoDisplayBounds?.width || 0) || null;
       let previewDisplayHeight = Number(this.videoDisplayBounds?.height || 0) || null;
