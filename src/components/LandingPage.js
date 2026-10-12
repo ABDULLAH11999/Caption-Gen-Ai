@@ -58,7 +58,9 @@ export class LandingPage {
           </div>
 
           <div class="upload-copy-group">
-            <h3 class="upload-main-title">Click to add video or drag &amp; drop here</h3>
+            <h3 class="upload-main-title">Click to Upload or Drag &amp; Drop</h3>
+            <p class="upload-benefit-line">No Upload Required — Works Offline</p>
+            <p class="upload-benefit-line">Supports Native &amp; Roman Languages</p>
           </div>
         </div>
 
@@ -74,7 +76,6 @@ export class LandingPage {
       <!-- 2. BEFORE & AFTER INTERACTIVE COMPARISON SECTION -->
       <section class="section-wrap" id="compare">
         <div class="section-header-center">
-          <span class="badge badge-purple" style="margin-bottom: 12px;">Visual Impact</span>
           <h2 class="section-heading">Retention That Stops The Scroll</h2>
           <p class="section-subheading">See how dynamic dual-font styling, glowing keyword emphasis, and subject rotoscoping skyrocket audience watch time.</p>
         </div>
@@ -181,7 +182,6 @@ export class LandingPage {
       <!-- 3. HOW IT WORKS / ARCHITECTURE SECTION -->
       <section class="section-wrap" id="how-it-works">
         <div class="section-header-center">
-          <span class="badge badge-purple" style="margin-bottom: 12px;">Architecture</span>
           <h2 class="section-heading">How Zen Captions Powers Viral Retention</h2>
           <p class="section-subheading">A modern client-edge AI engine designed to keep viewers hooked from the very first frame.</p>
         </div>
@@ -256,11 +256,6 @@ export class LandingPage {
         <div class="presets-split-container">
           <!-- LEFT SIDE: Creator Presets Headline, Description, Perks, & Studio Trigger -->
           <div class="presets-split-left">
-            <div class="presets-badge-row">
-              <span class="badge badge-purple">✨ Preset Library</span>
-              <span class="presets-count-badge">Studio Presets</span>
-            </div>
-
             <h2 class="presets-split-heading">Ready-Made Creator Presets &amp; Customizable Styles</h2>
             
             <p class="presets-split-subheading">
@@ -328,7 +323,6 @@ export class LandingPage {
       <!-- 5. FAQ ACCORDION SECTION -->
       <section class="section-wrap" id="faq">
         <div class="section-header-center">
-          <span class="badge badge-purple" style="margin-bottom: 12px;">Frequently Asked Questions</span>
           <h2 class="section-heading">Everything About Zen Caption Tool</h2>
           <p class="section-subheading">Common questions about the 100% free AI video caption generator and subtitle maker.</p>
         </div>
@@ -423,7 +417,6 @@ export class LandingPage {
       <!-- 6. PRICING & PLANS SECTION -->
       <section class="section-wrap" id="pricing">
         <div class="section-header-center">
-          <span class="badge badge-purple" style="margin-bottom: 12px;">Flexible Plans</span>
           <h2 class="section-heading">Transparent Pricing for Every Creator</h2>
           <p class="section-subheading">Start free immediately with no credit card required. Upgrade anytime for higher quotas.</p>
         </div>
