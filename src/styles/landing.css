@@ -622,6 +622,10 @@
   margin-bottom: 12px;
 }
 
+.section-accent-word {
+  color: #ff5533;
+}
+
 .section-subheading {
   font-size: 15.5px;
   color: #64748b;

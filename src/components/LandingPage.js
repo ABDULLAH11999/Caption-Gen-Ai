@@ -76,7 +76,7 @@ export class LandingPage {
       <!-- 2. BEFORE & AFTER INTERACTIVE COMPARISON SECTION -->
       <section class="section-wrap" id="compare">
         <div class="section-header-center">
-          <h2 class="section-heading">Retention That Stops The Scroll</h2>
+          <h2 class="section-heading">Retention That <span class="section-accent-word">Stops</span> The Scroll</h2>
           <p class="section-subheading">See how dynamic dual-font styling, glowing keyword emphasis, and subject rotoscoping skyrocket audience watch time.</p>
         </div>
 
@@ -182,7 +182,7 @@ export class LandingPage {
       <!-- 3. HOW IT WORKS / ARCHITECTURE SECTION -->
       <section class="section-wrap" id="how-it-works">
         <div class="section-header-center">
-          <h2 class="section-heading">How Zen Captions Powers Viral Retention</h2>
+          <h2 class="section-heading">How <span class="section-accent-word">Zen Captions</span> Powers Viral Retention</h2>
           <p class="section-subheading">A modern client-edge AI engine designed to keep viewers hooked from the very first frame.</p>
         </div>
 
@@ -256,7 +256,7 @@ export class LandingPage {
         <div class="presets-split-container">
           <!-- LEFT SIDE: Creator Presets Headline, Description, Perks, & Studio Trigger -->
           <div class="presets-split-left">
-            <h2 class="presets-split-heading">Ready-Made Creator Presets &amp; Customizable Styles</h2>
+            <h2 class="presets-split-heading">Ready-Made Creator Presets &amp; <span class="section-accent-word">Customizable</span> Styles</h2>
             
             <p class="presets-split-subheading">
               A 100% free captions generator customizable for TikTok, YouTube Shorts, Real Estate, and Instagram Reels. Choose between Subtitle, Subtitle Fancy, Real Estate, and Real Estate Fancy presets with built-in typography sets.
@@ -323,7 +323,7 @@ export class LandingPage {
       <!-- 5. FAQ ACCORDION SECTION -->
       <section class="section-wrap" id="faq">
         <div class="section-header-center">
-          <h2 class="section-heading">Everything About Zen Caption Tool</h2>
+          <h2 class="section-heading">Everything About <span class="section-accent-word">Zen Caption</span> Tool</h2>
           <p class="section-subheading">Common questions about the 100% free AI video caption generator and subtitle maker.</p>
         </div>
 
@@ -417,7 +417,7 @@ export class LandingPage {
       <!-- 6. PRICING & PLANS SECTION -->
       <section class="section-wrap" id="pricing">
         <div class="section-header-center">
-          <h2 class="section-heading">Transparent Pricing for Every Creator</h2>
+          <h2 class="section-heading">Transparent <span class="section-accent-word">Pricing</span> for Every Creator</h2>
           <p class="section-subheading">Start free immediately with no credit card required. Upgrade anytime for higher quotas.</p>
         </div>
 
