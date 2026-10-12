@@ -78,6 +78,22 @@ const BASE_FONT_SETS = {
   }
 };
 
+const toColorInputValue = (color, fallback = '#000000') => {
+  const value = String(color || '').trim();
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value;
+  if (/^#[0-9a-f]{3}$/i.test(value)) {
+    return `#${value.slice(1).split('').map(char => `${char}${char}`).join('')}`;
+  }
+
+  const rgb = value.match(/^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)/i);
+  if (!rgb) return fallback;
+
+  return `#${rgb.slice(1, 4).map(channel => {
+    const normalized = Math.max(0, Math.min(255, Math.round(Number(channel))));
+    return normalized.toString(16).padStart(2, '0');
+  }).join('')}`;
+};
+
 export class UserDashboard {
   constructor(options = {}) {
     this.navigate = options.navigate || (() => {});
@@ -3094,6 +3110,8 @@ export class UserDashboard {
       const curUnderline = !!s.underline;
       const curStrokeColor = s.strokeColor || cfg.prominentOutlineColor || '#000000';
       const labelBoxEnabled = !!s.labelBoxEnabled;
+      const curLabelBoxColor = s.labelBoxColor || 'rgba(0,0,0,0.38)';
+      const curLabelBoxPickerColor = toColorInputValue(curLabelBoxColor);
       const hasGlow = s.glowColor && s.glowColor !== 'transparent' && s.glowColor !== '';
       const curGlowColor = s.savedGlowColor || (hasGlow ? s.glowColor : (cfg.glowColor || '#FFE600'));
       const curAnim = s.animation || cfg.animation || 'anim-auto';
@@ -3211,6 +3229,10 @@ export class UserDashboard {
                 <label class="effect-chk-label">
                   <input type="checkbox" class="chk-seg-label-box" data-idx="${idx}" ${labelBoxEnabled ? 'checked' : ''}>
                   <span class="effect-label">Box</span>
+                </label>
+                <label class="color-swatch-wrap seg-label-box-color-wrap" title="Caption box color" style="${labelBoxEnabled ? '' : 'display: none;'}">
+                  <input type="color" class="hidden-color-input seg-label-box-color-picker" data-idx="${idx}" value="${curLabelBoxPickerColor}" ${!labelBoxEnabled ? 'disabled' : ''}>
+                  <span class="color-swatch-circle" id="label-box-swatch-${idx}" style="background-color: ${curLabelBoxColor};"></span>
                 </label>
               </div>
 
@@ -3490,15 +3512,28 @@ export class UserDashboard {
       strokeColorPicker?.addEventListener('change', onStrokeColor);
 
       const chkLabelBox = item.querySelector('.chk-seg-label-box');
+      const labelBoxColorPicker = item.querySelector('.seg-label-box-color-picker');
+      const labelBoxSwatch = item.querySelector(`#label-box-swatch-${idx}`);
+      const labelBoxColorWrap = item.querySelector('.seg-label-box-color-wrap');
       chkLabelBox?.addEventListener('change', (e) => {
         s.labelBoxEnabled = e.target.checked;
         if (s.labelBoxEnabled) {
           s.labelBoxColor = s.labelBoxColor || 'rgba(0,0,0,0.38)';
           s.labelBoxRadius = s.labelBoxRadius ?? 14;
         }
+        if (labelBoxColorPicker) labelBoxColorPicker.disabled = !s.labelBoxEnabled;
+        if (labelBoxColorWrap) labelBoxColorWrap.style.display = s.labelBoxEnabled ? 'inline-block' : 'none';
         soundFx.playKeyBeep(s.labelBoxEnabled ? 620 : 440);
         syncActiveSegment();
       });
+
+      const onLabelBoxColor = (e) => {
+        s.labelBoxColor = e.target.value;
+        if (labelBoxSwatch) labelBoxSwatch.style.backgroundColor = e.target.value;
+        syncActiveSegment();
+      };
+      labelBoxColorPicker?.addEventListener('input', onLabelBoxColor);
+      labelBoxColorPicker?.addEventListener('change', onLabelBoxColor);
 
       // 6. Glow Controls (Image 3 Style)
       const chkGlow = item.querySelector('.chk-seg-glow');
