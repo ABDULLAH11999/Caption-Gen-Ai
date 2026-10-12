@@ -58,7 +58,7 @@ export class LandingPage {
           </div>
 
           <div class="upload-copy-group">
-            <h3 class="upload-main-title">Click to Upload or Drag &amp; Drop</h3>
+            <h3 class="upload-main-title">Click to Upload <br> or Drag &amp; Drop</h3>
             <p class="upload-benefit-line">No Upload Required — Works Offline</p>
             <p class="upload-benefit-line">Supports Native &amp; Roman Languages</p>
           </div>
