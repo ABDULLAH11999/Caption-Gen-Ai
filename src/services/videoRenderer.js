@@ -492,6 +492,14 @@ export class VideoRenderer {
 
     const strokeEnabled = sentence.strokeEnabled !== false;
     const customStrokeColor = sentence.strokeColor;
+    const resolveStrokeWidth = (configuredWidth, fallbackWidth) => {
+      const templateWidth = configuredWidth !== undefined ? (Number(configuredWidth) || 0) : fallbackWidth;
+      return sentence.strokeEnabled === true ? Math.max(fallbackWidth, templateWidth) : templateWidth;
+    };
+    const resolveStrokeColor = (configuredColor) => {
+      const color = customStrokeColor || configuredColor || '#000000';
+      return sentence.strokeEnabled === true && color === 'transparent' ? '#000000' : color;
+    };
     const labelBoxEnabled = !!sentence.labelBoxEnabled;
     const labelBoxColor = sentence.labelBoxColor || 'rgba(0,0,0,0.38)';
     const labelBoxRadius = Math.max(0, Number(sentence.labelBoxRadius ?? 14) || 14);
@@ -531,11 +539,11 @@ export class VideoRenderer {
       const fontStyle = forceItalic ? 'italic' : 'normal';
       const strokeWidth = strokeEnabled
         ? ((isProminent
-            ? (config.prominentOutlineWidth !== undefined ? config.prominentOutlineWidth : 2.5)
-            : (config.normalOutlineWidth !== undefined ? config.normalOutlineWidth : 1.5)) * scale)
+            ? resolveStrokeWidth(config.prominentOutlineWidth, 2.5)
+            : resolveStrokeWidth(config.normalOutlineWidth, 1.5)) * scale)
         : 0;
       const strokeColor = strokeEnabled
-        ? (customStrokeColor || (isProminent ? (config.prominentOutlineColor || '#000000') : (config.normalOutlineColor || '#000000')))
+        ? resolveStrokeColor(isProminent ? config.prominentOutlineColor : config.normalOutlineColor)
         : 'transparent';
 
       const wordScale = isRealEstate ? 1.0 : (isSpeaking ? 1.15 : 1.0);

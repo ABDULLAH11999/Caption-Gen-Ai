@@ -2700,6 +2700,14 @@ export class UserDashboard {
     const lastWordColor = hasLastWordColor ? cfg.lastWordColor : prominentColor;
     const strokeEnabled = currentSentence.strokeEnabled !== false;
     const customStrokeColor = currentSentence.strokeColor;
+    const resolveStrokeWidth = (configuredWidth, fallbackWidth) => {
+      const templateWidth = configuredWidth !== undefined ? (Number(configuredWidth) || 0) : fallbackWidth;
+      return currentSentence.strokeEnabled === true ? Math.max(fallbackWidth, templateWidth) : templateWidth;
+    };
+    const resolveStrokeColor = (configuredColor) => {
+      const color = customStrokeColor || configuredColor || '#000000';
+      return currentSentence.strokeEnabled === true && color === 'transparent' ? '#000000' : color;
+    };
     const hasGlow = currentSentence.glowColor && currentSentence.glowColor !== 'transparent' && currentSentence.glowColor !== '';
     const glowColor = hasGlow ? currentSentence.glowColor : null;
     const glowStyles = glowColor
@@ -2718,10 +2726,10 @@ export class UserDashboard {
       : '';
 
     const strokeWidth = strokeEnabled
-      ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.0)
+      ? resolveStrokeWidth(cfg.prominentOutlineWidth, 2.0)
       : 0;
     const strokeColor = strokeEnabled
-      ? (customStrokeColor || (cfg.prominentOutlineColor || '#000000'))
+      ? resolveStrokeColor(cfg.prominentOutlineColor)
       : 'transparent';
 
     const sStart = Number(currentSentence.start ?? currentSentence.startTime ?? 0);
@@ -2919,10 +2927,12 @@ export class UserDashboard {
       const fontStyle = forceItalic ? 'italic' : 'normal';
       const textDecoration = forceUnderline ? 'text-decoration:underline;text-underline-offset:.12em;text-decoration-thickness:.08em;' : 'text-decoration:none;';
       const strokeW = strokeEnabled
-        ? (isProminent ? (cfg.prominentOutlineWidth !== undefined ? cfg.prominentOutlineWidth : 2.5) : (cfg.normalOutlineWidth !== undefined ? cfg.normalOutlineWidth : 1.5))
+        ? (isProminent
+            ? resolveStrokeWidth(cfg.prominentOutlineWidth, 2.5)
+            : resolveStrokeWidth(cfg.normalOutlineWidth, 1.5))
         : 0;
       const strokeC = strokeEnabled
-        ? (customStrokeColor || (isProminent ? (cfg.prominentOutlineColor || '#000000') : (cfg.normalOutlineColor || '#000000')))
+        ? resolveStrokeColor(isProminent ? cfg.prominentOutlineColor : cfg.normalOutlineColor)
         : 'transparent';
 
       const wordScale = isSpeaking ? 'scale(1.12)' : 'scale(1)';
@@ -3107,7 +3117,8 @@ export class UserDashboard {
       const curBold = s.bold !== undefined ? !!s.bold : !!curFontMeta.defaultBold;
       const curItalic = s.italic !== undefined ? !!s.italic : !!curFontMeta.defaultItalic;
       const curUnderline = !!s.underline;
-      const curStrokeColor = s.strokeColor || cfg.prominentOutlineColor || '#000000';
+      const configuredStrokeColor = s.strokeColor || cfg.prominentOutlineColor;
+      const curStrokeColor = configuredStrokeColor && configuredStrokeColor !== 'transparent' ? configuredStrokeColor : '#000000';
       const labelBoxEnabled = !!s.labelBoxEnabled;
       const curLabelBoxColor = s.labelBoxColor || 'rgba(0,0,0,0.38)';
       const curLabelBoxPickerColor = toColorInputValue(curLabelBoxColor);
@@ -3496,6 +3507,10 @@ export class UserDashboard {
 
       chkStroke?.addEventListener('change', (e) => {
         s.strokeEnabled = e.target.checked;
+        if (s.strokeEnabled && (!s.strokeColor || s.strokeColor === 'transparent')) {
+          s.strokeColor = strokeColorPicker?.value || '#000000';
+          if (strokeSwatch) strokeSwatch.style.backgroundColor = s.strokeColor;
+        }
         if (strokeColorPicker) strokeColorPicker.disabled = !s.strokeEnabled;
         if (strokeWrap) strokeWrap.classList.toggle('is-disabled', !s.strokeEnabled);
         soundFx.playKeyBeep(s.strokeEnabled ? 620 : 440);

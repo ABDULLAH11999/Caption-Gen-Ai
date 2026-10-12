@@ -566,12 +566,12 @@ body.app-shell-locked {
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.95);
 }
 
-/* Real Estate Preview: Middle Left Words */
+/* Real Estate Preview: Lower Left Words */
 .template-preview-real-body {
   position: absolute;
   left: 12px;
   right: auto;
-  top: 48%;
+  top: 68%;
   bottom: auto;
   transform: translateY(-50%);
   display: flex;
