@@ -939,6 +939,14 @@ export class UserDashboard {
             <span class="style-preset-label">Active:</span>
             <strong>${activeTpl.name}</strong>
           </div>
+          <button type="button" class="templates-workspace-btn" id="btn-templates-apply-shortcut" aria-label="Open video upload workspace">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            Workspace
+          </button>
         </div>
       </header>
 
@@ -954,7 +962,7 @@ export class UserDashboard {
 
     parent.appendChild(wrap);
     wrap.querySelector('#btn-templates-apply-shortcut')?.addEventListener('click', () => {
-      this.selectTemplate(this.selectedTemplateId, true);
+      this.switchTab('apply');
     });
     const grid = wrap.querySelector('#simple-template-grid');
     DASHBOARD_TEMPLATE_OPTIONS.forEach(tpl => grid.appendChild(this.renderTemplateOptionCard(tpl)));
