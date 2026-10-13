@@ -110,7 +110,7 @@ export class LandingPage {
               <!-- Dummy Media Frame -->
               <div class="compare-screen-frame">
                 <button type="button" class="compare-video-button" aria-label="Play raw footage before video" style="background-image: url('/raw-poster.jpg');">
-                  <video class="compare-demo-video" src="/RawVideo.webm?v=20260929_24#t=0.001" poster="/raw-poster.jpg" preload="metadata" muted loop playsinline webkit-playsinline></video>
+                  <video class="compare-demo-video" src="/RawVideo.webm?v=20260929_24#t=0.001" poster="/raw-poster.jpg" width="1080" height="1920" preload="metadata" muted loop playsinline webkit-playsinline></video>
                   <span class="compare-video-overlay">
                     <span class="compare-video-play-icon"></span>
                   </span>
@@ -144,7 +144,7 @@ export class LandingPage {
               <!-- Dummy Media Frame with Live Kinetic Overlay -->
               <div class="compare-screen-frame">
                 <button type="button" class="compare-video-button" aria-label="Play Zen Captions AI after video" style="background-image: url('/captioned-poster.jpg');">
-                  <video class="compare-demo-video" src="/ZenCaptioned.webm?v=20260929_24#t=0.001" poster="/captioned-poster.jpg" preload="metadata" muted loop playsinline webkit-playsinline></video>
+                  <video class="compare-demo-video" src="/ZenCaptioned.webm?v=20260929_24#t=0.001" poster="/captioned-poster.jpg" width="720" height="1280" preload="metadata" muted loop playsinline webkit-playsinline></video>
                   <span class="compare-video-overlay">
                     <span class="compare-video-play-icon"></span>
                   </span>
