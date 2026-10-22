@@ -2,6 +2,7 @@ import { APP_CONFIG } from '../config.js';
 import { speechTranscriber } from '../services/speechTranscriber.js';
 
 const MAX_AUDIO_DURATION_SECONDS = 120 * 60;
+const MAX_GROQ_UPLOAD_BYTES = 100 * 1024 * 1024;
 // Some download tools save normal MP3 audio with an extra `.mpeg` extension
 // (for example, `song.mp3.mpeg`). Treat those files as supported audio.
 const AUDIO_EXTENSIONS = /\.(mp3|mp2|mpga|mpeg|wav|m4a|aac|ogg|oga|flac|webm)$/i;
@@ -207,18 +208,25 @@ export class Mp3ToSrtPage {
     const hintedFile = new File([file], `${language.hint}-srt${extension}`, { type: file.type, lastModified: file.lastModified });
 
     try {
-      const options = this.selectedLanguage === 'en'
-        ? { scriptMode: 'english', languagePreference: 'en', failOnTranslationError: true }
-        : {
-            scriptMode: 'native',
-            languagePreference: language.hint,
-            // Keep native Hindi/Urdu text produced by local Whisper if the
-            // optional Gemini service is offline or its key is unavailable.
-            preserveTranscriptionLanguage: true
-          };
-      const sentences = await speechTranscriber.transcribeAudio(hintedFile, progress => {
-        this.setProgress(progress?.percent, progress?.message || 'Transcribing audio…');
-      }, options);
+      let sentences;
+      try {
+        this.setProgress(8, 'Sending audio to fast transcription…');
+        sentences = await this.transcribeWithGroq(file, this.selectedLanguage);
+        this.setProgress(96, 'Creating timestamped SRT…');
+      } catch (groqError) {
+        console.warn('[MP3 to SRT] Fast transcription unavailable; using local Whisper:', groqError.message);
+        this.setProgress(12, 'Fast service unavailable. Switching to local transcription…');
+        const options = this.selectedLanguage === 'en'
+          ? { scriptMode: 'english', languagePreference: 'en', failOnTranslationError: true }
+          : {
+              scriptMode: 'native',
+              languagePreference: language.hint,
+              preserveTranscriptionLanguage: true
+            };
+        sentences = await speechTranscriber.transcribeAudio(hintedFile, progress => {
+          this.setProgress(progress?.percent, progress?.message || 'Transcribing audio…');
+        }, options);
+      }
       const srt = createSrt(sentences);
       if (!srt) throw new Error('No spoken words were detected in this audio. Please try a clearer recording.');
       this.srtText = srt;
@@ -231,6 +239,21 @@ export class Mp3ToSrtPage {
     } finally {
       this.isProcessing = false;
     }
+  }
+
+  async transcribeWithGroq(file, language) {
+    if (file.size > MAX_GROQ_UPLOAD_BYTES) {
+      throw new Error('This file is larger than the fast-transcription limit.');
+    }
+    const data = new FormData();
+    data.append('audio', file, file.name);
+    data.append('language', language);
+    const response = await fetch('/api/ai/transcribe-groq', { method: 'POST', body: data });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result?.success || !Array.isArray(result.sentences)) {
+      throw new Error(result?.error || 'Fast transcription could not be completed.');
+    }
+    return result.sentences;
   }
 
   setProgress(percent = 0, message = 'Processing…') {

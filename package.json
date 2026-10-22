@@ -19,6 +19,7 @@
     "dotenv": "^18.0.1",
     "express": "^5.2.1",
     "fix-webm-duration": "^1.0.6",
+    "multer": "^2.0.2",
     "nodemailer": "^10.0.10",
     "pg": "^8.23.0"
   }

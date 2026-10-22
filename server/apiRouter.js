@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import crypto from 'node:crypto';
 import { query, hashPassword } from './db.js';
 import { 
@@ -120,6 +121,17 @@ export const quotaConsumeLimiter = new RateLimiter({
   windowMs: 60 * 1000,
   maxRequests: 15,
   message: 'Video export rate limit reached. Please wait a moment.'
+});
+
+const groqTranscriptionLimiter = new RateLimiter({
+  windowMs: 60 * 1000,
+  maxRequests: 8,
+  message: 'Too many transcription requests. Please wait a minute and try again.'
+});
+
+const groqAudioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024, files: 1 }
 });
 
 // Mount global limiter
@@ -1387,6 +1399,80 @@ apiRouter.get('/admin/database/export', requireAdmin, async (req, res) => {
 // ----------------------------------------------------------------------------
 // GEMINI AI TRANSCRIPT TRANSLATION & TRANSLITERATION API
 // ----------------------------------------------------------------------------
+// Groq Whisper is the fast primary transcription path for the MP3-to-SRT tool.
+// The browser only sends audio to this same-origin endpoint; the API key stays
+// in Render's private GROQ_API_KEY environment variable.
+apiRouter.post('/ai/transcribe-groq', groqTranscriptionLimiter.middleware(), (req, res, next) => {
+  groqAudioUpload.single('audio')(req, res, (uploadErr) => {
+    if (uploadErr) {
+      const message = uploadErr.code === 'LIMIT_FILE_SIZE'
+        ? 'Fast cloud transcription supports files up to 100 MB. This file can be processed locally instead.'
+        : 'Audio upload could not be read.';
+      return res.status(413).json({ error: message });
+    }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return res.status(503).json({ error: 'Fast transcription is temporarily unavailable.' });
+    }
+
+    const audio = req.file;
+    const language = String(req.body?.language || '').toLowerCase();
+    if (!audio?.buffer?.length) {
+      return res.status(400).json({ error: 'Audio file is required.' });
+    }
+    if (!['en', 'hi', 'ur'].includes(language)) {
+      return res.status(400).json({ error: 'Choose English, Hindi, or Urdu before uploading.' });
+    }
+
+    const safeName = String(audio.originalname || 'audio.mpeg').replace(/[\r\n"]/g, '_');
+    const audioFile = new Blob([audio.buffer], {
+      type: audio.mimetype || 'audio/mpeg'
+    });
+    const body = new FormData();
+    body.append('file', audioFile, safeName);
+    body.append('model', 'whisper-large-v3-turbo');
+    body.append('language', language);
+    body.append('response_format', 'verbose_json');
+    body.append('timestamp_granularities[]', 'segment');
+    body.append('temperature', '0');
+
+    const groqResponse = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body,
+      signal: AbortSignal.timeout(120000)
+    });
+    const payload = await groqResponse.json().catch(() => ({}));
+    if (!groqResponse.ok) {
+      console.warn('[Groq transcription] request failed:', groqResponse.status, payload?.error?.message || payload?.error || 'Unknown error');
+      return res.status(groqResponse.status >= 400 && groqResponse.status < 500 ? groqResponse.status : 502)
+        .json({ error: 'Fast transcription is temporarily unavailable. Switching to local processing.' });
+    }
+
+    const segments = Array.isArray(payload?.segments) ? payload.segments : [];
+    const sentences = segments
+      .map((segment, index) => ({
+        id: `groq_${index + 1}`,
+        startTime: Number(segment?.start),
+        endTime: Number(segment?.end),
+        text: String(segment?.text || '').trim()
+      }))
+      .filter(segment => segment.text && Number.isFinite(segment.startTime) && Number.isFinite(segment.endTime));
+
+    if (!sentences.length) {
+      return res.status(422).json({ error: 'No timestamped speech was detected in this audio.' });
+    }
+    return res.json({ success: true, provider: 'groq', sentences });
+  } catch (err) {
+    console.warn('[Groq transcription] failed:', err?.message || err);
+    return res.status(502).json({ error: 'Fast transcription is temporarily unavailable. Switching to local processing.' });
+  }
+});
+
 apiRouter.post('/ai/translate-transcript', async (req, res) => {
   try {
     const { sentences, scriptMode = 'roman', languagePreference = 'auto', apiKey } = req.body || {};
