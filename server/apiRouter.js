@@ -1,6 +1,11 @@
 import express from 'express';
 import multer from 'multer';
 import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { spawn } from 'node:child_process';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { query, hashPassword } from './db.js';
 import { 
   sendEmail, 
@@ -129,10 +134,117 @@ const groqTranscriptionLimiter = new RateLimiter({
   message: 'Too many transcription requests. Please wait a minute and try again.'
 });
 
+const MP3_TO_SRT_MAX_FILE_SIZE_MB = Math.max(
+  1,
+  Number(process.env.MP3_SRT_MAX_FILE_SIZE_MB || process.env.VITE_MAX_FILE_SIZE_MB || 500) || 500
+);
+const MP3_TO_SRT_MAX_FILE_SIZE_BYTES = MP3_TO_SRT_MAX_FILE_SIZE_MB * 1024 * 1024;
+const GROQ_CHUNK_DURATION_SECONDS = 120;
+
 const groqAudioUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024, files: 1 }
+  storage: multer.diskStorage({
+    destination: os.tmpdir(),
+    filename: (req, file, callback) => {
+      const extension = path.extname(file.originalname || '') || '.audio';
+      callback(null, `zen-srt-upload-${crypto.randomUUID()}${extension}`);
+    }
+  }),
+  limits: { fileSize: MP3_TO_SRT_MAX_FILE_SIZE_BYTES, files: 1 }
 });
+
+const runFfmpeg = (args, timeoutMs = 120000) => new Promise((resolve, reject) => {
+  const child = spawn(ffmpegInstaller.path, args, { windowsHide: true });
+  let stderr = '';
+  const timeout = setTimeout(() => {
+    child.kill('SIGKILL');
+    reject(new Error('Audio preparation timed out.'));
+  }, timeoutMs);
+
+  child.stderr.on('data', chunk => { stderr += String(chunk); });
+  child.once('error', error => {
+    clearTimeout(timeout);
+    reject(error);
+  });
+  child.once('close', code => {
+    clearTimeout(timeout);
+    if (code === 0) return resolve();
+    reject(new Error(`Audio preparation failed${stderr ? `: ${stderr.slice(-400)}` : ''}`));
+  });
+});
+
+async function createGroqAudioChunks(inputPath) {
+  const outputDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'zen-srt-chunks-'));
+  const outputPattern = path.join(outputDirectory, 'chunk-%03d.mp3');
+  try {
+    await runFfmpeg([
+      '-hide_banner', '-loglevel', 'error', '-y', '-i', inputPath,
+      '-vn', '-map', '0:a:0?', '-ar', '16000', '-ac', '1', '-b:a', '48k',
+      '-f', 'segment', '-segment_time', String(GROQ_CHUNK_DURATION_SECONDS),
+      '-reset_timestamps', '1', outputPattern
+    ]);
+    const chunks = (await fs.readdir(outputDirectory))
+      .filter(file => /^chunk-\d+\.mp3$/i.test(file))
+      .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }))
+      .map(file => path.join(outputDirectory, file));
+    if (!chunks.length) throw new Error('No audio track could be prepared.');
+    return { outputDirectory, chunks };
+  } catch (error) {
+    await fs.rm(outputDirectory, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+async function transcribeGroqChunk({ filePath, fileName, language, offsetSeconds }) {
+  const apiKey = process.env.GROQ_API_KEY;
+  const data = await fs.readFile(filePath);
+  const body = new FormData();
+  body.append('file', new Blob([data], { type: 'audio/mpeg' }), fileName);
+  body.append('model', 'whisper-large-v3-turbo');
+  body.append('language', language);
+  body.append('response_format', 'verbose_json');
+  body.append('timestamp_granularities[]', 'segment');
+  body.append('temperature', '0');
+
+  const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body,
+    signal: AbortSignal.timeout(120000)
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`Groq request failed (${response.status}): ${payload?.error?.message || payload?.error || 'Unknown error'}`);
+  }
+
+  return (Array.isArray(payload?.segments) ? payload.segments : [])
+    .map(segment => ({
+      startTime: Number(segment?.start) + offsetSeconds,
+      endTime: Number(segment?.end) + offsetSeconds,
+      text: String(segment?.text || '').trim()
+    }))
+    .filter(segment => segment.text && Number.isFinite(segment.startTime) && Number.isFinite(segment.endTime));
+}
+
+async function transcribeGroqChunks(chunks, originalName, language) {
+  const results = new Array(chunks.length);
+  let nextChunkIndex = 0;
+  const workerCount = Math.min(3, chunks.length);
+
+  const runWorker = async () => {
+    while (nextChunkIndex < chunks.length) {
+      const index = nextChunkIndex++;
+      results[index] = await transcribeGroqChunk({
+        filePath: chunks[index],
+        fileName: `${path.parse(originalName || 'audio').name}-part-${index + 1}.mp3`,
+        language,
+        offsetSeconds: index * GROQ_CHUNK_DURATION_SECONDS
+      });
+    }
+  };
+
+  await Promise.all(Array.from({ length: workerCount }, runWorker));
+  return results.flat();
+}
 
 // Mount global limiter
 apiRouter.use(globalApiLimiter.middleware());
@@ -1406,13 +1518,15 @@ apiRouter.post('/ai/transcribe-groq', groqTranscriptionLimiter.middleware(), (re
   groqAudioUpload.single('audio')(req, res, (uploadErr) => {
     if (uploadErr) {
       const message = uploadErr.code === 'LIMIT_FILE_SIZE'
-        ? 'Fast cloud transcription supports files up to 100 MB. This file can be processed locally instead.'
+        ? `Audio files must be ${MP3_TO_SRT_MAX_FILE_SIZE_MB} MB or smaller.`
         : 'Audio upload could not be read.';
       return res.status(413).json({ error: message });
     }
     next();
   });
 }, async (req, res) => {
+  let outputDirectory = null;
+  const uploadedPath = req.file?.path;
   try {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
@@ -1421,55 +1535,30 @@ apiRouter.post('/ai/transcribe-groq', groqTranscriptionLimiter.middleware(), (re
 
     const audio = req.file;
     const language = String(req.body?.language || '').toLowerCase();
-    if (!audio?.buffer?.length) {
+    if (!audio?.path) {
       return res.status(400).json({ error: 'Audio file is required.' });
     }
     if (!['en', 'hi', 'ur'].includes(language)) {
       return res.status(400).json({ error: 'Choose English, Hindi, or Urdu before uploading.' });
     }
 
-    const safeName = String(audio.originalname || 'audio.mpeg').replace(/[\r\n"]/g, '_');
-    const audioFile = new Blob([audio.buffer], {
-      type: audio.mimetype || 'audio/mpeg'
-    });
-    const body = new FormData();
-    body.append('file', audioFile, safeName);
-    body.append('model', 'whisper-large-v3-turbo');
-    body.append('language', language);
-    body.append('response_format', 'verbose_json');
-    body.append('timestamp_granularities[]', 'segment');
-    body.append('temperature', '0');
-
-    const groqResponse = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body,
-      signal: AbortSignal.timeout(120000)
-    });
-    const payload = await groqResponse.json().catch(() => ({}));
-    if (!groqResponse.ok) {
-      console.warn('[Groq transcription] request failed:', groqResponse.status, payload?.error?.message || payload?.error || 'Unknown error');
-      return res.status(groqResponse.status >= 400 && groqResponse.status < 500 ? groqResponse.status : 502)
-        .json({ error: 'Fast transcription is temporarily unavailable. Switching to local processing.' });
-    }
-
-    const segments = Array.isArray(payload?.segments) ? payload.segments : [];
-    const sentences = segments
-      .map((segment, index) => ({
-        id: `groq_${index + 1}`,
-        startTime: Number(segment?.start),
-        endTime: Number(segment?.end),
-        text: String(segment?.text || '').trim()
-      }))
-      .filter(segment => segment.text && Number.isFinite(segment.startTime) && Number.isFinite(segment.endTime));
+    const chunkResult = await createGroqAudioChunks(audio.path);
+    outputDirectory = chunkResult.outputDirectory;
+    const chunkTranscripts = await transcribeGroqChunks(chunkResult.chunks, audio.originalname, language);
+    const sentences = chunkTranscripts
+      .sort((left, right) => left.startTime - right.startTime)
+      .map((segment, index) => ({ ...segment, id: `groq_${index + 1}` }));
 
     if (!sentences.length) {
       return res.status(422).json({ error: 'No timestamped speech was detected in this audio.' });
     }
-    return res.json({ success: true, provider: 'groq', sentences });
+    return res.json({ success: true, provider: 'groq-chunked', sentences });
   } catch (err) {
     console.warn('[Groq transcription] failed:', err?.message || err);
     return res.status(502).json({ error: 'Fast transcription is temporarily unavailable. Switching to local processing.' });
+  } finally {
+    if (outputDirectory) await fs.rm(outputDirectory, { recursive: true, force: true }).catch(() => {});
+    if (uploadedPath) await fs.rm(uploadedPath, { force: true }).catch(() => {});
   }
 });
 
