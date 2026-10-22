@@ -1310,7 +1310,7 @@ class SpeechTranscriberService {
       const targetModelId = this.getModelIdForFile(fileBlob);
       const languageHintType = this.getLanguageHintType(fileBlob);
 
-      if (languageHintType === 'south_asian') {
+      if (languageHintType === 'south_asian' && !options?.skipGeminiTranscription) {
         try {
           const geminiSentences = await geminiTranslationService.transcribeAudioWithGemini(
             rawPcm,

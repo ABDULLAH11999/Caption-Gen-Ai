@@ -3,6 +3,7 @@ import { speechTranscriber } from '../services/speechTranscriber.js';
 
 const MAX_AUDIO_DURATION_SECONDS = 120 * 60;
 const MAX_GROQ_UPLOAD_BYTES = 100 * 1024 * 1024;
+const GROQ_TRANSCRIPTION_ENABLED = import.meta.env?.VITE_GROQ_TRANSCRIPTION_ENABLED === 'true';
 // Some download tools save normal MP3 audio with an extra `.mpeg` extension
 // (for example, `song.mp3.mpeg`). Treat those files as supported audio.
 const AUDIO_EXTENSIONS = /\.(mp3|mp2|mpga|mpeg|wav|m4a|aac|ogg|oga|flac|webm)$/i;
@@ -210,18 +211,29 @@ export class Mp3ToSrtPage {
     try {
       let sentences;
       try {
+        if (!GROQ_TRANSCRIPTION_ENABLED) throw new Error('Fast cloud transcription is not enabled for this deployment.');
         this.setProgress(8, 'Sending audio to fast transcription…');
         sentences = await this.transcribeWithGroq(file, this.selectedLanguage);
         this.setProgress(96, 'Creating timestamped SRT…');
       } catch (groqError) {
-        console.warn('[MP3 to SRT] Fast transcription unavailable; using local Whisper:', groqError.message);
-        this.setProgress(12, 'Fast service unavailable. Switching to local transcription…');
+        if (GROQ_TRANSCRIPTION_ENABLED) {
+          console.warn('[MP3 to SRT] Fast transcription unavailable; using local Whisper:', groqError.message);
+        }
+        this.setProgress(
+          12,
+          GROQ_TRANSCRIPTION_ENABLED
+            ? 'Fast service unavailable. Switching to on-device transcription…'
+            : 'Using on-device transcription…'
+        );
         const options = this.selectedLanguage === 'en'
           ? { scriptMode: 'english', languagePreference: 'en', failOnTranslationError: true }
           : {
               scriptMode: 'native',
               languagePreference: language.hint,
-              preserveTranscriptionLanguage: true
+              preserveTranscriptionLanguage: true,
+              // The selected SRT language is handled by local multilingual
+              // Whisper; do not retry the suspended Gemini integration.
+              skipGeminiTranscription: true
             };
         sentences = await speechTranscriber.transcribeAudio(hintedFile, progress => {
           this.setProgress(progress?.percent, progress?.message || 'Transcribing audio…');

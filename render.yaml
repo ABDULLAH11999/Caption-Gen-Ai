@@ -38,5 +38,7 @@ services:
         value: "300"
       - key: VITE_APP_TITLE
         value: "ZEN CAPTION AI STUDIO"
+      - key: VITE_GROQ_TRANSCRIPTION_ENABLED
+        value: "true"
       - key: GROQ_API_KEY
         sync: false
