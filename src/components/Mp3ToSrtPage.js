@@ -37,8 +37,6 @@ export class Mp3ToSrtPage {
     this.selectedFile = null;
     this.srtText = '';
     this.isProcessing = false;
-    this.onWindowError = this.onWindowError.bind(this);
-    this.onUnhandledRejection = this.onUnhandledRejection.bind(this);
   }
 
   render(parentElement) {
@@ -101,8 +99,9 @@ export class Mp3ToSrtPage {
   }
 
   init() {
-    window.addEventListener('error', this.onWindowError);
-    window.addEventListener('unhandledrejection', this.onUnhandledRejection);
+    // Transcription, metadata, and download errors are handled by their own
+    // guarded flows. Listening to global page errors here made unrelated site
+    // errors appear as a failed SRT conversion when the route first opened.
   }
 
   bindEvents() {
@@ -262,20 +261,6 @@ export class Mp3ToSrtPage {
   hideError() {
     const dialog = this.container?.querySelector('#mp3-srt-error');
     if (dialog) dialog.hidden = true;
-  }
-
-  onWindowError(event) {
-    // Other site widgets can emit browser errors while this route loads. Only
-    // surface them here when this tool is actively processing an audio file.
-    if (this.isProcessing && this.container?.isConnected) {
-      this.showError(event?.error?.message || event?.message || 'An unexpected processing error occurred.');
-    }
-  }
-
-  onUnhandledRejection(event) {
-    if (this.isProcessing && this.container?.isConnected) {
-      this.showError(event?.reason?.message || 'An unexpected processing error occurred.');
-    }
   }
 
   formatDuration(seconds) {
