@@ -1,4 +1,5 @@
 .mp3-srt-page { min-height: calc(100vh - 80px); padding: 76px 20px 92px; color: #111827; background: linear-gradient(180deg, #f7f9ff 0%, #ffffff 47%, #f8fafc 100%); }
+.mp3-srt-page [hidden] { display: none !important; }
 .mp3-srt-hero, .mp3-srt-card, .mp3-srt-notes { width: min(100%, 780px); margin-inline: auto; }
 .mp3-srt-hero { text-align: center; margin-bottom: 32px; }
 .mp3-srt-eyebrow { display: inline-flex; background: #fff0eb; color: #ff5a3d; border-radius: 999px; padding: 7px 12px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
