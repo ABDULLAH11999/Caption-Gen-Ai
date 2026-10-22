@@ -7,6 +7,7 @@ import './styles/user-dashboard.css';
 import './styles/admin.css';
 import './styles/tool-modal.css';
 import './styles/captions.css';
+import './styles/mp3-to-srt.css';
 
 import { api } from './services/apiClient.js';
 import { Navbar } from './components/Navbar.js';
@@ -24,6 +25,7 @@ import { UserDashboard } from './components/UserDashboard.js';
 import { AdminDashboard } from './components/AdminDashboard.js';
 import { ToolStudioModal } from './components/ToolStudioModal.js';
 import { BetaTopBar } from './components/BetaTopBar.js';
+import { Mp3ToSrtPage } from './components/Mp3ToSrtPage.js';
 
 class ZenSaaSApp {
   constructor() {
@@ -223,6 +225,8 @@ class ZenSaaSApp {
       this.navigate('cookies', {}, false);
     } else if (path === '/app') {
       this.navigate('app', {}, false);
+    } else if (path === '/mp3-to-srt') {
+      this.navigate('mp3-to-srt', {}, false);
     } else if (path === '/admin') {
       this.navigate('admin', {}, false);
     } else {
@@ -257,6 +261,7 @@ class ZenSaaSApp {
     else if (route === 'terms') targetUrl = '/terms';
     else if (route === 'cookies') targetUrl = '/cookies';
     else if (route === 'app') targetUrl = '/app';
+    else if (route === 'mp3-to-srt') targetUrl = '/mp3-to-srt';
     else if (route === 'admin') targetUrl = '/admin';
 
     if (pushState && window.location.pathname !== targetUrl) {
@@ -287,6 +292,11 @@ class ZenSaaSApp {
         title: 'Free Auto Subtitle Studio - Zen Caption',
         desc: 'Add accurate captions to videos for free with our AI Auto Subtitle Studio. Upload your video, transcribe speech to text, customize animated fonts, and export without watermark.',
         keywords: 'free ai instagram caption generator for real estate, free captions generator customizable, real estate video caption generator, free caption generator video tool, free caption generator tool, auto subtitle generator online, free video caption tool, zen caption tool, zen caption, zen caption ai, free caption tool, free caption video, free video subtitle generator, online subtitle maker, free auto captions, client side video editor, no watermark subtitles, generate captions online, caption studio, free subtitle tool'
+      },
+      'mp3-to-srt': {
+        title: 'MP3 to SRT Subtitle Generator - Zen Caption AI',
+        desc: 'Create timestamped SRT subtitle files from English, Hindi, or Urdu audio directly in your browser.',
+        keywords: 'mp3 to srt, audio to subtitles, english srt, hindi srt, urdu srt, subtitle generator'
       },
       blog: {
         title: 'Creator Guides & Viral Caption Tips - Zen Caption AI Free Caption Tool',
@@ -433,6 +443,16 @@ class ZenSaaSApp {
         });
         this.userDashboard.render(this.mainContainer);
         this.userDashboard.init();
+        break;
+      }
+
+      case 'mp3-to-srt': {
+        const page = new Mp3ToSrtPage({
+          showToast: (msg, t) => this.showToast(msg, t),
+          onNavigate: (r, p) => this.navigate(r, p)
+        });
+        page.render(this.mainContainer);
+        page.init();
         break;
       }
 

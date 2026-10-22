@@ -165,10 +165,15 @@ class GeminiTranslationService {
       endTime: Number(seg.end ?? 0)
     }));
 
+    const languageInstruction = languagePreference === 'hindi'
+      ? 'The selected spoken language is Hindi. Use Devanagari Hindi only for nativeText.'
+      : languagePreference === 'urdu'
+        ? 'The selected spoken language is Urdu. Use Urdu Nastaliq/Arabic script only for nativeText.'
+        : 'Preserve the actual Hindi or Urdu language heard in the audio.';
     const scriptInstruction = scriptMode === 'native'
       ? `Return both fields:
 - "romanText": natural Roman Hindi/Urdu in Latin letters.
-- "nativeText": native Hindi Devanagari or Urdu Nastaliq based on the audio language.`
+- "nativeText": native Hindi Devanagari or Urdu Nastaliq based on the selected language.`
       : `Return both fields:
 - "romanText": natural Roman Hindi/Urdu in Latin letters.
 - "nativeText": native Hindi/Urdu if clearly known, otherwise an empty string.
@@ -179,6 +184,7 @@ Listen to the attached audio and transcribe the actual spoken words. Do not inve
 
 TARGET:
 ${scriptInstruction}
+${languageInstruction}
 
 TIMING:
 - Video duration is ${Number(duration || 0).toFixed(2)} seconds.

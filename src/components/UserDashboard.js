@@ -749,6 +749,13 @@ export class UserDashboard {
               <span>Apply Captions</span>
             </li>
 
+            <li class="user-menu-item" id="btn-mp3-to-srt">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                <path d="M9 18V5l10-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="16" cy="16" r="3"></circle>
+              </svg>
+              <span>MP3 to SRT</span>
+            </li>
+
             <li class="user-menu-item ${this.activeTab === 'quota' ? 'active' : ''}" data-tab="quota" id="tab-btn-quota">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path>
@@ -849,6 +856,11 @@ export class UserDashboard {
     this.container.querySelector('#btn-back-to-home')?.addEventListener('click', () => {
       this.closeSidebarDrawer();
       this.navigate('home');
+    });
+
+    this.container.querySelector('#btn-mp3-to-srt')?.addEventListener('click', () => {
+      this.closeSidebarDrawer();
+      this.navigate('mp3-to-srt');
     });
 
     this.container.querySelector('#btn-switch-admin')?.addEventListener('click', () => {
@@ -964,6 +976,7 @@ export class UserDashboard {
     wrap.querySelector('#btn-templates-apply-shortcut')?.addEventListener('click', () => {
       this.switchTab('apply');
     });
+
     const grid = wrap.querySelector('#simple-template-grid');
     DASHBOARD_TEMPLATE_OPTIONS.forEach(tpl => grid.appendChild(this.renderTemplateOptionCard(tpl)));
   }
