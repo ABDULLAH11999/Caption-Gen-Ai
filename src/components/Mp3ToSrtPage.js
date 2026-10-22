@@ -2,8 +2,9 @@ import { APP_CONFIG } from '../config.js';
 import { speechTranscriber } from '../services/speechTranscriber.js';
 
 const MAX_AUDIO_DURATION_SECONDS = 120 * 60;
-const MAX_GROQ_UPLOAD_BYTES = 100 * 1024 * 1024;
+const MAX_GROQ_UPLOAD_BYTES = APP_CONFIG.MAX_FILE_SIZE_MB * 1024 * 1024;
 const GROQ_TRANSCRIPTION_ENABLED = import.meta.env?.VITE_GROQ_TRANSCRIPTION_ENABLED === 'true';
+const MAX_SRT_WORDS_PER_SEGMENT = 8;
 // Some download tools save normal MP3 audio with an extra `.mpeg` extension
 // (for example, `song.mp3.mpeg`). Treat those files as supported audio.
 const AUDIO_EXTENSIONS = /\.(mp3|mp2|mpga|mpeg|wav|m4a|aac|ogg|oga|flac|webm)$/i;
@@ -20,20 +21,39 @@ const LANGUAGES = {
 };
 
 const formatSrtTime = (seconds) => {
-  const safe = Math.max(0, Number(seconds) || 0);
-  const hours = Math.floor(safe / 3600);
-  const minutes = Math.floor((safe % 3600) / 60);
-  const secs = Math.floor(safe % 60);
-  const milliseconds = Math.round((safe - Math.floor(safe)) * 1000);
+  const totalMilliseconds = Math.max(0, Math.round((Number(seconds) || 0) * 1000));
+  const hours = Math.floor(totalMilliseconds / 3600000);
+  const minutes = Math.floor((totalMilliseconds % 3600000) / 60000);
+  const secs = Math.floor((totalMilliseconds % 60000) / 1000);
+  const milliseconds = totalMilliseconds % 1000;
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')},${String(milliseconds).padStart(3, '0')}`;
 };
 
-const createSrt = (sentences = []) => sentences
-  .filter(sentence => String(sentence?.text || '').trim())
+const splitSentenceForSrt = (sentence) => {
+  const text = String(sentence?.text || '').trim();
+  if (!text) return [];
+  const words = text.split(/\s+/).filter(Boolean);
+  const start = Number(sentence.startTime ?? sentence.start ?? 0) || 0;
+  const end = Math.max(Number(sentence.endTime ?? sentence.end ?? 0) || 0, start + 0.05);
+  const parts = [];
+
+  for (let index = 0; index < words.length; index += MAX_SRT_WORDS_PER_SEGMENT) {
+    parts.push(words.slice(index, index + MAX_SRT_WORDS_PER_SEGMENT));
+  }
+
+  return parts.map((part, index) => {
+    const partStart = start + ((end - start) * index / parts.length);
+    const partEnd = index === parts.length - 1
+      ? end
+      : start + ((end - start) * (index + 1) / parts.length);
+    return { start: partStart, end: Math.max(partEnd, partStart + 0.05), text: part.join(' ') };
+  });
+};
+
+export const createSrt = (sentences = []) => sentences
+  .flatMap(splitSentenceForSrt)
   .map((sentence, index) => {
-    const start = sentence.startTime ?? sentence.start ?? 0;
-    const end = Math.max(Number(sentence.endTime ?? sentence.end ?? 0), Number(start) + 0.05);
-    return `${index + 1}\n${formatSrtTime(start)} --> ${formatSrtTime(end)}\n${String(sentence.text).trim()}`;
+    return `${index + 1}\n${formatSrtTime(sentence.start)} --> ${formatSrtTime(sentence.end)}\n${sentence.text}`;
   })
   .join('\n\n');
 
