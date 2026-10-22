@@ -209,7 +209,13 @@ export class Mp3ToSrtPage {
     try {
       const options = this.selectedLanguage === 'en'
         ? { scriptMode: 'english', languagePreference: 'en', failOnTranslationError: true }
-        : { scriptMode: 'native', languagePreference: language.hint, failOnTranslationError: true };
+        : {
+            scriptMode: 'native',
+            languagePreference: language.hint,
+            // Keep native Hindi/Urdu text produced by local Whisper if the
+            // optional Gemini service is offline or its key is unavailable.
+            preserveTranscriptionLanguage: true
+          };
       const sentences = await speechTranscriber.transcribeAudio(hintedFile, progress => {
         this.setProgress(progress?.percent, progress?.message || 'Transcribing audio…');
       }, options);

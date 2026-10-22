@@ -439,7 +439,11 @@ class SpeechTranscriberService {
   }
 
   getModelIdForFile(fileBlob = null) {
-    return this.modelId;
+    // The multilingual Whisper model is needed for Hindi and Urdu. English
+    // continues to use the lighter model for faster local processing.
+    return this.getLanguageHintType(fileBlob) === 'south_asian'
+      ? this.nonEnglishModelId
+      : this.modelId;
   }
 
   getDominantNgramRatio(words, size = 2) {
@@ -1328,7 +1332,14 @@ class SpeechTranscriberService {
           }
         } catch (geminiAudioErr) {
           console.warn('[speechTranscriber] Gemini audio transcription failed:', geminiAudioErr.message);
-          throw new Error(`Hindi/Urdu Gemini transcription unavailable: ${geminiAudioErr.message || 'Please configure a valid Gemini API key.'}`);
+          // Gemini is an enhancement, not a requirement. A disabled, missing,
+          // or rate-limited key must never prevent a user from getting an SRT.
+          // Continue with the local multilingual Whisper model below.
+          onProgress({
+            status: 'loading_model',
+            message: 'Cloud transcription unavailable. Switching to local Hindi/Urdu Whisper…',
+            percent: 45
+          });
         }
       }
 
@@ -1404,7 +1415,10 @@ class SpeechTranscriberService {
 
           // If Urdu/Hindi detected or scriptMode specified, localize with Gemini AI; otherwise keep English pristine
           let finalSentences = rawSentences;
-          if (hasUrduOrHindi || translationOptions.scriptMode) {
+          // An explicit SRT language selection should preserve Whisper's native
+          // transcript. This provides a reliable no-cloud fallback when Gemini
+          // is unavailable and avoids translating the subtitle into English.
+          if (!translationOptions.preserveTranscriptionLanguage && (hasUrduOrHindi || translationOptions.scriptMode)) {
             const localizedSentences = await geminiTranslationService.translateSentencesWithGemini(rawSentences, (tp) => {
               onProgress({
                 status: 'translating',
