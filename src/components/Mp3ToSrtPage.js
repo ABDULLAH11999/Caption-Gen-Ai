@@ -2,7 +2,14 @@ import { APP_CONFIG } from '../config.js';
 import { speechTranscriber } from '../services/speechTranscriber.js';
 
 const MAX_AUDIO_DURATION_SECONDS = 120 * 60;
-const AUDIO_EXTENSIONS = /\.(mp3|wav|m4a|aac|ogg|oga|flac|webm)$/i;
+// Some download tools save normal MP3 audio with an extra `.mpeg` extension
+// (for example, `song.mp3.mpeg`). Treat those files as supported audio.
+const AUDIO_EXTENSIONS = /\.(mp3|mp2|mpga|mpeg|wav|m4a|aac|ogg|oga|flac|webm)$/i;
+const AUDIO_MIME_TYPES = new Set([
+  'audio/mpeg', 'audio/mp3', 'audio/mpg', 'audio/x-mpeg', 'audio/mp2',
+  'audio/wav', 'audio/x-wav', 'audio/m4a', 'audio/mp4', 'audio/aac',
+  'audio/ogg', 'audio/flac', 'audio/webm', 'video/mpeg'
+]);
 
 const LANGUAGES = {
   en: { label: 'English', native: 'English', hint: 'english', icon: 'EN', description: 'Create English subtitles' },
@@ -63,7 +70,7 @@ export class Mp3ToSrtPage {
 
         <div class="mp3-srt-divider"></div>
         <div class="mp3-srt-step-title"><span>2</span><div><h2>Upload audio</h2><p>MP3, WAV, M4A, AAC, OGG, FLAC, or WebM audio.</p></div></div>
-        <input id="mp3-srt-file-input" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.oga,.flac,.webm" hidden>
+        <input id="mp3-srt-file-input" type="file" accept="audio/*,.mp3,.mp2,.mpga,.mpeg,.wav,.m4a,.aac,.ogg,.oga,.flac,.webm" hidden>
         <button type="button" class="mp3-srt-upload" id="mp3-srt-upload" disabled>
           <span class="mp3-srt-upload-icon">⇧</span>
           <span><strong>Select a language first</strong><small>Maximum ${APP_CONFIG.MAX_FILE_SIZE_MB} MB · maximum 120 minutes</small></span>
@@ -150,7 +157,10 @@ export class Mp3ToSrtPage {
 
   validateFile(file) {
     if (!this.selectedLanguage) throw new Error('Select English, Hindi, or Urdu before uploading audio.');
-    if (!file || (!file.type.startsWith('audio/') && !AUDIO_EXTENSIONS.test(file.name))) {
+    const mimeType = String(file?.type || '').toLowerCase();
+    const hasSupportedExtension = AUDIO_EXTENSIONS.test(file?.name || '');
+    const hasSupportedMime = mimeType.startsWith('audio/') || AUDIO_MIME_TYPES.has(mimeType);
+    if (!file || (!hasSupportedMime && !hasSupportedExtension)) {
       throw new Error('Please choose a supported audio file.');
     }
     const limit = APP_CONFIG.MAX_FILE_SIZE_MB * 1024 * 1024;
