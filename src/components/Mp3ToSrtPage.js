@@ -265,11 +265,17 @@ export class Mp3ToSrtPage {
   }
 
   onWindowError(event) {
-    if (this.container?.isConnected) this.showError(event?.error?.message || event?.message || 'An unexpected error occurred.');
+    // Other site widgets can emit browser errors while this route loads. Only
+    // surface them here when this tool is actively processing an audio file.
+    if (this.isProcessing && this.container?.isConnected) {
+      this.showError(event?.error?.message || event?.message || 'An unexpected processing error occurred.');
+    }
   }
 
   onUnhandledRejection(event) {
-    if (this.container?.isConnected) this.showError(event?.reason?.message || 'An unexpected processing error occurred.');
+    if (this.isProcessing && this.container?.isConnected) {
+      this.showError(event?.reason?.message || 'An unexpected processing error occurred.');
+    }
   }
 
   formatDuration(seconds) {
