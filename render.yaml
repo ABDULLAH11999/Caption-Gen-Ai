@@ -2,7 +2,7 @@ services:
   # Node web service: serves the SPA and protects server-side transcription keys.
   - type: web
     name: zen-caption-ai-studio
-    env: node
+    runtime: node
     buildCommand: npm install && npm run build
     startCommand: npm start
     pullRequestPreviewsEnabled: true
