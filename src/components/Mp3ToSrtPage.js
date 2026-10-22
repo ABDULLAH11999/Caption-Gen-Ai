@@ -212,8 +212,17 @@ export class Mp3ToSrtPage {
       let sentences;
       try {
         if (!GROQ_TRANSCRIPTION_ENABLED) throw new Error('Fast cloud transcription is not enabled for this deployment.');
-        this.setProgress(8, 'Sending audio to fast transcription…');
-        sentences = await this.transcribeWithGroq(file, this.selectedLanguage);
+        this.setProgress(8, 'Uploading audio to secure transcription…');
+        let serverProgress = 8;
+        const serverProgressTimer = window.setInterval(() => {
+          serverProgress = Math.min(92, serverProgress + (serverProgress < 55 ? 4 : 1));
+          this.setProgress(serverProgress, `Transcribing ${language.label} audio securely…`);
+        }, 1500);
+        try {
+          sentences = await this.transcribeWithGroq(file, this.selectedLanguage);
+        } finally {
+          window.clearInterval(serverProgressTimer);
+        }
         this.setProgress(96, 'Creating timestamped SRT…');
       } catch (groqError) {
         if (GROQ_TRANSCRIPTION_ENABLED) {
