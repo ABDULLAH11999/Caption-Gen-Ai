@@ -146,7 +146,7 @@ const GROQ_SOUTH_ASIAN_CHUNK_DURATION_SECONDS = 15;
 const getGroqChunkDurationSeconds = language => language === 'en'
   ? GROQ_ENGLISH_CHUNK_DURATION_SECONDS
   : GROQ_SOUTH_ASIAN_CHUNK_DURATION_SECONDS;
-const GROQ_TRANSCRIPTION_MODEL = process.env.GROQ_TRANSCRIPTION_MODEL || 'whisper-large-v3-turbo';
+const GROQ_TRANSCRIPTION_MODEL = process.env.GROQ_TRANSCRIPTION_MODEL || 'whisper-large-v3';
 
 const groqAudioUpload = multer({
   storage: multer.diskStorage({
@@ -216,7 +216,9 @@ async function transcribeGroqChunk({ filePath, fileName, language, offsetSeconds
   body.append('response_format', 'verbose_json');
   body.append('timestamp_granularities[]', 'segment');
   body.append('temperature', '0');
-  body.append('prompt', 'Transcribe every spoken word exactly. Do not summarize, skip, paraphrase, or merge narration. Preserve Hindi, Hinglish, English names, and abbreviations as spoken.');
+  if (language === 'en') {
+    body.append('prompt', 'Transcribe every spoken word exactly. Do not summarize, skip, paraphrase, or merge narration. Preserve English names, technical terms, and abbreviations as spoken.');
+  }
 
   let lastError = null;
   for (let attempt = 0; attempt < 3; attempt += 1) {

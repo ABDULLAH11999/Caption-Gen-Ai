@@ -4,7 +4,7 @@ import { speechTranscriber } from '../services/speechTranscriber.js';
 const MAX_AUDIO_DURATION_SECONDS = 120 * 60;
 const MAX_GROQ_UPLOAD_BYTES = APP_CONFIG.MAX_FILE_SIZE_MB * 1024 * 1024;
 const GROQ_TRANSCRIPTION_ENABLED = import.meta.env?.VITE_GROQ_TRANSCRIPTION_ENABLED === 'true';
-const MAX_SRT_WORDS_PER_SEGMENT = 8;
+const TARGET_SRT_SEGMENT_DURATION_SECONDS = 3.35;
 // Some download tools save normal MP3 audio with an extra `.mpeg` extension
 // (for example, `song.mp3.mpeg`). Treat those files as supported audio.
 const AUDIO_EXTENSIONS = /\.(mp3|mp2|mpga|mpeg|wav|m4a|aac|ogg|oga|flac|webm)$/i;
@@ -30,24 +30,69 @@ const formatSrtTime = (seconds) => {
 };
 
 const splitSentenceForSrt = (sentence) => {
-  const text = String(sentence?.text || '').trim();
-  if (!text) return [];
-  const words = text.split(/\s+/).filter(Boolean);
+  const rawText = String(sentence?.text || '').trim();
+  if (!rawText) return [];
+
   const start = Number(sentence.startTime ?? sentence.start ?? 0) || 0;
   const end = Math.max(Number(sentence.endTime ?? sentence.end ?? 0) || 0, start + 0.05);
-  const parts = [];
+  const duration = Math.max(0.1, end - start);
+  const words = rawText.split(/\s+/).filter(Boolean);
 
-  for (let index = 0; index < words.length; index += MAX_SRT_WORDS_PER_SEGMENT) {
-    parts.push(words.slice(index, index + MAX_SRT_WORDS_PER_SEGMENT));
+  // If already ~4 seconds or fewer than 12 words, keep as single natural block
+  if (duration <= 4.0 || words.length <= 12) {
+    return [{ start, end, text: words.join(' ') }];
   }
 
-  return parts.map((part, index) => {
-    const partStart = start + ((end - start) * index / parts.length);
-    const partEnd = index === parts.length - 1
-      ? end
-      : start + ((end - start) * (index + 1) / parts.length);
-    return { start: partStart, end: Math.max(partEnd, partStart + 0.05), text: part.join(' ') };
-  });
+  const numChunks = Math.max(1, Math.round(duration / TARGET_SRT_SEGMENT_DURATION_SECONDS));
+  if (numChunks <= 1) {
+    return [{ start, end, text: words.join(' ') }];
+  }
+
+  const totalWords = words.length;
+  const parts = [];
+  let wordIdx = 0;
+
+  for (let c = 0; c < numChunks; c++) {
+    const isLast = (c === numChunks - 1);
+    const remainingChunks = numChunks - c;
+    const remainingWords = totalWords - wordIdx;
+
+    let take = Math.round(remainingWords / remainingChunks);
+    if (isLast) {
+      take = remainingWords;
+    } else {
+      // Look ahead +/- 2 words for punctuation marks like comma, danda, period
+      const minTake = Math.max(4, take - 2);
+      const maxTake = Math.min(remainingWords - 4, take + 2);
+      let bestBreak = take;
+      for (let offset = 0; offset <= 2; offset++) {
+        if (take + offset <= maxTake && /[,।\.\?!;]$/.test(words[wordIdx + take + offset - 1])) {
+          bestBreak = take + offset;
+          break;
+        }
+        if (take - offset >= minTake && /[,।\.\?!;]$/.test(words[wordIdx + take - offset - 1])) {
+          bestBreak = take - offset;
+          break;
+        }
+      }
+      take = bestBreak;
+    }
+
+    const chunkWords = words.slice(wordIdx, wordIdx + take);
+    const chunkStart = start + (duration * (wordIdx / totalWords));
+    const chunkEnd = isLast ? end : start + (duration * ((wordIdx + take) / totalWords));
+    wordIdx += take;
+
+    if (chunkWords.length) {
+      parts.push({
+        start: chunkStart,
+        end: Math.max(chunkEnd, chunkStart + 0.05),
+        text: chunkWords.join(' ')
+      });
+    }
+  }
+
+  return parts;
 };
 
 export const createSrt = (sentences = []) => sentences
