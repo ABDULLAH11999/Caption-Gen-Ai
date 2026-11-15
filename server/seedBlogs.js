@@ -2775,6 +2775,232 @@ Zen Caption AI features built-in mobile safe zone overlays so you can verify per
   }
 ];
 
+// Append-only MP3-to-SRT content. These slugs are intentionally separate from the
+// original 125 articles so existing published rows are never changed.
+export const MP3_TO_SRT_SEO_TOPICS_10 = [
+  {
+    title: 'Free MP3 to SRT Converter: Create Subtitle Files from Audio Online',
+    slug: 'free-mp3-to-srt-converter-create-subtitle-files-online',
+    excerpt: 'Turn spoken MP3 audio into a clean, timestamped SRT subtitle file for videos, podcasts, YouTube, and social clips.',
+    keywords: 'free mp3 to srt converter, mp3 to srt online, audio to subtitle file, convert mp3 to subtitles, srt generator free',
+    meta_title: 'Free MP3 to SRT Converter: Create Subtitles Online',
+    meta_desc: 'Learn how to convert MP3 audio to a timestamped SRT subtitle file online for free, then review and use it in your video workflow.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# Free MP3 to SRT Converter: Create Subtitle Files from Audio Online
+
+An **MP3 to SRT converter** turns spoken audio into subtitle cues with start times, end times, and readable text. It is useful when you have a podcast, lecture, voice note, interview, or recorded narration but need captions for a video.
+
+## How to Convert MP3 to SRT
+1. Upload a clear MP3 recording to an AI transcription tool.
+2. Select the spoken language or use language detection.
+3. Review names, numbers, and specialist terms in the transcript.
+4. Export the result as an **.srt** file.
+
+## What an SRT File Contains
+Each cue has a number, a time range, and the spoken words. Video platforms and editors use these timestamps to display captions in sync with audio.
+
+## Before You Download
+Listen through the final transcript once. Correcting short lines, punctuation, and brand names makes subtitles easier to read and more professional. Zen Caption AI helps turn speech into editable captions so you can prepare an MP3 transcript for a video workflow.`
+  },
+  {
+    title: 'How to Convert MP3 to SRT for YouTube Subtitles',
+    slug: 'how-to-convert-mp3-to-srt-for-youtube-subtitles',
+    excerpt: 'Create an SRT file from MP3 audio and upload it as timed captions for YouTube videos, podcasts, and educational content.',
+    keywords: 'mp3 to srt for youtube, youtube subtitle file, upload srt to youtube, convert audio to captions, youtube captions from mp3',
+    meta_title: 'How to Convert MP3 to SRT for YouTube Subtitles',
+    meta_desc: 'A practical guide to converting MP3 audio into an SRT file, checking timestamps, and using it for YouTube subtitles.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# How to Convert MP3 to SRT for YouTube Subtitles
+
+You can make a YouTube subtitle file before the final video is ready. Start with the voiceover or podcast **MP3**, create timed captions, and save the result as SRT.
+
+## Simple Workflow
+Upload the MP3, transcribe the speech, edit obvious errors, and export SRT. When the video uses the same audio from the beginning, its captions should align closely. If the video has an intro before the audio begins, shift subtitle timing to match the final edit.
+
+## YouTube Caption Checklist
+- Use the exact language spoken in the recording.
+- Keep cues short enough to scan comfortably.
+- Check spellings for people, products, and links.
+- Preview the SRT against the finished video before publishing.
+
+## Why Start from Audio?
+Using the original MP3 can produce a cleaner transcript than transcribing a compressed social-media export. It also lets creators prepare captions while an editor is finishing visuals.`
+  },
+  {
+    title: 'MP3 to SRT Hindi: Convert Hindi Audio to Accurate Subtitles',
+    slug: 'mp3-to-srt-hindi-convert-hindi-audio-to-subtitles',
+    excerpt: 'Learn how to convert Hindi MP3 recordings into editable SRT subtitles while preserving Hindi words, names, and natural punctuation.',
+    keywords: 'mp3 to srt hindi, hindi audio to subtitles, hindi srt generator, convert hindi mp3 to text, hindi subtitle file',
+    meta_title: 'MP3 to SRT Hindi: Convert Hindi Audio to Subtitles',
+    meta_desc: 'Convert Hindi MP3 audio into an editable SRT subtitle file. Get practical tips for Hindi transcription, names, timing, and review.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# MP3 to SRT Hindi: Convert Hindi Audio to Accurate Subtitles
+
+A **Hindi MP3 to SRT** workflow creates timed subtitle cues from Hindi speech. It is ideal for tutorials, interviews, devotional content, courses, podcasts, and short-form videos.
+
+## Set the Right Language First
+Choose Hindi when the audio is primarily Hindi. For Hinglish, test the language setting that best preserves both Hindi and English terms, then review the transcript manually. This is especially important for names, locations, technical words, and brand names.
+
+## Improve Hindi Subtitle Accuracy
+Use the clearest source recording available. Reduce music when possible, avoid overlapping speakers, and correct words that sound similar. Keep each subtitle to a natural spoken phrase instead of packing an entire sentence into one cue.
+
+## Export and Reuse
+Save the reviewed transcription as SRT for a video editor or hosting platform. You can also keep a plain-text version for descriptions, show notes, and searchable content.`
+  },
+  {
+    title: 'MP3 to SRT English: Make Timed English Subtitles from Audio',
+    slug: 'mp3-to-srt-english-make-timed-subtitles-from-audio',
+    excerpt: 'Convert English MP3 recordings into readable, properly timed SRT captions for tutorials, podcasts, interviews, and videos.',
+    keywords: 'mp3 to srt english, english audio to srt, english subtitle generator, mp3 transcript to srt, timed captions from audio',
+    meta_title: 'MP3 to SRT English: Make Timed Subtitles from Audio',
+    meta_desc: 'Create accurate English SRT subtitles from an MP3 recording. Learn the best review, timing, and formatting practices.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# MP3 to SRT English: Make Timed English Subtitles from Audio
+
+An English **MP3 to SRT** conversion gives your recording a subtitle track that viewers can read in sync. It works for product demos, online lessons, podcast clips, narrated reels, and interviews.
+
+## Create Better English Captions
+Start with the highest-quality source audio. Select English or auto-detect, generate the transcript, and edit it while listening. Add punctuation where it improves meaning, but do not change the speaker's message.
+
+## Format for Viewers, Not Just Software
+Break long sentences into short cues. Avoid placing a single word on screen unless it is intentional emphasis. Give viewers enough time to read each line before the next cue appears.
+
+## Final Quality Check
+Play the SRT beside the final video. Confirm that the first cue starts at the correct moment and that no lines overlap important on-screen text.`
+  },
+  {
+    title: 'MP3 to SRT for Podcasts: Turn Podcast Audio into Captions',
+    slug: 'mp3-to-srt-for-podcasts-turn-audio-into-captions',
+    excerpt: 'Repurpose a podcast MP3 into SRT captions for audiograms, YouTube uploads, social clips, and accessible episode pages.',
+    keywords: 'podcast mp3 to srt, podcast subtitles, audio to captions for podcast, srt for audiogram, podcast transcript subtitles',
+    meta_title: 'MP3 to SRT for Podcasts: Turn Audio into Captions',
+    meta_desc: 'Turn podcast MP3 files into SRT captions for audiograms, YouTube, social clips, and accessible video podcast content.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# MP3 to SRT for Podcasts: Turn Podcast Audio into Captions
+
+Your podcast MP3 already contains the words needed for compelling social clips. An **SRT file** adds timestamps, so those words can become synchronized captions on an audiogram or video podcast.
+
+## Podcast-to-Subtitle Workflow
+Transcribe the MP3 first, then create an SRT. Search the transcript for a strong moment, trim the matching video or waveform clip, and use the SRT cues as the caption layer.
+
+## Handle Multiple Speakers Carefully
+Automated transcription can confuse overlapping dialogue. Review speaker changes, interruptions, and names. If speaker labels are needed, use them consistently and keep the caption text brief.
+
+## Repurpose One Recording
+The same reviewed transcript can support SRT captions, show notes, quote cards, and searchable episode summaries. That makes each episode easier to discover and consume in different formats.`
+  },
+  {
+    title: 'Fix MP3 to SRT Timing: Sync Subtitle Files with Your Video',
+    slug: 'fix-mp3-to-srt-timing-sync-subtitle-files-with-video',
+    excerpt: 'Fix subtitle delay, drift, and mismatched start times when an SRT created from MP3 audio does not line up with video.',
+    keywords: 'fix mp3 to srt timing, sync srt with video, subtitle delay fix, srt timestamp correction, audio subtitle sync',
+    meta_title: 'Fix MP3 to SRT Timing: Sync Subtitles with Video',
+    meta_desc: 'Learn how to fix subtitle delay and timing drift when an MP3-to-SRT file does not synchronize with your final video.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# Fix MP3 to SRT Timing: Sync Subtitle Files with Your Video
+
+An MP3-derived SRT can be accurate but still appear early or late in a video. This usually happens because the final edit has an intro, removed pauses, or a different audio version.
+
+## Identify the Sync Problem
+- **Every cue is equally early or late:** apply one time offset.
+- **Cues gradually drift:** the audio and video versions do not have the same duration.
+- **Only one section is wrong:** split and retime the affected cues.
+
+## Reliable Fix Process
+Use a recognizable spoken phrase near the start and another near the end. Align the first cue, then compare the last cue. If both points match, preview the middle. If the timing slowly separates, regenerate captions from the final exported audio or edit the timestamps in sections.
+
+## Protect Your Work
+Keep the original SRT before making timing changes. A clean source file makes it easy to retry offsets without losing corrected text.`
+  },
+  {
+    title: 'MP3 to SRT vs MP3 to Text: What Is the Difference?',
+    slug: 'mp3-to-srt-vs-mp3-to-text-difference',
+    excerpt: 'Understand the difference between a plain MP3 transcript and an SRT subtitle file, and choose the right output for your project.',
+    keywords: 'mp3 to srt vs mp3 to text, srt vs transcript, audio transcription formats, subtitle timestamps, mp3 to text converter',
+    meta_title: 'MP3 to SRT vs MP3 to Text: What Is the Difference?',
+    meta_desc: 'Compare MP3-to-SRT and MP3-to-text outputs. Learn when you need timestamped subtitles versus a plain transcript.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# MP3 to SRT vs MP3 to Text: What Is the Difference?
+
+Both MP3-to-text and MP3-to-SRT tools begin with speech recognition, but their outputs serve different jobs.
+
+## MP3 to Text
+A plain transcript is a document containing the spoken words. It is useful for notes, articles, meeting records, search, summaries, and show notes.
+
+## MP3 to SRT
+An SRT adds sequence numbers and precise start and end times to the words. Video players and editing software use that timing to show captions at the right moment.
+
+## Which Should You Choose?
+Choose text when people will read the recording as a document. Choose SRT when the words must follow audio or video. For a content workflow, exporting both gives you captions for viewers and a transcript for editing and SEO content planning.`
+  },
+  {
+    title: 'How to Edit an SRT File After Converting MP3 Audio',
+    slug: 'how-to-edit-srt-file-after-converting-mp3-audio',
+    excerpt: 'Edit MP3-to-SRT subtitles correctly: fix transcription errors, shorten cues, preserve timestamp format, and avoid broken subtitle files.',
+    keywords: 'edit srt file, mp3 to srt editing, fix subtitle text, srt timestamp format, correct audio subtitles',
+    meta_title: 'How to Edit an SRT File After Converting MP3 Audio',
+    meta_desc: 'Learn how to edit an SRT file after MP3 conversion without breaking timestamps, subtitle numbering, or playback compatibility.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# How to Edit an SRT File After Converting MP3 Audio
+
+AI makes the first draft fast, but a quick human review turns an MP3-to-SRT export into a reliable subtitle file.
+
+## Edit These Details First
+Correct proper nouns, numbers, acronyms, and words misheard under music. Then shorten dense cues so viewers can comfortably read them while watching.
+
+## Preserve Valid SRT Structure
+Each cue needs a number, a timestamp line, subtitle text, and a blank line before the next cue. Keep the timestamp pattern intact: hours, minutes, seconds, milliseconds, then an arrow, then the end time.
+
+## Review in Context
+Use a subtitle editor or video preview rather than reading the file alone. A phrase can be technically correct yet remain on screen too briefly, begin too late, or cover a visual detail.`
+  },
+  {
+    title: 'Best Audio Quality Settings for Accurate MP3 to SRT Conversion',
+    slug: 'best-audio-quality-settings-accurate-mp3-to-srt-conversion',
+    excerpt: 'Get more accurate MP3-to-SRT subtitles by improving speech clarity, reducing background noise, and preparing audio before transcription.',
+    keywords: 'accurate mp3 to srt, improve audio transcription accuracy, mp3 subtitle quality, reduce noise before transcription, clear audio captions',
+    meta_title: 'Best Audio Settings for Accurate MP3 to SRT Conversion',
+    meta_desc: 'Improve MP3-to-SRT accuracy with simple audio preparation tips for clear speech, low noise, speaker separation, and clean subtitles.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# Best Audio Quality Settings for Accurate MP3 to SRT Conversion
+
+The best MP3-to-SRT results begin before transcription. Speech recognition has less guesswork when voices are clear, close to the microphone, and not covered by music or room noise.
+
+## Prepare Audio Before You Convert
+- Use the original recording rather than a repeatedly forwarded copy.
+- Keep speech louder than background music.
+- Avoid clipping, echo, and aggressive audio effects.
+- Process one clear speaker at a time when possible.
+
+## When Accuracy Needs Extra Review
+Allocate more review time for fast speech, strong accents, interviews with interruptions, product names, and mixed Hindi-English dialogue. These cases are normal; a transcript should be edited before it becomes a public subtitle file.
+
+## Better Input, Faster Finishing
+A clear source reduces the number of corrections and creates cleaner timestamp boundaries. That means a more readable SRT and a smoother captioned-video export.`
+  },
+  {
+    title: 'Hinglish MP3 to SRT: Create Hindi-English Subtitles from Audio',
+    slug: 'hinglish-mp3-to-srt-hindi-english-subtitles-from-audio',
+    excerpt: 'Convert Hinglish MP3 audio into readable Hindi-English SRT subtitles with practical tips for mixed-language speech and brand names.',
+    keywords: 'hinglish mp3 to srt, hindi english subtitles, mixed language audio to srt, hinglish subtitle generator, hindi english transcription',
+    meta_title: 'Hinglish MP3 to SRT: Hindi-English Subtitles from Audio',
+    meta_desc: 'Create clean Hinglish SRT subtitles from MP3 audio. Learn language selection, transcript review, and formatting for Hindi-English speech.',
+    featured_image: BLOG_FEATURED_IMAGE,
+    content: `# Hinglish MP3 to SRT: Create Hindi-English Subtitles from Audio
+
+Hinglish recordings move naturally between Hindi and English. An effective **Hinglish MP3 to SRT** workflow captures the meaning of both languages while keeping captions easy to follow.
+
+## Start with the Dominant Spoken Language
+If the speaker uses mostly Hindi with English terms, start with Hindi. If the recording is English-led, start with English. Compare the first result and select the setting that produces the fewest corrections for complete phrases, not just individual words.
+
+## Review Mixed-Language Details
+Check English product names, Hindi names, abbreviations, and words that may be transliterated differently. Choose one writing style for the final captions and apply it consistently.
+
+## Keep Hinglish Captions Readable
+Break at natural pauses, avoid long blocks, and preview the captions over the actual video. Clear bilingual subtitles help viewers keep pace even when they watch with the sound off.`
+  }
+];
+
 MORE_SEO_TOPICS_20.forEach((blog) => {
   SEEDED_BLOGS.push(blog);
 });
@@ -2792,6 +3018,10 @@ OUTPERFORMING_SEO_TOPICS_15.forEach((blog) => {
 });
 
 HIGH_IMPACT_VIRAL_SEO_TOPICS_15.forEach((blog) => {
+  SEEDED_BLOGS.push(blog);
+});
+
+MP3_TO_SRT_SEO_TOPICS_10.forEach((blog) => {
   SEEDED_BLOGS.push(blog);
 });
 
@@ -2813,7 +3043,8 @@ export async function seedBlogs() {
       ...PEAK_SEO_TOPICS_10,
       ...RESEARCHED_SEO_TOPICS_10,
       ...OUTPERFORMING_SEO_TOPICS_15,
-      ...HIGH_IMPACT_VIRAL_SEO_TOPICS_15
+      ...HIGH_IMPACT_VIRAL_SEO_TOPICS_15,
+      ...MP3_TO_SRT_SEO_TOPICS_10
     ];
     const newSlugs = appendOnlyBlogs.map(blog => blog.slug);
     const newCheck = await query('SELECT count(*) FROM blogs WHERE slug = ANY($1)', [newSlugs]);
